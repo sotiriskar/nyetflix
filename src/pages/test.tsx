@@ -41,7 +41,7 @@ export default function Home() {
     return releaseDate >= threeMonthsAgo;
   })
   .sort((a: any, b: any) => b.popularity - a.popularity)
-  .slice(0, 27);
+  .slice(0, 21);
 
   // banner movie (first movie in trending now)
   const bannerMovie = trendingNow?.shift();
@@ -83,7 +83,7 @@ export default function Home() {
         <NavBar />
         { loaded ? (
           <>
-            <Banner movie={bannerMovie} />
+            <Banner movie={bannerMovie}/>
             <Stack spacing={0}>
                 <Paper sx={{ backgroundColor: 'transparent', marginTop: 'calc(-7vw - .5vw)', zIndex: 1 }}>
                     <Typography variant="h4" sx={{

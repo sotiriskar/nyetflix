@@ -1,14 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import MovieCard from './HoverCard';
+import React, { useEffect, useState, useRef } from 'react';
+import { Splide, SplideSlide } from '@splidejs/react-splide';
 import { useBetween } from 'use-between';
 import { Paper } from '@mui/material';
-import { Pagination, Navigation } from 'swiper';
 
-// Import Swiper styles
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
+import '@splidejs/react-splide/css';
 
 export const useHoveredSlide = () => {
   const [hoveredSlide, setHoveredSlide] = useState(null);
@@ -18,117 +13,76 @@ export const useHoveredSlide = () => {
   };
 };
 
-const MovieSlider = (movies: any) => {
+const Slider = (movies: any) => {
   const { hoveredSlide, setHoveredSlide } = useBetween(useHoveredSlide);
 
-  const handleSwiperHover = (swiper: any) => {
-    console.log(swiper);
-    const swiperNext = swiper.el.querySelector('.swiper-button-next');
-    const swiperPrev = swiper.el.querySelector('.swiper-button-prev');
-    const swiperPagination = swiper.el.querySelector('.swiper-pagination');
-
-    if (swiperPrev) swiperPrev.style.opacity = '1';
-    if (swiperNext) swiperNext.style.opacity = '1';
-    if (swiperPagination) swiperPagination.style.opacity = '1';
+  const handleSlideChange = (splide: any) => {
+    const swiperPrev = document.querySelector('.splide__arrow--prev');
+    swiperPrev?.setAttribute('style', 'visibility: visible;');
   };
-
-  // const handleSwiperOut = (swiper: any) => {
-  //   console.log(swiper, 'out');
-  //   const swiperNext = swiper.el.querySelector('.swiper-button-next');
-  //   const swiperPrev = swiper.el.querySelector('.swiper-button-prev');
-  //   const swiperPagination = swiper.el.querySelector('.swiper-pagination');
-
-  //   if (swiperPrev) swiperPrev.style.opacity = '0';
-  //   if (swiperNext) swiperNext.style.opacity = '0';
-  //   if (swiperPagination) swiperPagination.style.opacity = '0';
-  // };
-
-  const handleSlideChange = (swiper: any) => {
-    // const swiperNext = swiper.el.querySelector('.swiper-button-next');
-  };
-
-  useEffect(() => {
-    const swiperPrev = document.querySelector('.swiper-button-prev');
-    swiperPrev?.classList.add('swiper-button-disabled');
-  }, []);
 
   return (
-    <Paper
-      style={{ 
-        width: '100%',
-        backgroundColor: 'transparent',
-      }}
-    >
-      <Swiper
-        loop
-        navigation
-        speed={700}
-        pagination={{
-          type: 'bullets',
-        }}
-        allowTouchMove={false}
-        modules={[ Pagination, Navigation]}
-        onMouseLeave={(swiper) => (handleSlideChange(swiper))}
-        onMouseEnter={(swiper) => (handleSlideChange(swiper))}
-        style={{
-          overflow: 'visible',
-          width: '100%',
-          height: '100%',
-        }}
-        breakpoints={
-          {
-            0: {
-              slidesPerGroup: 2,
-              slidesPerView: 4, // 4
-            },
-            500: {
-              slidesPerGroup: 3,
-              slidesPerView: 5, // 5
-            },
-            800: {
-              slidesPerGroup: 5,
-              slidesPerView: 6, // 6
+    <Paper sx={{ width: '100%', overflow: 'visible', backgroundColor: 'transparent' }}>
+      <Splide
+        onMoved={(splide) => handleSlideChange(splide)}
+        options={{
+          rewind: false,
+          loop: true,
+          drag: false,
+          pagination: true,
+          arrows: true,
+          perPage: 7,
+          perMove: 6,
+          focus: .21,
+          speed: 800,
+          gap: '.32vw',
+          type: 'loop',
+          height: '9vw',
+          breakpoints: {
+            1400: {
+              perPage: 7,
+              perMove: 6,
+              focus: .18,
+              gap    : '0.32vw',
             },
             1100: {
-              slidesPerGroup: 5,
-              slidesPerView: 7, // 7
+              perPage: 4,
+              perMove: 3,
+              focus: .15,
+              gap    : '.4vw',
             },
-            1400: {
-              slidesPerGroup: 6,
-              slidesPerView: 8, // 8
-              spaceBetween: 4,
+            800: {
+              perPage: 3,
+              perMove: 2,
+              focus: .10,
+              gap    : '.3vw',
             },
-          }
-        }
+            500: {
+              perPage: 2,
+              perMove: 1,
+              gap    : 0,
+              focus: .07,
+            },
+          },
+        }}
       >
-      {movies.movies.map((movie: any) => (
-        <SwiperSlide
-          key={movie.id}
-          onContextMenu={(e) => e.preventDefault()}
-          style={{
-            overflow: 'visible',
-            height: '100%',
-            width: '100%',
-        }}>
-          {hoveredSlide === movie.id ? (
-              <MovieCard movie={movie} />
-          ) : (
+        {movies.movies.map((movie: any) => (
+          <SplideSlide key={movie.imdb_id}>
             <img
               src={movie.poster}
-              alt="movie"
+              alt={movie.title}
               style={{
-                height: '100%',
                 width: '100%',
-                borderRadius: '4px',
+                height: '100%',
+                borderRadius: '.2vw',
                 objectFit: 'fill',
               }}
             />
-          )}
-        </SwiperSlide>
-      ))}
-      </Swiper>
+          </SplideSlide>
+        ))}
+      </Splide>
     </Paper>
   );
 };
 
-export default MovieSlider;
+export default Slider;
