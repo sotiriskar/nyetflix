@@ -68,11 +68,12 @@ export default function Banner({ movie }: BannerProps) {
   return (
     <Paper
       sx={{
+        zIndex: 0,
         width: '100%',
         height: '50.2vw',
+        boxShadow: 'None',
         overflow: 'hidden',
         position: 'relative',
-        boxShadow: 'None',
         backgroundColor: 'transparent',
       }}
     >
@@ -151,10 +152,11 @@ export default function Banner({ movie }: BannerProps) {
               }}
             />
           <Typography sx={{ 
-              fontSize: removeDescription && videoPlaying ? '0' : '1.1vw',
               opacity: removeDescription && videoPlaying ? '0' : '1',
-              transition: 'opacity .2s, font-size .7s',
+              lineHeight: removeDescription && videoPlaying ? '0' : '-10vw',
+              transition: 'opacity .2s, line-height .7s',
               fontWeight: '400',
+              fontSize: '1.1vw',
               spacing: '0.1vw',
               color: 'white',
               width: '100%',

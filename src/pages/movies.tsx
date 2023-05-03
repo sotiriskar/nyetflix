@@ -1,12 +1,14 @@
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import NavBar from '../../components/NavBar';
-import MovieSlider from '../../components/Slider';
+import Slider from '../../components/Slider';
 import Banner from '../../components/Banner';
 import Footer from '../../components/Footer';
-import { Grid, Skeleton } from '@mui/material';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
 
-export default function Home() {
+
+export default function Movies() {
   const [movies, setMovies] = useState<Array<any>>([]);
   const [itemsToShow, setItemsToShow] = useState<any>([]);
   const [loaded, setLoaded] = useState(false);
@@ -41,7 +43,7 @@ export default function Home() {
     return releaseDate >= threeMonthsAgo;
   })
   .sort((a: any, b: any) => b.popularity - a.popularity)
-  .slice(0, 29);
+  .slice(0, 24);
 
   // banner movie (first movie in trending now)
   const bannerMovie = trendingNow?.shift();
@@ -50,7 +52,7 @@ export default function Home() {
   const topRated = movies
   ?.sort((a: any, b: any) => b.vote_count - a.vote_count || b.score - a.score) // sort by vote count and score
   .filter((movie: any) => !trendingNow?.some((trend: any) => trend.id === movie.id) && movie.id !== bannerMovie?.id) // remove all trending movies
-  .slice(0, 28);
+  .slice(0, 24);
 
   // popular
   const popular = movies
@@ -59,67 +61,7 @@ export default function Home() {
   .filter((movie: any) => !trendingNow?.some((trend: any) =>
     trend.id === movie.id) && !topRated?.some((top: any) =>
     top.id === movie.id) && movie.id !== bannerMovie?.id)
-  .slice(0, 28);
-
-  // action  
-  const action = movies
-    ?.filter((movie: any) => {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      // remove all trending movies & popular movies from top rated action
-      if (
-        trendingNow?.some((trend: any) => trend.id === movie.id) ||
-        topRated?.some((top: any) => top.id === movie.id) ||
-        popular?.some((pop: any) => pop.id === movie.id) ||
-        bannerMovie?.id === movie.id
-      ) {
-        return false;
-      }
-      return movie.genre.includes('Action') && new Date(movie.release_date) >= oneYearAgo;
-    })
-    // sort by popularity
-    .sort((a: any, b: any) => b.popularity - a.popularity)
-    .slice(0, 28);
-    
-  // comedy
-  const comedy = movies
-    ?.filter((movie: any) => {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      if (
-        trendingNow?.some((trend: any) => trend.id === movie.id) ||
-        topRated?.some((top: any) => top.id === movie.id) ||
-        popular?.some((pop: any) => pop.id === movie.id) ||
-        action?.some((act: any) => act.id === movie.id) ||
-        bannerMovie?.id === movie.id
-      ) {
-        return false;
-      }
-      return movie.genre.includes('Comedy') && new Date(movie.release_date) >= oneYearAgo;
-    })
-    .sort((a: any, b: any) => b.popularity - a.popularity)
-    .slice(0, 28);
-
-  // drama
-  const drama = movies
-    ?.filter((movie: any) => {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      // remove all trending movies & popular movies from top rated action
-      if (
-        trendingNow?.some((trend: any) => trend.id === movie.id) ||
-        topRated?.some((top: any) => top.id === movie.id) ||
-        popular?.some((pop: any) => pop.id === movie.id) ||
-        action?.some((act: any) => act.id === movie.id) ||
-        comedy?.some((com: any) => com.id === movie.id) ||
-        bannerMovie?.id === movie.id
-      ) {
-        return false;
-      }
-      return movie.genre.includes('Drama') && new Date(movie.release_date) >= oneYearAgo;
-    })
-    .sort((a: any, b: any) => b.popularity - a.popularity)
-    .slice(0, 28);
+  .slice(0, 24);
 
   return (
     <>
@@ -142,82 +84,77 @@ export default function Home() {
         <NavBar />
         { loaded ? (
           <>
-        <Banner movie={bannerMovie} />
-        <Grid container sx={{ flexGrow: 1, marginTop: 'calc(-9vw - .5vw)' }}>
-        <Grid item sx={{ padding: '50px 0 20px 6%', zIndex: 1 }}>
-              <h2 style={{
-                fontSize: '1.4vw',
-                lineHeight: '1.25vw',
-                verticalAlign: 'bottom',
-                fontWeight: 500,
-              }}
-              >Trending Now</h2>
-          </Grid>
-          <Grid item xs={12}>
-            <MovieSlider movies={trendingNow} />
-          </Grid>
-          <Grid item sx={{ padding: '50px 0 20px 6%' }}>
-              <h2 style={{
-                  fontSize: '1.4vw',
-                  lineHeight: '1.25vw',
-                  verticalAlign: 'bottom',
-                  fontWeight: 500,
-                }}
-              >Top Rated Movies</h2>
-          </Grid>
-          <Grid item xs={12}>
-            <MovieSlider movies={topRated} />
-          </Grid>
-          <Grid item sx={{ padding: '50px 0 20px 6%' }}>
-                <h2 style={{
-                  fontSize: '1.4vw',
-                  lineHeight: '1.25vw',
-                  verticalAlign: 'bottom',
-                  fontWeight: 500,
-                }}
-              >Popular on Nyetflix</h2>
-          </Grid>
-          <Grid item xs={12}>
-            <MovieSlider movies={popular} />
-          </Grid>
-          <Grid item sx={{ padding: '50px 0 20px 6%' }}>
-                <h2 style={{
-                  fontSize: '1.4vw',
-                  lineHeight: '1.25vw',
-                  verticalAlign: 'bottom',
-                  fontWeight: 500,
-                }}
-              >New Action Movies</h2>
-          </Grid>
-          <Grid item xs={12}>
-            <MovieSlider movies={action} />
-          </Grid>
-          <Grid item sx={{ padding: '50px 0 20px 6%' }}>
-                <h2 style={{
-                  fontSize: '1.4vw',
-                  lineHeight: '1.25vw',
-                  verticalAlign: 'bottom',
-                  fontWeight: 500,
-                }}
-              >New Comedy Movies</h2>
-          </Grid>
-          <Grid item xs={12}>
-            <MovieSlider movies={comedy} />
-          </Grid>
-          <Grid item sx={{ padding: '50px 0 20px 6%' }}>
-                <h2 style={{
-                  fontSize: '1.4vw',
-                  lineHeight: '1.25vw',
-                  verticalAlign: 'bottom',
-                  fontWeight: 500,
-                }}
-              >New Drama Movies</h2>
-          </Grid>
-          <Grid item xs={12}>
-            <MovieSlider movies={drama} />
-          </Grid>
-        </Grid>
-        </>
+            <Banner movie={bannerMovie} />
+            <Stack spacing={0} sx={{ overflow: 'visible' }}>
+              <Paper sx={{ 
+                backgroundColor: 'transparent',
+                marginTop: 'calc(-7vw - .5vw)',
+                boxShadow: 'None',
+                '&:hover': {
+                  '& .MuiSvgIcon-root': {
+                    opacity: '1',
+                  },
+                },
+              }}>
+                  <Typography variant="h4" 
+                    className='explore'
+                      sx={{
+                        position: 'relative',
+                        fontSize: '1.4vw',
+                        lineHeight: '1.25vw',
+                        verticalAlign: 'bottom',
+                        letterSpacing: '.05em',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        fontFamily: 'inherit',
+                        margin: '0 0 1vw 5%',
+                        color: '#fff',
+                        zIndex: 0,  
+                        '&:hover': {
+                        '& span': {
+                          opacity: '1',
+                          display: 'inline',
+                          transition: 'opacity 5s ease-in-out',
+                        },
+                        '& svg': {
+                          marginLeft: '5.7%',
+                          transition: 'all .7s ease-in-out',
+                        },
+                      },
+                    }}
+                  >Trending Now
+                    <Typography variant="h4" component="span" sx={{
+                      display: 'none',
+                      opacity: '0',
+                      position: 'absolute',
+                      fontSize: '.9vw',
+                      lineHeight: '1.5vw',
+                      verticalAlign: 'bottom',
+                      letterSpacing: '.05em',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontFamily: 'inherit',
+                      margin: '0 0 0 1%',
+                      color: '#54b9c4',
+                      zIndex: 0,
+                    }}
+                    >Explore All
+                    </Typography>
+                    <NavigateNextIcon sx={{ 
+                      opacity: '0',
+                      fontSize: '1.8vw',
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      bottom: '-.4vw',
+                      margin: '0',
+                      padding: '0',
+                      color: '#54b9c4',
+                    }} />
+                  </Typography>
+                  <Slider movies={trendingNow} />
+              </Paper>
+            </Stack>
+            </>
         ) : (
           <div style={{
             display: 'flex',

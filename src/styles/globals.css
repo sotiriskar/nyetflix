@@ -121,33 +121,6 @@ a {
 
 /* SWIPER || PAGINATION */
 
-.splide__pagination {
-  position: absolute !important;
-  top: -1.25vw !important;
-  z-index: 1 !important;
-  display: flex !important;
-  justify-content: right !important;
-  margin: 0 0 0 -3% !important;
-  width: 100% !important;
-  height: 1vw !important;
-}
-
-.splide__pagination__page {
-  background-color: rgba(0,0,0,0.2) !important;
-  border-radius: 0 !important;
-  height: 0.2vw !important;
-  width: .6vw !important;
-  margin: -.21vw !important;
-}
-
-.splide__pagination__page.is-active {
-  background-color: rgba(255,255,255,1) !important;
-  height: 0.11vw !important;
-  width: 1vw !important;
-  border-radius: 0 !important;
-  border: none !important;
-}
-
 /* SWIPER || SLIDERS */
 
 .splide__track {
