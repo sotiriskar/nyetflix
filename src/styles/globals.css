@@ -108,56 +108,6 @@ a {
   text-transform: lowercase !important;
 }
 
-/* .swiper-button-prev {
-  opacity: 0;
-  visibility: hidden;
-  color: #fff;
-  min-width: 3.5%;
-  min-height: 100%;
-  font-weight: 900;
-  margin-left: -1%;
-  border-radius: 3px;
-  transform: translateY(-38%) translateX(-5%);
-}
-
-.swiper-button-next {
-  opacity: 0;
-  color: #fff;
-  min-width: 3.5%;
-  min-height: 100%;
-  font-weight: 900;
-  margin-right: 21%;
-  border-radius: 3px;
-  transform: translateY(-38%) translateX(5%);
-}
-
-.swiper-button-next:hover {
-  opacity: 1;
-  transition: background 0.3s ease font-size 0.5s ease;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.8));
-}
-
-.swiper-button-prev:hover {
-  opacity: 1;
-  transition: background 0.3s ease font-size 0.5s ease;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.2));
-}
-
-.swiper-slide:hover {
-  transform: scaleX(1.5) scaleY(2.5);
-  transition: transform 0.5s ease;
-  z-index: 1;
-}
-
-.swiper:hover {
-  z-index: 999;
-}
-
-.swiper-button-next::after,
-.swiper-button-prev::after {
-  color: #fff;
-} */
-
 .genres::after {
   content: ' • ';
   color: grey;
@@ -169,42 +119,67 @@ a {
   content: '';
 }
 
-.swiper-pagination {
-	position: absolute !important;
-  opacity: 0 !important;
-	top: -20% !important;
-	right: 12.5% !important;
-	width: auto !important;
-	left: auto !important;
-  z-index: 1;
-}
-.swiper-pagination-bullet {
-	padding: 0 0.3vw !important;
-  margin: 0 0.01vw !important;
-	border-radius: 0 !important;
-	height: .1vw !important;
-	background: rgba(0,0,0,1) !important;
+/* SWIPER || PAGINATION */
+
+.splide__pagination {
+  position: absolute !important;
+  top: -1.25vw !important;
+  z-index: 1 !important;
+  display: flex !important;
+  justify-content: right !important;
+  margin: 0 0 0 -3% !important;
+  width: 100% !important;
+  height: 1vw !important;
 }
 
-.swiper-pagination-bullet-active {
-	background: rgba(255,255,255,1) !important;
+.splide__pagination__page {
+  background-color: rgba(0,0,0,0.2) !important;
+  border-radius: 0 !important;
+  height: 0.2vw !important;
+  width: .6vw !important;
+  margin: -.21vw !important;
 }
 
-.swiper:hover .swiper-pagination {
-  opacity: 1 !important;
-  z-index: 1;
+.splide__pagination__page.is-active {
+  background-color: rgba(255,255,255,1) !important;
+  height: 0.11vw !important;
+  width: 1vw !important;
+  border-radius: 0 !important;
+  border: none !important;
 }
 
 /* SWIPER || SLIDERS */
+
+.splide__track {
+  overflow: visible !important;
+  z-index: 1;
+}
+
+.splide__slide:hover {
+  transition: transform 0.2s ease-in-out;
+  transform: scaleX(1.45) scaleY(2.35);
+  z-index: 99999999;
+}
+
+/* MEDIA QUERIES */
 
 @media (min-width: 1400px) {
   .splide__slide {
     width: 15.3% !important;
     height: 9vw !important;
+    cursor: pointer;
   }
 
   .splide__slide--clone {
     visibility: hidden;
+  }
+
+  .splide svg {
+    opacity: 0;
+  }
+
+  .splide:hover svg {
+    opacity: 1;
   }
 
   /* Previous Arrow */
@@ -219,6 +194,7 @@ a {
   }
 
   .splide__arrow--prev:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.5vw !important;
     font-weight: 900 !important;
   }
@@ -240,7 +216,7 @@ a {
   }
 
   .splide__arrow--next:hover svg {
-    transition: font-size 0.5s ease;
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }
@@ -249,11 +225,6 @@ a {
     font-size: 1.25vw !important;
     font-weight: 900 !important;
     fill: white !important;
-    opacity: 0;
-  }
-
-  .splide__slide:hover .splide__arrow--next svg {
-    opacity: 1;
   }
 }
 
@@ -261,64 +232,19 @@ a {
   .splide__slide {
     width: 18.4% !important;
     height: 11vw !important;
+    cursor: pointer;
   }
 
   .splide__slide--clone {
     visibility: hidden;
   }
 
-    /* Previous Arrow */
-
-    .splide__arrow--prev {
-      background-color: rgba(0,0,0,0.5) !important;
-      border-radius: .2vw !important;
-      height: 100% !important;
-      width: 3% !important;
-      left: 0 !important;
-      visibility: hidden;
-    }
-  
-    .splide__arrow--prev:hover svg {
-      font-size: 1.75vw !important;
-      font-weight: 900 !important;
-    }
-  
-    .splide__arrow--prev svg {
-      font-size: 1.25vw !important;
-      font-weight: 900 !important;
-      fill: white !important;
-    }
-  
-    /* Next Arrow */
-  
-    .splide__arrow--next {
-      background-color: rgba(0,0,0,0.5) !important;
-      border-radius: .2vw !important;
-      height: 100% !important;
-      width: 3% !important;
-      right: 0 !important;
-    }
-  
-    .splide__arrow--next:hover svg {
-      font-size: 1.75vw !important;
-      font-weight: 900 !important;
-    }
-  
-    .splide__arrow--next svg {
-      font-size: 1.25vw !important;
-      font-weight: 900 !important;
-      fill: white !important;
-    }
-}
-
-@media screen and (max-width: 1100px) and (min-width: 800px) {
-  .splide__slide {
-    width: 23% !important;
-    height: 14vw !important;
+  .splide svg {
+    opacity: 0;
   }
-
-  .splide__slide--clone {
-    visibility: hidden;
+  
+  .splide:hover svg {
+    opacity: 1;
   }
 
   /* Previous Arrow */
@@ -333,6 +259,72 @@ a {
   }
 
   .splide__arrow--prev:hover svg {
+    transition: font-size 0.1s ease;
+    font-size: 1.75vw !important;
+    font-weight: 900 !important;
+  }
+  
+  .splide__arrow--prev svg {
+    font-size: 1.25vw !important;
+    font-weight: 900 !important;
+    fill: white !important;
+  }
+
+  /* Next Arrow */
+
+  .splide__arrow--next {
+    background-color: rgba(0,0,0,0.5) !important;
+    border-radius: .2vw !important;
+    height: 100% !important;
+    width: 3% !important;
+    right: 0 !important;
+  }
+  
+  .splide__arrow--next:hover svg {
+    transition: font-size 0.1s ease;
+    font-size: 1.75vw !important;
+    font-weight: 900 !important;
+  }
+
+  .splide__arrow--next svg {
+    font-size: 1.25vw !important;
+    font-weight: 900 !important;
+    fill: white !important;
+  }
+}
+
+@media screen and (max-width: 1100px) and (min-width: 800px) {
+  .splide__slide {
+    height: 14vw !important;
+    width: 23% !important;
+    cursor: pointer;
+  }
+
+  .splide__slide--clone {
+    visibility: hidden;
+  }
+
+  .splide svg {
+    opacity: 0;
+  }
+  
+  .splide:hover svg {
+    opacity: 1;
+  }
+
+  /* Previous Arrow */
+
+  .splide__arrow--prev {
+    background-color: rgba(0,0,0,0.5) !important;
+    border-radius: .2vw !important;
+    height: 100% !important;
+    width: 3% !important;
+    left: 0 !important;
+    visibility: hidden;
+  }
+
+  .splide__arrow--prev:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }
@@ -354,6 +346,7 @@ a {
   }
 
   .splide__arrow--next:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }
@@ -367,12 +360,21 @@ a {
 
 @media screen and (max-width: 800px) and (min-width: 500px) {
   .splide__slide {
-    width: 31% !important;
     height: 19vw !important;
+    width: 31% !important;
+    cursor: pointer;
   }
 
   .splide__slide--clone {
     visibility: hidden;
+  }
+
+  .splide svg {
+    opacity: 0;
+  }
+  
+  .splide:hover svg {
+    opacity: 1;
   }
 
   /* Previous Arrow */
@@ -387,6 +389,7 @@ a {
   }
 
   .splide__arrow--prev:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }
@@ -408,6 +411,7 @@ a {
   }
 
   .splide__arrow--next:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }
@@ -421,12 +425,21 @@ a {
 
 @media screen and (max-width: 499px) {
   .splide__slide {
-    width: 47% !important;
     height: 32vw !important;
+    width: 47% !important;
+    cursor: pointer;
   }
 
   .splide__slide--clone {
     visibility: hidden;
+  }
+
+  .splide svg {
+    opacity: 0;
+  }
+  
+  .splide:hover svg {
+    opacity: 1;
   }
 
   /* Previous Arrow */
@@ -441,6 +454,7 @@ a {
   }
 
   .splide__arrow--prev:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }
@@ -462,6 +476,7 @@ a {
   }
 
   .splide__arrow--next:hover svg {
+    transition: font-size 0.1s ease;
     font-size: 1.75vw !important;
     font-weight: 900 !important;
   }

@@ -41,7 +41,7 @@ export default function Home() {
     return releaseDate >= threeMonthsAgo;
   })
   .sort((a: any, b: any) => b.popularity - a.popularity)
-  .slice(0, 21);
+  .slice(0, 30);
 
   // banner movie (first movie in trending now)
   const bannerMovie = trendingNow?.shift();
@@ -84,21 +84,21 @@ export default function Home() {
         { loaded ? (
           <>
             <Banner movie={bannerMovie}/>
-            <Stack spacing={0}>
-                <Paper sx={{ backgroundColor: 'transparent', marginTop: 'calc(-7vw - .5vw)', zIndex: 1 }}>
-                    <Typography variant="h4" sx={{
-                        fontSize: '1.4vw',
-                        lineHeight: '1.25vw',
-                        verticalAlign: 'bottom',
-                        letterSpacing: '.05em',
-                        fontWeight: 500,
-                        fontFamily: 'inherit',
-                        margin: '0 0 1vw 5%',
-                        color: '#fff',
-                    }}
-                    >Trending Now</Typography>
-                    <Slider movies={trendingNow} />
-                </Paper>
+            <Stack spacing={0} sx={{ overflow: 'visible' }}>
+              <Paper sx={{ backgroundColor: 'transparent', marginTop: 'calc(-7vw - .5vw)' }}>
+                  <Typography variant="h4" sx={{
+                      fontSize: '1.4vw',
+                      lineHeight: '1.25vw',
+                      verticalAlign: 'bottom',
+                      letterSpacing: '.05em',
+                      fontWeight: 500,
+                      fontFamily: 'inherit',
+                      margin: '0 0 1vw 5%',
+                      color: '#fff',
+                  }}
+                  >Trending Now</Typography>
+                  <Slider movies={trendingNow} />
+              </Paper>
             </Stack>
             </>
         ) : (
