@@ -10,10 +10,7 @@ export default function Footer() {
     }, []);
 
   return (
-      <Box sx={{
-        width: '100%',
-        margin: '80px auto 0 auto',
-      }}>
+      <Box>
         <Grid container spacing={4} sx={{ width: '100%', margin: '-30px auto', alignItems: 'center', justifyContent: 'center' }}>
           <Grid item xs={12} lg={8}>
             <FacebookIcon sx={{ fontSize: '30px', color: 'rgba(255,255,255,0.8)', marginRight: '20px' }} />

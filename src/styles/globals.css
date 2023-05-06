@@ -125,13 +125,16 @@ a {
 
 .splide__track {
   overflow: visible !important;
-  z-index: 1;
 }
 
 .splide__slide:hover {
   transition: transform 0.2s ease-in-out;
   transform: scaleX(1.45) scaleY(2.35);
-  z-index: 99999999;
+  z-index: 999 !important;
+}
+
+.MuiStack-root .MuiPaper-root:hover {
+  z-index: 999 !important;
 }
 
 /* MEDIA QUERIES */
@@ -147,12 +150,12 @@ a {
     visibility: hidden;
   }
 
-  .splide svg {
-    opacity: 0;
+  .splide .splide__arrow svg {
+    opacity: 0 !important;
   }
 
-  .splide:hover svg {
-    opacity: 1;
+  .splide:hover .splide__arrow svg {
+    opacity: 1 !important;
   }
 
   /* Previous Arrow */
@@ -459,4 +462,10 @@ a {
     font-weight: 900 !important;
     fill: white !important;
   }
+}
+
+/* MODAL */
+
+.add-to-list:hover {
+  border: '2px solid rgba(255, 255, 255, 1)';
 }

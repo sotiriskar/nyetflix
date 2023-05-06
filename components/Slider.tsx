@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Paper } from '@mui/material';
 import { Splide, SplideSlide } from '@splidejs/react-splide';
 import { useBetween } from 'use-between';
-import { Paper } from '@mui/material';
 import MovieCard from './HoverCard';
 import '@splidejs/react-splide/css';
+
 
 export const useHoveredSlide = () => {
   const [hoveredSlide, setHoveredSlide] = useState(null);
@@ -17,42 +18,44 @@ export default function Slider(movies: any) {
   const { hoveredSlide, setHoveredSlide } = useBetween(useHoveredSlide);
 
   const handleSlideChange = () => {
-    const swiperPrev = document.querySelector('.splide__arrow--prev');
-    swiperPrev?.setAttribute('style', 'visibility: visible;');
+    const swiperPrev = document.querySelector('.splide:hover .splide__arrow--prev');
+    const firstSlide = document.querySelector('.splide__slide--clone');
+    swiperPrev?.setAttribute('style', 'visibility: visible !important;');
+    firstSlide?.setAttribute('style', 'visibility: visible !important;');
   };
-  
+
   useEffect(() => {
   }, []);
-  
+
   return (
-    <Paper sx={{ width: '100%', overflow: 'visible', backgroundColor: 'transparent', zIndex: 1, boxShadow: 'None' }}>
+    <Paper sx={{ width: '100%', overflow: 'visible', backgroundColor: 'transparent', boxShadow: 'None' }}>
       <Splide
         onMoved={() => handleSlideChange()}
         options={{
           pagination: false,
-          omitEnd: true,
-          rewind: false,
-          arrows: true,
-          drag: false,
+          omitEnd:     true,
+          rewind:     false,
+          arrows:      true,
+          drag:       false,
           perPage: 7,
           perMove: 6,
           loop: true,
           focus: .21,
           speed: 800,
-          height:'9vw',
-          gap:'.32vw',
-          type:'loop',
+          height: '9vw',
+          gap:  '.32vw',
+          type:  'loop',
           breakpoints: {
             1400: {
-              perPage  : 7,
-              perMove  : 6,
-              focus  : .18,
+              perPage:   7,
+              perMove:   6,
+              focus:   .18,
               gap: '0.32vw',
             },
             1100: {
-              perPage : 4,
-              perMove : 3,
-              focus : .15,
+              perPage:  4,
+              perMove:  3,
+              focus:  .15,
               gap: '.4vw',
             },
             800: {
@@ -64,7 +67,7 @@ export default function Slider(movies: any) {
             500: {
               perPage: 2,
               perMove: 1,
-              gap    : 0,
+              gap:     0,
               focus: .07,
             },
           },
@@ -78,7 +81,6 @@ export default function Slider(movies: any) {
           >
             {hoveredSlide === movie.id ? (
               <MovieCard
-                
                 movie={movie}
               />
             ) : (

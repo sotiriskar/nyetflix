@@ -1,24 +1,23 @@
-import { Card, CardContent, Typography, CardMedia, Stack } from '@mui/material';
+import { Card, CardContent, Typography, CardMedia, Stack, Button, Modal, Box } from '@mui/material';
 import Tooltip, { TooltipProps, tooltipClasses } from '@mui/material/Tooltip';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import VolumeOffIcon from '@mui/icons-material/VolumeOffOutlined';
 import ExpandIcon from '@mui/icons-material/ExpandMoreOutlined';
 import LikeIcon from '@mui/icons-material/ThumbUpOutlined';
+import React, { useEffect, useState, useRef } from 'react';
 import AddIcon from '@mui/icons-material/AddOutlined';
 import PlayIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '@mui/material/styles';
-import React, { useEffect, useState, useRef } from 'react';
+import { useBetween } from 'use-between';
+import {useModal} from './Banner';
 
 export default function MovieCard({ movie }: any) {
-  const video = `data/movies/trailers/${movie.imdb_id}.mp4`;
   const [subVideoPlaying, setSubVideoPlaying] = useState(true);
   const [showMuteButton, setShowMuteButton] = useState(true);
+  const video = `data/movies/trailers/${movie.imdb_id}.mp4`;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { setModalOpen } = useBetween(useModal);
   const [muted, setMuted] = useState(true);
-
-  const handleMute = () => {
-    setMuted(!muted);
-  }
 
   const LightTooltip = styled(({ className, ...props }: TooltipProps) => (
     <Tooltip {...props} arrow classes={{ popper: className }} placement='top' />
@@ -36,7 +35,17 @@ export default function MovieCard({ movie }: any) {
       color: 'black',
     },
   }));
-  
+
+  const handleClickOpen = () => {
+    const html = document.querySelector('html');
+    if (html) { html.style.marginRight = '17px'; html.style.overflow = 'hidden'; }
+    setModalOpen(true);
+  };
+
+  const handleMute = () => {
+    setMuted(!muted);
+  }
+
   const convertToHours = (duration: string) => {
     const hours = Math.floor(parseInt(duration) / 60);
     const minutes = parseInt(duration) % 60;
@@ -50,16 +59,26 @@ export default function MovieCard({ movie }: any) {
   useEffect(() => {
     const handleMouseMove = () => {
       setShowMuteButton(true);
+      const next = document.querySelector('.splide:hover .splide__arrow--next svg');
+      const prev = document.querySelector('.splide:hover .splide__arrow--prev svg');
+      if (next && prev) {
+        next.setAttribute('style', 'opacity: 1');
+        prev.setAttribute('style', 'opacity: 1');
+      }
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
       timerRef.current = setTimeout(() => {
         setShowMuteButton(false);
+        if (next && prev) {
+          next.setAttribute('style', 'opacity: 0 !important');
+          prev.setAttribute('style', 'opacity: 0 !important');
+        }
       }, 3000);
     };
-  
+
     document.addEventListener('mousemove', handleMouseMove);
-  
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       if (timerRef.current) {
@@ -94,6 +113,7 @@ export default function MovieCard({ movie }: any) {
             display: 'flex',
             height: '60%',
             width: '100%',
+            zIndex: 0,
           }}
         >
           {showMuteButton && (
@@ -105,8 +125,8 @@ export default function MovieCard({ movie }: any) {
               right: 0,
               height: '60%',
               width: '100%',
+              zIndex: 1,
               backgroundColor: 'transparent',
-              zIndex: 99,
             }}
           >
             <img 
@@ -127,6 +147,7 @@ export default function MovieCard({ movie }: any) {
               onClick={handleMute}          
               style={{
                 border: '1px solid rgba(255,255,255,0.4)',
+                transition: 'all 0.4s ease-in-out',
                 backgroundColor: 'transparent',
                 position: 'absolute',
                 alignItems: 'center',
@@ -139,7 +160,6 @@ export default function MovieCard({ movie }: any) {
                 width: '1.4vw',
                 bottom: '6%',
                 right: '7%',
-                transition: 'all 0.4s ease-in-out',
               }}
               onMouseEnter={() => {
                 const muteButton = document.getElementById('mute-banner');
@@ -210,7 +230,6 @@ export default function MovieCard({ movie }: any) {
               height: '100%',
               objectFit: 'cover',
               transform: 'scale(1.4)',
-              zIndex: 1
             }}
           >
             <source src={video} type="video/mp4" />
@@ -230,31 +249,31 @@ export default function MovieCard({ movie }: any) {
           }}
         />
       )}
-      <CardContent
-        sx={{
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: '0',
-          display: 'flex',
-          width: '100%',
-          height: '17%',
-          padding: '0',
-        }}
-      >
-        <Stack
-          direction="row" 
-          spacing={.5}
+        <CardContent
           sx={{
-            padding: '0 1vw .1vw 1vw',
-            justifyContent: 'left',
+            flexDirection: 'column',
+            justifyContent: 'center',
             alignItems: 'center',
-            position: 'absolute',
+            marginBottom: '0',
             display: 'flex',
             width: '100%',
-            height: '100%' 
-            }}
+            height: '17%',
+            padding: '0',
+          }}
         >
+          <Stack
+            direction="row" 
+            spacing={.5}
+            sx={{
+              padding: '0 1vw .1vw 1vw',
+              justifyContent: 'left',
+              alignItems: 'center',
+              position: 'absolute',
+              display: 'flex',
+              width: '100%',
+              height: '100%' 
+              }}
+          >
             <button 
               style={{
                 border: '1px solid white',
@@ -352,15 +371,21 @@ export default function MovieCard({ movie }: any) {
                     width: '1.5vw',
                   }}
                 >
-                  <ExpandIcon sx={{
-                    transform: 'scaleX(2) scaleY(1.2)',
-                    justifyContent: 'center',
-                    margin: '0 .07vw 0 0',
-                    alignItems: 'center',
-                    display: 'flex',
-                    height: '100%',
-                    width: '100%',
-                  }} />
+                  <ExpandIcon 
+                    onClick={() => {
+                      handleClickOpen()
+                      setSubVideoPlaying(false)
+                    }}
+                    sx={{
+                      transform: 'scaleX(2) scaleY(1.2)',
+                      justifyContent: 'center',
+                      margin: '0 .07vw 0 0',
+                      alignItems: 'center',
+                      display: 'flex',
+                      height: '100%',
+                      width: '100%',
+                    }} 
+                  />
                 </button>
               </LightTooltip>
             </div>
@@ -486,4 +511,4 @@ export default function MovieCard({ movie }: any) {
       </CardContent>
     </Card>
   );
-}
+};

@@ -1,16 +1,16 @@
 import { useRef, useState, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Paper, Stack, Grid } from '@mui/material';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
 import PlayArrowIcon from '@mui/icons-material/PlayArrowRounded';
 import VolumeOffIcon from '@mui/icons-material/VolumeOffOutlined';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
-import { Grid, Paper, Button, Typography } from '@mui/material';
 import { useHoveredSlide } from './Slider';
 import { useBetween } from "use-between";
+import InfoModal from './InfoModal';
 
-interface BannerProps {
-  movie: any;
-}
 
 export const useVideoState = () => {
   const [videoPlaying, setVideoPlaying] = useState(true);
@@ -20,9 +20,22 @@ export const useVideoState = () => {
   };
 };
 
+export const useModal = () => {
+  const [ modalOpen, setModalOpen ] = useState(false);
+  return {
+    modalOpen,
+    setModalOpen
+  };
+};
+
+interface BannerProps {
+  movie: any;
+}
+
 export default function Banner({ movie }: BannerProps) {
   const { videoPlaying, setVideoPlaying } = useBetween(useVideoState);
   const [ removeDescription, setRemoveDescription ] = useState(false);
+  const { modalOpen, setModalOpen } = useBetween(useModal);
   const { hoveredSlide } = useBetween(useHoveredSlide);
   const [muted, setMuted] = useState(true);
   const [video, setVideo] = useState(`data/movies/trailers/${movie.imdb_id}.mp4`);
@@ -31,6 +44,18 @@ export default function Banner({ movie }: BannerProps) {
   const handleMute = () => {
     setMuted(!muted);
   }
+
+  const handleClickOpen = () => {
+    const html = document.querySelector('html');
+    if (html) { html.style.marginRight = '17px'; html.style.overflow = 'hidden'; }
+    setModalOpen(true);
+  };
+
+  const handleClose = () => {
+    const html = document.querySelector('html');
+    if (html) { html.style.marginRight = '0'; html.style.overflow = 'unset'; }
+    setModalOpen(false);
+  };
 
   const resetVideo = () => {
     const ogVideo = `data/movies/trailers/${movie.imdb_id}.mp4`;
@@ -68,7 +93,6 @@ export default function Banner({ movie }: BannerProps) {
   return (
     <Paper
       sx={{
-        zIndex: 0,
         width: '100%',
         height: '50.2vw',
         boxShadow: 'None',
@@ -199,6 +223,12 @@ export default function Banner({ movie }: BannerProps) {
           </Grid>
           <Grid item >
             <Button
+              onClick={
+                () => {
+                  handleClickOpen();
+                  setVideoPlaying(false);
+                }
+              }
               sx={{
                 justifyContent: 'center',
                 backgroundColor: 'rgba(86,86,86,0.8)',
@@ -326,6 +356,43 @@ export default function Banner({ movie }: BannerProps) {
           </Paper>
         </Grid>
       </Grid>
+      <Dialog
+        disableScrollLock={false}
+        onClose={handleClose}
+        aria-labelledby="customized-dialog-title"
+        open={modalOpen}
+        maxWidth={'md'}
+        scroll={'body'}
+        sx={{
+          '& .MuiDialog-paper': {
+            backgroundColor: '#141414',
+            color: 'white',
+            padding: '0',
+          }
+        }}
+      >
+        <IconButton
+          aria-label="close"
+          onClick={() => {
+              handleClose();
+              setVideoPlaying(true);
+            }
+          }
+          sx={{
+            position: 'absolute',
+            backgroundColor: '#141414',
+            zIndex: 1,
+            width: '37px',
+            height: '37px',
+            right: 12,
+            top: 12,
+            color: 'white',
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <InfoModal media={movie} />
+      </Dialog>
     </Paper>
   );
 }

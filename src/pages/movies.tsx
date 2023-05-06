@@ -7,6 +7,94 @@ import Footer from '../../components/Footer';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
 
+interface SlideProps {
+  title: string;
+  slideList: any[];
+}
+
+const FullSlider = ({ title, slideList }: SlideProps) => {
+  return (
+    <Stack spacing={0} sx={{ overflow: 'visible', marginBottom: '10.5vw', zindex: 1 }}>
+      <Paper sx={{ 
+        backgroundColor: 'transparent',
+        marginTop: 'calc(-7vw - .5vw)',
+        boxShadow: 'None',
+        zIndex: 1,
+        '&:hover': {
+          '& .MuiSvgIcon-root': {
+            opacity: '1',
+          },
+        },
+        }}
+      >
+        <Paper sx={{
+            display: 'flex',
+            justifyContent: 'left',
+            alignItems: 'left',
+            height: '100%',
+            width: '100%',
+            backgroundColor: 'transparent',
+            boxShadow: 'None',
+            zIndex: 1,
+          }}
+        >
+          <Typography variant="h4" 
+            className='explore'
+              sx={{
+                fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+                margin: '0 0 1vw 3.1%',
+                verticalAlign: 'bottom',
+                letterSpacing: '.05em',
+                lineHeight: '1vw',
+                position: 'inline',
+                cursor: 'pointer',
+                fontSize: '1.4vw',
+                fontWeight: 500,
+                color: '#fff', 
+                '&:hover': {
+                '& span': {
+                  opacity: '1',
+                  margin: '0 0 0 .7vw',
+                  transition: 'all 1s ease-in-out',
+                },
+                '& svg': {
+                  marginLeft: '4.7%',
+                  transition: 'all .7s ease-in-out',
+                },
+              },
+            }}
+          >{title}
+            <NavigateNextIcon sx={{ 
+                position: 'absolute',
+                fontSize: '1.8vw',
+                cursor: 'pointer',
+                color: '#54b9c4',
+                opacity: '0',
+                margin: '-.3vw 0 0 0',
+              }}
+            />
+            <Typography variant="h4" component="span" sx={{
+                verticalAlign: 'bottom',
+                justifyContent: 'left',
+                fontFamily: 'inherit',
+                lineHeight: '.9vw',
+                position: 'inline',
+                alignItems: 'left',
+                cursor: 'pointer',
+                fontSize: '.9vw',
+                color: '#54b9c4',
+                fontWeight: 600,
+                opacity: '0',
+              }}
+            >Explore All
+            </Typography>
+          </Typography>
+        </Paper>
+        <Slider movies={slideList} />
+      </Paper>
+    </Stack>
+  );
+};
 
 export default function Movies() {
   const [movies, setMovies] = useState<Array<any>>([]);
@@ -15,7 +103,6 @@ export default function Movies() {
   const items = [ 0, 1, 2, 3, 4, 5, 6 ];
 
   useEffect(() => {
-    // Fetch api data
     fetch('/api/movies')
     .then(response => response.json())
     .then(data => {
@@ -43,7 +130,7 @@ export default function Movies() {
     return releaseDate >= threeMonthsAgo;
   })
   .sort((a: any, b: any) => b.popularity - a.popularity)
-  .slice(0, 24);
+  .slice(0, 28);
 
   // banner movie (first movie in trending now)
   const bannerMovie = trendingNow?.shift();
@@ -84,82 +171,16 @@ export default function Movies() {
         <NavBar />
         { loaded ? (
           <>
-            <Banner movie={bannerMovie} />
-            <Stack spacing={0} sx={{ overflow: 'visible' }}>
-              <Paper sx={{ 
-                backgroundColor: 'transparent',
-                marginTop: 'calc(-7vw - .5vw)',
-                boxShadow: 'None',
-                '&:hover': {
-                  '& .MuiSvgIcon-root': {
-                    opacity: '1',
-                  },
-                },
-              }}>
-                  <Typography variant="h4" 
-                    className='explore'
-                      sx={{
-                        position: 'relative',
-                        fontSize: '1.4vw',
-                        lineHeight: '1.25vw',
-                        verticalAlign: 'bottom',
-                        letterSpacing: '.05em',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                        fontFamily: 'inherit',
-                        margin: '0 0 1vw 5%',
-                        color: '#fff',
-                        zIndex: 0,  
-                        '&:hover': {
-                        '& span': {
-                          opacity: '1',
-                          display: 'inline',
-                          transition: 'opacity 5s ease-in-out',
-                        },
-                        '& svg': {
-                          marginLeft: '5.7%',
-                          transition: 'all .7s ease-in-out',
-                        },
-                      },
-                    }}
-                  >Trending Now
-                    <Typography variant="h4" component="span" sx={{
-                      display: 'none',
-                      opacity: '0',
-                      position: 'absolute',
-                      fontSize: '.9vw',
-                      lineHeight: '1.5vw',
-                      verticalAlign: 'bottom',
-                      letterSpacing: '.05em',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontFamily: 'inherit',
-                      margin: '0 0 0 1%',
-                      color: '#54b9c4',
-                      zIndex: 0,
-                    }}
-                    >Explore All
-                    </Typography>
-                    <NavigateNextIcon sx={{ 
-                      opacity: '0',
-                      fontSize: '1.8vw',
-                      position: 'absolute',
-                      cursor: 'pointer',
-                      bottom: '-.4vw',
-                      margin: '0',
-                      padding: '0',
-                      color: '#54b9c4',
-                    }} />
-                  </Typography>
-                  <Slider movies={trendingNow} />
-              </Paper>
-            </Stack>
-            </>
+          <Banner movie={bannerMovie} />
+          <FullSlider title="Trending Now" slideList={trendingNow} />
+          <FullSlider title="Top Rated" slideList={topRated} />
+          <FullSlider title="Popular" slideList={popular} />
+          </>
         ) : (
           <div style={{
-            display: 'flex',
             justifyContent: 'left',
             alignItems: 'left',
+            display: 'flex',
             height: '100vh',
             width: '150vw',
           }}
