@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Paper, Stack, Grid } from '@mui/material';
+import { Dialog, Button, Typography, Paper, Grid } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import PlayArrowIcon from '@mui/icons-material/PlayArrowRounded';
@@ -7,6 +7,7 @@ import VolumeOffIcon from '@mui/icons-material/VolumeOffOutlined';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
 import InfoIcon from '@mui/icons-material/InfoOutlined';
+import { recommendedVideos } from './HoverCard';
 import { useHoveredSlide } from './Slider';
 import { useBetween } from "use-between";
 import InfoModal from './InfoModal';
@@ -30,13 +31,15 @@ export const useModal = () => {
 
 interface BannerProps {
   movie: any;
+  allMovies: any;
 }
 
-export default function Banner({ movie }: BannerProps) {
+export default function Banner({ movie, allMovies }: BannerProps) {
   const { videoPlaying, setVideoPlaying } = useBetween(useVideoState);
   const [ removeDescription, setRemoveDescription ] = useState(false);
   const { modalOpen, setModalOpen } = useBetween(useModal);
   const { hoveredSlide } = useBetween(useHoveredSlide);
+  const { recMedia, setRecMedia } = useBetween(recommendedVideos);
   const [muted, setMuted] = useState(true);
   const [video, setVideo] = useState(`data/movies/trailers/${movie.imdb_id}.mp4`);
   const playerRef = useRef<HTMLVideoElement>(null);
@@ -227,6 +230,7 @@ export default function Banner({ movie }: BannerProps) {
                 () => {
                   handleClickOpen();
                   setVideoPlaying(false);
+                  setRecMedia(movie);
                 }
               }
               sx={{
@@ -387,11 +391,14 @@ export default function Banner({ movie }: BannerProps) {
             right: 12,
             top: 12,
             color: 'white',
+            '&:hover': {
+              backgroundColor: '#141414',
+            }
           }}
         >
           <CloseIcon />
         </IconButton>
-        <InfoModal media={movie} />
+        <InfoModal media={recMedia} allMedia={allMovies} />
       </Dialog>
     </Paper>
   );

@@ -1,4 +1,4 @@
-import { Card, CardContent, Typography, CardMedia, Stack, Button, Modal, Box } from '@mui/material';
+import { Card, CardContent, Typography, CardMedia, Stack } from '@mui/material';
 import Tooltip, { TooltipProps, tooltipClasses } from '@mui/material/Tooltip';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import VolumeOffIcon from '@mui/icons-material/VolumeOffOutlined';
@@ -11,12 +11,21 @@ import { styled } from '@mui/material/styles';
 import { useBetween } from 'use-between';
 import {useModal} from './Banner';
 
+export const recommendedVideos = () => {
+  const [ recMedia, setRecMedia ] = useState([]);
+  return {
+    recMedia,
+    setRecMedia,
+  };
+};
+
 export default function MovieCard({ movie }: any) {
   const [subVideoPlaying, setSubVideoPlaying] = useState(true);
   const [showMuteButton, setShowMuteButton] = useState(true);
   const video = `data/movies/trailers/${movie.imdb_id}.mp4`;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { setModalOpen } = useBetween(useModal);
+  const { setRecMedia } = useBetween(recommendedVideos);
   const [muted, setMuted] = useState(true);
 
   const LightTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -36,7 +45,7 @@ export default function MovieCard({ movie }: any) {
     },
   }));
 
-  const handleClickOpen = () => {
+  const handleClickOpen = (movie: any) => {
     const html = document.querySelector('html');
     if (html) { html.style.marginRight = '17px'; html.style.overflow = 'hidden'; }
     setModalOpen(true);
@@ -156,7 +165,7 @@ export default function MovieCard({ movie }: any) {
                 minWidth: '23px',
                 minHeight: '13px',
                 display: 'flex',
-                height: '.8vw',
+                height: '.9vw',
                 width: '1.4vw',
                 bottom: '6%',
                 right: '7%',
@@ -184,7 +193,7 @@ export default function MovieCard({ movie }: any) {
                 className='mute-icon'
                 sx={{
                   transform: 'scaleX(1.3)',
-                  padding: '0',
+                  padding: '0.07vw',
                   alignItems: 'center',
                   display: 'flex',
                   height: '100%',
@@ -202,7 +211,7 @@ export default function MovieCard({ movie }: any) {
                 className='mute-icon'
                 sx={{
                   transform: 'scaleX(1.3)',
-                  padding: '0',
+                  padding: '0.07vw',
                   alignItems: 'center',
                   display: 'flex',
                   height: '100%',
@@ -357,7 +366,13 @@ export default function MovieCard({ movie }: any) {
             </LightTooltip>
             <div style={{ marginLeft: 'auto' }}>
               <LightTooltip title="More Info">
-                <button style={{
+                <button 
+                  onClick={() => {
+                    handleClickOpen(movie)
+                    setSubVideoPlaying(false)
+                    setRecMedia(movie)
+                  }}
+                  style={{
                     border: '1px solid rgba(255, 255, 255, 0.5)',
                     backgroundColor: 'rgba(0, 0, 0, 0.1)',
                     justifyContent: 'center',
@@ -372,10 +387,6 @@ export default function MovieCard({ movie }: any) {
                   }}
                 >
                   <ExpandIcon 
-                    onClick={() => {
-                      handleClickOpen()
-                      setSubVideoPlaying(false)
-                    }}
                     sx={{
                       transform: 'scaleX(2) scaleY(1.2)',
                       justifyContent: 'center',
@@ -417,14 +428,14 @@ export default function MovieCard({ movie }: any) {
         >
           <Typography sx={{
             fontFamily: 'Netflix Sans, Helvetica Neue, Segoe UI, Roboto, Ubuntu, sans-serif',
-            color: 'rgba(60, 168, 86, 1)',
+            color: '#46d369',
             letterSpacing: '1px',
             fontWeight: '700',
             fontSize: '10px',
             margin: '0',
             }}
           >
-            98% Match
+            {Math.floor(Math.random() * (99 - 80 + 1)) + 80}% Match
           </Typography>
           <Typography variant="h6" sx={{
             fontFamily: 'Netflix Sans, Helvetica Neue, Segoe UI, Roboto, Ubuntu, sans-serif',

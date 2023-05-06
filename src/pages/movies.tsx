@@ -14,7 +14,7 @@ interface SlideProps {
 
 const FullSlider = ({ title, slideList }: SlideProps) => {
   return (
-    <Stack spacing={0} sx={{ overflow: 'visible', marginBottom: '10.5vw', zindex: 1 }}>
+    <Stack spacing={0} sx={{ overflow: 'visible', marginBottom: '10.7vw', zindex: 1 }}>
       <Paper sx={{ 
         backgroundColor: 'transparent',
         marginTop: 'calc(-7vw - .5vw)',
@@ -55,11 +55,11 @@ const FullSlider = ({ title, slideList }: SlideProps) => {
                 '& span': {
                   opacity: '1',
                   margin: '0 0 0 .7vw',
-                  transition: 'all 1s ease-in-out',
+                  transition: 'all .7s ease-in-out',
                 },
                 '& svg': {
                   marginLeft: '4.7%',
-                  transition: 'all .7s ease-in-out',
+                  transition: 'all .5s ease-in-out',
                 },
               },
             }}
@@ -171,7 +171,7 @@ export default function Movies() {
         <NavBar />
         { loaded ? (
           <>
-          <Banner movie={bannerMovie} />
+          <Banner movie={bannerMovie} allMovies={movies} />
           <FullSlider title="Trending Now" slideList={trendingNow} />
           <FullSlider title="Top Rated" slideList={topRated} />
           <FullSlider title="Popular" slideList={popular} />

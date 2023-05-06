@@ -53,7 +53,7 @@ def get_movies(url, api_key):
 
         # Convert ratings to age ratings
         if rating == "G":
-            rating = "0+"
+            rating = "ALL"
         elif rating == "PG":
             rating = "7+"
         elif rating == "PG-13":
