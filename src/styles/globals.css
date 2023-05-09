@@ -72,6 +72,21 @@
   }
 }
 
+progress::-moz-progress-bar { background: red; cursor: pointer; }
+progress::-webkit-progress-value { background: red; cursor: pointer; }
+progress { color: red; cursor: pointer; }
+progress:hover { transform: scaleY(1.4); transition: all 0.2s ease-in-out; }
+progress:hover::before {
+  content: '';
+  position: absolute;
+  left: calc((100% * var(--value)) - 1px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: black;
+  transform: translateX(-50%);
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

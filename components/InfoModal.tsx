@@ -1,15 +1,16 @@
 import { Button, Paper, Stack, Typography, Card, CardMedia, CardContent, Accordion } from '@mui/material';
 import Tooltip, { tooltipClasses, TooltipProps } from '@mui/material/Tooltip';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
-import PlayArrowIcon from '@mui/icons-material/PlayArrowRounded';
-import VolumeOffIcon from '@mui/icons-material/VolumeOffOutlined';
-import LikeIcon from '@mui/icons-material/ThumbUpOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMoreOutlined';
 import ExpandLessIcon from '@mui/icons-material/ExpandLessOutlined';
+import VolumeOffIcon from '@mui/icons-material/VolumeOffOutlined';
+import PlayArrowIcon from '@mui/icons-material/PlayArrowRounded';
+import LikeIcon from '@mui/icons-material/ThumbUpOutlined';
+import React, { useState, useRef, useEffect } from 'react';
 import DialogContent from '@mui/material/DialogContent';
 import AddIcon from '@mui/icons-material/AddOutlined';
-import React, { useState, useRef, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
+import { useRouter } from 'next/router';
 
 
 interface InfoProps {
@@ -27,6 +28,7 @@ export const InfoModal = ({ media, allMedia }: InfoProps) => {
   const playerRef = useRef<HTMLVideoElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [muted, setMuted] = useState(true);
+  const router = useRouter();
 
   const LightTooltip = styled(({ className, ...props }: TooltipProps) => (
     <Tooltip {...props} arrow classes={{ popper: className }} placement='top' />
@@ -55,7 +57,6 @@ export const InfoModal = ({ media, allMedia }: InfoProps) => {
   const chunkSize = 3;
   for (let i = 0; i < similarMedia.length; i += chunkSize) {
     mediaChunks.push(similarMedia.slice(i, i + chunkSize));
-    console.log(mediaChunks);
   }
 
   const convertToHours = (duration: string) => {
@@ -73,13 +74,16 @@ export const InfoModal = ({ media, allMedia }: InfoProps) => {
 
   const MoreCard = ({ more }: MoreProps) => {
     return (
-      <Card sx={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#2f2f2f',
-        margin: '0 1.5vw 0 0',
-        borderRadius: '.25vw',
-        boxShadow: '0',
+      <Card
+        onClick={() => router.push(`/watch/${more.imdb_id}`)}
+        sx={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2f2f2f',
+          margin: '0 1.5vw 0 0',
+          borderRadius: '.25vw',
+          cursor: 'pointer',
+          boxShadow: '0',
         }}
       >
         <CardMedia
@@ -275,7 +279,9 @@ export const InfoModal = ({ media, allMedia }: InfoProps) => {
             left: 0,
           }}
         >
-          <Button sx={{
+          <Button 
+            onClick={() =>  router.push(`/watch/${media.imdb_id}`)}
+            sx={{
               fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
               justifyContent: 'center',
               alignItems: 'center',
@@ -418,146 +424,202 @@ export const InfoModal = ({ media, allMedia }: InfoProps) => {
         </Stack>
       </Paper>
     </DialogContent>
-    <Stack direction="column" sx={{ padding: '1vw 0 0 0', zIndex: 1, width: '70%' }}>
-      <Stack
-        spacing={1}
-        direction="row"
-        sx={{
-          padding: '.3vw 1.5vw',
-          bottom: '3vw',
-          width: '100%',
-          zIndex: 1,
-        }}
-      >
-        <Typography
+    <Stack direction="row" sx={{ padding: '1vw 1.5vw 0 1.5vw', zIndex: 1, width: '100%' }}>
+      <Stack direction="column" sx={{ padding: '1vw 0 0 0', zIndex: 1, width: '70%' }}>
+        <Stack
+          spacing={1}
+          direction="row"
           sx={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            color: '#46d369',
-            fontWeight: '700',
-            fontSize: '.9vw',
-          }}
-        >
-          {Math.floor(Math.random() * (99 - 80 + 1)) + 80}% Match
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            fontWeight: '500',
-            fontSize: '.9vw',
-            color: 'white',
-          }}
-        >
-          {media.release_date.slice(0, 4)}
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            fontWeight: '500',
-            fontSize: '.9vw',
-            color: 'white',
-          }}
-        >
-          {convertedDuration}
-        </Typography>
-        <span
-          style={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            fontWeight: '100',
-            borderRadius: '3px',
-            padding: '0 .27vw',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: '.3vw',
-            height: '.7vw',
-            border: '1px solid rgba(255, 255, 255, 0.5)',
-            fontSize: '.59vw',
-            color: 'white',
-          }}
-        >
-          HD
-        </span>
-      </Stack>
-      <Stack
-        spacing={2}
-        direction="row"
-        alignItems="left"
-        sx={{
-          padding: '0 1.5vw',
-          bottom: '1vw',
-          width: '100%',
-          zIndex: 1,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            border: '1px solid rgba(255, 255, 255, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontSize: '.74vw',
-            fontWeight: '400',
-            height: '1vw',
-            display: 'flex',
-            color: 'white',
-            width: '2vw',
-          }}
-        >
-          {media.rating}
-        </span>
-        <Typography
-          sx={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            fontWeight: '400',
-            fontSize: '.7vw',
-            color: 'white',
-          }}
-        >
-          violence, language
-        </Typography>
-      </Stack>
-      <Stack
-        direction="row"
-        alignItems="left"
-        sx={{
-          padding: '1vw 1.5vw',
-          width: '100%',
-          zIndex: 1,
-        }}
-      >
-        <Typography
-          sx={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            fontSize: '.8vw',
-            fontWeight: '400',
-            color: 'white',
-            opacity: 1,
+            padding: '.3vw 1.5vw',
+            bottom: '3vw',
+            width: '100%',
             zIndex: 1,
-            transition: 'opacity 0.3s',
           }}
         >
-          {media.description}
-        </Typography>
-      </Stack>
-      <Stack
-        direction="row"
-        alignItems="left"
-        sx={{
-          padding: '1vw 1.5vw 0 1.5vw',
-          width: '100%',
-          zIndex: 1,
-        }}
-      >
-        <Typography
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              color: '#46d369',
+              fontWeight: '700',
+              fontSize: '.9vw',
+            }}
+          >
+            {Math.floor(Math.random() * (99 - 80 + 1)) + 80}% Match
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontWeight: '500',
+              fontSize: '.9vw',
+              color: 'white',
+            }}
+          >
+            {media.release_date.slice(0, 4)}
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontWeight: '500',
+              fontSize: '.9vw',
+              color: 'white',
+            }}
+          >
+            {convertedDuration}
+          </Typography>
+          <span
+            style={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontWeight: '100',
+              borderRadius: '3px',
+              padding: '0 .27vw',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: '.3vw',
+              height: '.7vw',
+              border: '1px solid rgba(255, 255, 255, 0.5)',
+              fontSize: '.59vw',
+              color: 'white',
+            }}
+          >
+            HD
+          </span>
+        </Stack>
+        <Stack
+          spacing={2}
+          direction="row"
+          alignItems="left"
           sx={{
-            fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-            fontSize: '1.3vw',
-            fontWeight: '600',
-            color: 'white',
+            padding: '0 1.5vw',
+            bottom: '1vw',
+            width: '100%',
+            zIndex: 1,
           }}
         >
-          More Like This
-        </Typography>
+          <span
+            style={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              border: '1px solid rgba(255, 255, 255, 0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              fontSize: '.74vw',
+              fontWeight: '400',
+              height: '1vw',
+              display: 'flex',
+              color: 'white',
+              width: '2vw',
+            }}
+          >
+            {media.rating}
+          </span>
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontWeight: '400',
+              fontSize: '.7vw',
+              color: 'white',
+            }}
+          >
+            violence, language
+          </Typography>
+        </Stack>
+        <Stack
+          direction="row"
+          alignItems="left"
+          sx={{
+            padding: '1.5vw 1.5vw',
+            width: '100%',
+            zIndex: 1,
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontSize: '.8vw',
+              fontWeight: '400',
+              color: 'white',
+            }}
+          >
+            {media.description}
+          </Typography>
+        </Stack>
+        <Stack
+          direction="row"
+          alignItems="left"
+          sx={{
+            padding: '1vw 1.5vw 0 1.5vw',
+            width: '100%',
+            zIndex: 1,
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontSize: '1.3vw',
+              fontWeight: '600',
+              color: 'white',
+            }}
+          >
+            More Like This
+          </Typography>
+        </Stack>
+      </Stack>
+      <Stack direction="column" alignItems="right" sx={{ 
+        padding: '0',
+        marginTop: '-1vw', 
+        zIndex: 1, width: '30%', marginLeft: 'auto' ,
+        display: 'flex',
+        justifyContent: 'right',
+        alignItems: 'right',
+        textAlign: 'left',
+        }}>
+        <Stack
+          spacing={1}
+          direction="column"
+          sx={{
+            padding: '.3vw 1.5vw',
+            bottom: '3vw',
+            display: 'flex',
+            justifyContent: 'right',
+            alignItems: 'right',
+            textAlign: 'left',
+            width: '100%',
+            zIndex: 1,
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontSize: '.7vw',
+              fontWeight: '400',
+              margin: '.3vw 0',
+              color: 'rgb(255, 255, 255, 0.4)',
+            }}
+          >
+            Cast: <span style={{ color: 'rgb(255, 255, 255, 0.7)', fontWeight: '600' }}>Jesse Eisenberg, Andrew Garfield, Justin Timberlake</span>
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontSize: '.7vw',
+              fontWeight: '400',
+              margin: '.3vw 0',
+              color: 'rgb(255, 255, 255, 0.4)',
+            }}
+          >
+            Genres: <span style={{ color: 'rgb(255, 255, 255, 0.7)', fontWeight: '600' }}>{media.genre}</span>
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+              fontSize: '.7vw',
+              fontWeight: '400',
+              margin: '.3vw 0',
+              color: 'rgb(255, 255, 255, 0.4)',
+            }}
+          >
+          </Typography>
+        </Stack>
       </Stack>
       </Stack>
         {mediaChunks.slice(0, 2).map((chunk: any) => (

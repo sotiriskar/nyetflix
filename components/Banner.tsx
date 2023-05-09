@@ -10,6 +10,7 @@ import InfoIcon from '@mui/icons-material/InfoOutlined';
 import { recommendedVideos } from './HoverCard';
 import { useHoveredSlide } from './Slider';
 import { useBetween } from "use-between";
+import { useRouter } from 'next/router';
 import InfoModal from './InfoModal';
 
 
@@ -43,6 +44,7 @@ export default function Banner({ movie, allMovies }: BannerProps) {
   const [muted, setMuted] = useState(true);
   const [video, setVideo] = useState(`data/movies/trailers/${movie.imdb_id}.mp4`);
   const playerRef = useRef<HTMLVideoElement>(null);
+  const router = useRouter();
 
   const handleMute = () => {
     setMuted(!muted);
@@ -195,22 +197,24 @@ export default function Banner({ movie, allMovies }: BannerProps) {
           </Typography>
           <Grid container spacing={2}>
             <Grid item >
-              <Button sx={{
-                justifyContent: 'center',
-                backgroundColor: 'white',
-                color: 'black',
-                borderRadius: '5px',
-                padding: '0 1.5vw',
-                fontSize: '1.2vw',
-                textTransform: 'none',
-                fontWeight: 'bold',
-                opacity: 1,
-                zIndex: 1,
-                transition: 'opacity 0.3s',
-                '&:hover': {
-                    backgroundColor: 'rgba(200,200,200,1)',
-                    color: 'black',
-                }
+              <Button
+                onClick={() =>  router.push(`/watch/${movie.imdb_id}`)}
+                sx={{
+                  justifyContent: 'center',
+                  backgroundColor: 'white',
+                  color: 'black',
+                  borderRadius: '5px',
+                  padding: '0 1.5vw',
+                  fontSize: '1.2vw',
+                  textTransform: 'none',
+                  fontWeight: 'bold',
+                  opacity: 1,
+                  zIndex: 1,
+                  transition: 'opacity 0.3s',
+                  '&:hover': {
+                      backgroundColor: 'rgba(200,200,200,1)',
+                      color: 'black',
+                  }
               }}
             >
               <PlayArrowIcon

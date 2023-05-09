@@ -9,6 +9,7 @@ import AddIcon from '@mui/icons-material/AddOutlined';
 import PlayIcon from '@mui/icons-material/PlayArrow';
 import { styled } from '@mui/material/styles';
 import { useBetween } from 'use-between';
+import { useRouter } from 'next/router';
 import {useModal} from './Banner';
 
 export const recommendedVideos = () => {
@@ -27,6 +28,7 @@ export default function MovieCard({ movie }: any) {
   const { setModalOpen } = useBetween(useModal);
   const { setRecMedia } = useBetween(recommendedVideos);
   const [muted, setMuted] = useState(true);
+  const router = useRouter();
 
   const LightTooltip = styled(({ className, ...props }: TooltipProps) => (
     <Tooltip {...props} arrow classes={{ popper: className }} placement='top' />
@@ -114,6 +116,7 @@ export default function MovieCard({ movie }: any) {
     >
       {subVideoPlaying ? (
         <CardMedia
+          onClick={() =>  router.push(`/watch/${movie.imdb_id}`)}
           style={{
             justifyContent: 'center',
             alignItems: 'center',
@@ -153,7 +156,10 @@ export default function MovieCard({ movie }: any) {
             />
             <button
               id='mute-banner'
-              onClick={handleMute}          
+              onClick={(e) => {
+                handleMute();
+                e.stopPropagation();
+              }}       
               style={{
                 border: '1px solid rgba(255,255,255,0.4)',
                 transition: 'all 0.4s ease-in-out',
@@ -246,6 +252,7 @@ export default function MovieCard({ movie }: any) {
         </CardMedia>
       ) : (
         <CardMedia
+          onClick={() =>  router.push(`/watch/${movie.imdb_id}`)}
           component="img"
           src={movie.poster}
           style={{
@@ -259,6 +266,11 @@ export default function MovieCard({ movie }: any) {
         />
       )}
         <CardContent
+          onClick={() => {
+            handleClickOpen(movie)
+            setSubVideoPlaying(false)
+            setRecMedia(movie)
+          }}
           sx={{
             flexDirection: 'column',
             justifyContent: 'center',
@@ -283,7 +295,12 @@ export default function MovieCard({ movie }: any) {
               height: '100%' 
               }}
           >
-            <button 
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSubVideoPlaying(false)
+                router.push(`/watch/${movie.imdb_id}`)
+              }}
               style={{
                 border: '1px solid white',
                 backgroundColor: 'white',
