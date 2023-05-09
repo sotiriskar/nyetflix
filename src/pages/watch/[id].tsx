@@ -11,37 +11,43 @@ import PlayIcon from '@mui/icons-material/PlayArrowRounded';
 import FlagIcon from '@mui/icons-material/OutlinedFlag';
 import PauseIcon from '@mui/icons-material/Pause';
 import ArrowIcon from '@mui/icons-material/West';
+import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 
 
-export default function Watch() {
+export default function Watch( media: any ) {
+	const [showControls, setShowControls] = useState(true);
+	const [fullscreen, setFullscreen] = useState(false);
   const [progress, setProgress] = useState('00:00');
 	const [loaded, setLoaded] = useState(false);
   const [duration, setDuration] = useState(0);
-	const [media, setMedia] = useState<Array<any>>([]);
+	const ref = useRef<HTMLVideoElement>(null);
   const [play, setPlay] = useState(true);
   const [mute, setMute] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
-  const ref = useRef<HTMLVideoElement>(null);
+	const timerRef = useRef<number>();
+	const router = useRouter();
 
-  const router = useRouter();
-  const { id } = router.query;
+	const handlePlay = () => {
+		setPlay(true);
+		ref?.current?.play();
+	};
 
-  const handlePlay = () => {
-    setPlay(!play);
-    if (play) {
-        ref?.current?.play();
-    } else {
-        ref?.current?.pause();
-    };
-  };
+	const handlePause = () => {
+		setPlay(false);
+		ref?.current?.pause();
+	};
 
   const handleFullscreen = () => {
+    const doc = document.documentElement;
+
+    if (!fullscreen && doc.requestFullscreen) {
+      doc.requestFullscreen();
+    } else if (fullscreen && document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+
     setFullscreen(!fullscreen);
-		if (fullscreen) {
-			ref?.current?.requestFullscreen();
-		}
   };
 
   const handleForward = () => {
@@ -57,14 +63,33 @@ export default function Watch() {
   };
 
 	useEffect(() => {
-		fetch(`/api/movies?imdb_id=${id}`)
-    .then(response => response.json())
-    .then(data => {
-      setMedia(data);
-      setLoaded(true);
-			console.log(data);
-		});
+		const resetTimer = () => {
+			if (timerRef.current) {
+				clearTimeout(timerRef.current);
+			}
+			timerRef.current = window.setTimeout(() => {
+				setShowControls(false);
+			}, 3000);
+		};
 
+		const handleMouseMove = () => {
+			setShowControls(true);
+			resetTimer();
+		};
+
+		window.addEventListener('mousemove', handleMouseMove);
+		resetTimer();
+
+		return () => {
+			window.removeEventListener('mousemove', handleMouseMove);
+			clearTimeout(timerRef.current);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (media.media) {
+			setLoaded(true);
+		}
 		setInterval(() => {
 			if (ref.current) {
 				const duration = ref.current.duration;
@@ -83,254 +108,8 @@ export default function Watch() {
 					setProgress(timeFormat);
 				}
 			}
-		}, 100);
-	}, [id, media]);
-
-  const PlayerControl = () => {
-		return (
-			<BottomNavigation
-				showLabels
-				sx={{
-					width: '100%',
-					height: '13%',
-					position: 'absolute',
-					bottom: 0,
-					backgroundColor: 'transparent',
-				}}
-			>
-				<Stack direction="column" spacing={0} sx={{
-					width: '100%',
-					display: 'flex',
-					justifyContent: 'left',
-					alignItems: 'center',
-					height: '100%',
-					margin: '0 1.2vw',
-					backgroundColor: 'transparent',
-					boxShadow: 'None',
-					border: '1px solid rgba(255,255,255,0.2)',
-					}}
-				>
-					<Stack direction="row" spacing={1} sx={{
-						width: '100%',
-						display: 'flex',
-						justifyContent: 'left',
-						alignItems: 'center',
-						border: '1px solid rgba(255,255,255,0.2)',
-						}}
-					>
-						<div
-							style={{
-								width: '96%',
-								padding: '0.5vw',
-								display: 'flex',
-								justifyContent: 'left',
-								alignItems: 'center',
-								border: '1px solid rgba(255,255,255,0.2)',
-							}}
-						>
-							<Slider
-								defaultValue={0}
-								max={100}
-								min={0}
-								onChange={(e: any) => {
-									if (ref.current) {
-										const duration = ref.current.duration;
-										const value = e.target.value;
-										ref.current.currentTime = (value * duration) / 100;
-									}
-								}}
-								value={duration}
-								disableSwap
-								sx={{
-									width: '100%',
-									height: '0.25vw',
-									color: 'red',
-									'& ,.:hover': {
-										transform: 'scaleY(1.3)',
-									},
-									'& .MuiSlider-thumb': {
-										width: '.8vw',
-										height: '.8vw',
-									},
-									'& .MuiSlider-rail': {
-										height: '0.25vw',
-										backgroundColor: 'rgba(255,255,255,1)',
-									},
-									'& .MuiSlider-track': {
-									},
-								}}
-							/>
-						</div>
-						<Typography
-							sx={{
-								fontSize: '.95vw',
-								fontWeight: '500',
-								letterSpacing: '0.05vw',
-								color: 'rgba(255,255,255,1)',
-							}}
-						>
-							{progress}
-						</Typography>
-					</Stack>
-					<Stack direction="row" spacing={2} sx={{
-							border: '1px solid rgba(255,255,255,0.2)',
-							justifyContent: 'left',
-							position: 'absolute',
-							alignItems: 'center',
-							display: 'flex',
-							bottom: '.5vw',
-							left: '1.2vw',
-							zIndex: 2,
-						}}
-					>
-					{!play ? (
-						<PlayIcon
-							onClick={() => handlePlay()}
-							sx={{
-								transition: 'all 0.1s ease-in-out',
-								transform: 'scale(1.4)',
-								cursor: 'pointer',
-								fontSize: '3vw',
-								color: '#fff',
-								'&:hover': {
-									transform: 'scale(1.7)',
-								},
-							}}
-						/>
-					) : (
-						<PauseIcon
-							onClick={() => handlePlay()}
-							sx={{
-								transition: 'all 0.1s ease-in-out',
-								cursor: 'pointer',
-								fontSize: '3vw',
-								color: '#fff',
-								'&:hover': {
-									transform: 'scale(1.4)',
-								},
-							}}
-						/>
-					)}
-						<RewindIcon 
-							onClick={() => handleRewind()}
-							sx={{
-								transition: 'all 0.1s ease-in-out',
-								cursor: 'pointer',
-								fontSize: '3vw',
-								color: '#fff',
-								'&:hover': {
-									transform: 'scale(1.4)',
-								},
-							}}
-						/>
-						<ForwardIcon
-							onClick={() => handleForward()}
-							sx={{
-								transition: 'all 0.1s ease-in-out',
-								cursor: 'pointer',
-								fontSize: '3vw',
-								color: '#fff',
-								'&:hover': {
-									transform: 'scale(1.4)',
-								},
-							}}
-						/>
-						{!mute ? (
-							<VolumeOnIcon
-								onClick={() => setMute(!mute)}
-									sx={{
-										transition: 'all 0.1s ease-in-out',
-										color: '#fff',
-										cursor: 'pointer',
-										fontSize: '3vw',
-										'&:hover': {
-											transform: 'scale(1.4)',
-										},
-									}}
-							/>
-						) : (
-							<VolumeOffIcon
-								onClick={() => setMute(!mute)}
-								sx={{
-									transition: 'all 0.1s ease-in-out',
-									cursor: 'pointer',
-									fontSize: '3vw',
-									color: '#fff',
-									'&:hover': {
-										transform: 'scale(1.4)',
-									},
-								}}
-							/>
-						)}
-					</Stack>
-					<Stack direction="row" spacing={2} sx={{
-							justifyContent: 'center',
-							alignItems: 'center',
-							display: 'flex',
-							height: '100%',
-							width: '100%',
-						}}
-					>
-						<Typography sx={{
-							fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
-							fontWeight: '500',
-							fontSize: '1vw',
-							color: '#fff',
-							}}
-						>
-							{media[0].name}
-						</Typography>
-					</Stack>
-          <Stack direction="row" spacing={4} sx={{
-              justifyContent: 'right',
-              position: 'absolute',
-              marginLeft: 'auto',
-              display: 'flex',
-              bottom: '.5vw',
-              right: '1.2vw',
-              border: '1px solid rgba(255,255,255,0.2)',
-              zIndex: 1,
-            }}
-          >
-            <CommentIcon
-              sx={{
-                transition: 'all 0.1s ease-in-out',
-                cursor: 'pointer',
-                fontSize: '3vw',
-                color: '#fff',
-                '&:hover': {
-                  transform: 'scale(1.4)',
-                },
-              }}
-            />
-            <PerformanceIcon
-              sx={{
-                transition: 'all 0.1s ease-in-out',
-                cursor: 'pointer',
-                fontSize: '3vw',
-                color: '#fff',
-                '&:hover': {
-                  transform: 'scale(1.4)',
-                },
-              }}
-            />
-            <FullscreenIcon
-              onClick={() => handleFullscreen()}
-              sx={{
-                transition: 'all 0.1s ease-in-out',
-                cursor: 'pointer',
-                fontSize: '3vw',
-                color: '#fff',
-                '&:hover': {
-                  transform: 'scale(1.4)',
-                },
-              }}
-            />
-          </Stack>
-        </Stack>
-      </BottomNavigation>
-    );
-  };
+		}, 500);
+	}, []);
 
   return (
 		<>
@@ -343,6 +122,7 @@ export default function Watch() {
 		{loaded ? (
     <Card
       style={{
+				backgroundColor: '#000',
         position: 'absolute',
         display: 'flex',
         flexDirection: 'column',
@@ -354,9 +134,13 @@ export default function Watch() {
     >
       <ArrowIcon
         onClick={() => {
-					router.back()
+					if (fullscreen) {
+						handleFullscreen();
+					}
+					router.back();
 				}}
         sx={{
+					display: showControls ? 'flex' : 'none',
           position: 'absolute',
           fontWeight: 'bold',
           cursor: 'pointer',
@@ -369,6 +153,7 @@ export default function Watch() {
       />
       <FlagIcon
         sx={{
+					display: showControls ? 'flex' : 'none',
           transform: 'scaleX(1.3)',
           position: 'absolute',
           cursor: 'pointer',
@@ -385,14 +170,255 @@ export default function Watch() {
           height: '100%',
           width: '100%',
         }}
-        src={`/data/movies/trailers/${id}.mp4` }
+        src={`/data/movies/trailers/${media.id}.mp4` }
         controls={false}
         autoPlay={true}
         muted={mute}
         ref={ref}
       />       
-      <PlayerControl />
-    </Card>
+      	<BottomNavigation
+					sx={{
+						backgroundColor: 'transparent',
+						position: 'absolute',
+						width: '100%',
+						height: '15.5%',
+						bottom: 0,
+						display: showControls ? 'flex' : 'none',
+					}}
+				>
+					<Stack direction="column" spacing={0} sx={{
+							width: '100%',
+							display: 'flex',
+							justifyContent: 'left',
+							alignItems: 'center',
+							height: '100%',
+							margin: '0 .7vw',
+							backgroundColor: 'transparent',
+						}}
+					>
+						<Stack direction="row" spacing={1} sx={{
+								width: '100%',
+								display: 'flex',
+								justifyContent: 'left',
+								alignItems: 'center',
+							}}
+						>
+							<div
+								style={{
+									width: '96%',
+									padding: '0.5vw',
+									display: 'flex',
+									justifyContent: 'left',
+									alignItems: 'center',
+								}}
+							>
+								<Slider
+									defaultValue={0}
+									max={100}
+									min={0}
+									onChange={(e: any) => {
+										if (ref.current) {
+											const duration = ref.current.duration;
+											const value = e.target.value;
+											ref.current.currentTime = (value * duration) / 100;
+										}
+									}}
+									value={duration}
+									sx={{
+										width: '100%',
+										height: '0.25vw',
+										borderRadius: '0',
+										padding: '0',
+										color: 'red',
+										'&:hover': {
+											height: '0.4vw',
+										},
+										'&:hover .MuiSlider-rail': {
+											height: '0.4vw',
+										},
+										'&:hover .MuiSlider-thumb': {
+											'&:clicked': {
+												boxShadow: '0px 0px 0px 8px rgba(255,255,255,0.16)',
+											},
+										},
+										'& .MuiSlider-thumb': {
+											width: '.8vw',
+											height: '.8vw',
+										},
+										'& .MuiSlider-rail': {
+											height: '0.25vw',
+											backgroundColor: 'rgba(255,255,255,1)',
+										},
+									}}
+								/>
+							</div>
+							<Typography
+								sx={{
+									fontSize: '.95vw',
+									fontWeight: '500',
+									letterSpacing: '0.05vw',
+									color: 'rgba(255,255,255,1)',
+								}}
+							>
+								{progress}
+							</Typography>
+						</Stack>
+						<Stack direction="row" spacing={2} sx={{
+								justifyContent: 'left',
+								position: 'absolute',
+								alignItems: 'center',
+								display: 'flex',
+								bottom: '1.5vw',
+								left: '.7vw',
+								zIndex: 2,
+							}}
+						>
+						{!play ? (
+							<PlayIcon
+								onClick={() => handlePlay()}
+								sx={{
+									transition: 'all 0.1s ease-in-out',
+									transform: 'scale(1.4)',
+									cursor: 'pointer',
+									fontSize: '3vw',
+									color: '#fff',
+									'&:hover': {
+										transform: 'scale(1.8)',
+									},
+								}}
+							/>
+						) : (
+							<PauseIcon
+								onClick={() => handlePause()}
+								sx={{
+									transition: 'all 0.1s ease-in-out',
+									cursor: 'pointer',
+									fontSize: '3vw',
+									color: '#fff',
+									'&:hover': {
+										transform: 'scale(1.4)',
+									},
+								}}
+							/>
+						)}
+							<RewindIcon 
+								onClick={() => handleRewind()}
+								sx={{
+									transition: 'all 0.1s ease-in-out',
+									cursor: 'pointer',
+									fontSize: '3vw',
+									color: '#fff',
+									'&:hover': {
+										transform: 'scale(1.4)',
+									},
+								}}
+							/>
+							<ForwardIcon
+								onClick={() => handleForward()}
+								sx={{
+									transition: 'all 0.1s ease-in-out',
+									cursor: 'pointer',
+									fontSize: '3vw',
+									color: '#fff',
+									'&:hover': {
+										transform: 'scale(1.4)',
+									},
+								}}
+							/>
+							{!mute ? (
+								<VolumeOnIcon
+									onClick={() => setMute(!mute)}
+										sx={{
+											transition: 'all 0.1s ease-in-out',
+											color: '#fff',
+											cursor: 'pointer',
+											fontSize: '3vw',
+											'&:hover': {
+												transform: 'scale(1.4)',
+											},
+										}}
+								/>
+							) : (
+								<VolumeOffIcon
+									onClick={() => setMute(!mute)}
+									sx={{
+										transition: 'all 0.1s ease-in-out',
+										cursor: 'pointer',
+										fontSize: '3vw',
+										color: '#fff',
+										'&:hover': {
+											transform: 'scale(1.4)',
+										},
+									}}
+								/>
+							)}
+						</Stack>
+						<Stack direction="row" spacing={2} sx={{
+								justifyContent: 'center',
+								alignItems: 'center',
+								display: 'flex',
+								height: '100%',
+								width: '100%',
+							}}
+						>
+							<Typography sx={{
+								fontFamily: 'Netflix Sans,Helvetica Neue,Segoe UI,Roboto,Ubuntu,sans-serif',
+								fontWeight: '500',
+								fontSize: '1vw',
+								color: '#fff',
+								}}
+							>
+								{media.media[0].name}
+							</Typography>
+						</Stack>
+						<Stack direction="row" spacing={4} sx={{
+								justifyContent: 'right',
+								position: 'absolute',
+								marginLeft: 'auto',
+								display: 'flex',
+								bottom: '1.5vw',
+								right: '.7vw',
+								zIndex: 100,
+							}}
+						>
+							<CommentIcon
+								sx={{
+									transition: 'all 0.1s ease-in-out',
+									cursor: 'pointer',
+									fontSize: '3vw',
+									color: '#fff',
+									'&:hover': {
+										transform: 'scale(1.4)',
+									},
+								}}
+							/>
+							<PerformanceIcon
+								sx={{
+									transition: 'all 0.1s ease-in-out',
+									cursor: 'pointer',
+									fontSize: '3vw',
+									color: '#fff',
+									'&:hover': {
+										transform: 'scale(1.4)',
+									},
+								}}
+							/>
+								<FullscreenIcon
+									onClick={() => handleFullscreen()}
+									sx={{
+										transition: 'all 0.1s ease-in-out',
+										cursor: 'pointer',
+										fontSize: '3vw',
+										color: '#fff',
+										'&:hover': {
+											transform: 'scale(1.4)',
+										},
+									}}
+								/>
+							</Stack>
+					</Stack>
+				</BottomNavigation>
+    	</Card>
 		) : (
 			<Card
 				style={{
@@ -421,4 +447,16 @@ export default function Watch() {
 		)}		
 		</>
 	);
+};
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { id } = context.query;
+	const res = await fetch(`http://localhost:3000/api/movies?imdb_id=${id}`);
+	const media = await res.json();
+  return {
+    props: {
+			media,
+			id,
+		},
+  };
 };

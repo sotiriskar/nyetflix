@@ -298,7 +298,6 @@ export default function MovieCard({ movie }: any) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setSubVideoPlaying(false)
                 router.push(`/watch/${movie.imdb_id}`)
               }}
               style={{

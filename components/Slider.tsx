@@ -4,6 +4,7 @@ import { Splide, SplideSlide } from '@splidejs/react-splide';
 import { useBetween } from 'use-between';
 import MovieCard from './HoverCard';
 import '@splidejs/react-splide/css';
+import { debounce } from 'lodash';
 
 
 export const useHoveredSlide = () => {
@@ -24,7 +25,16 @@ export default function Slider(movies: any) {
     firstSlide?.setAttribute('style', 'visibility: visible !important;');
   };
 
+  const debouncedOnMouseEnter = (id: any) => {
+    setHoveredSlide(id);
+  };
+
+  const debouncedOnMouseLeave = () => {
+    setHoveredSlide(null);
+  };
+
   useEffect(() => {
+    setHoveredSlide(null);
   }, []);
 
   return (
@@ -75,8 +85,9 @@ export default function Slider(movies: any) {
       >
         {movies.movies.map((movie: any) => (
           <SplideSlide
-            onMouseEnter={() => setHoveredSlide(movie.id)}
-            onMouseLeave={() => setHoveredSlide(null)}
+            onMouseEnter={() => debouncedOnMouseEnter(movie.id)}
+            onMouseLeave={() => debouncedOnMouseLeave()}
+            onClick={() => setHoveredSlide(null)}
             key={movie.imdb_id}
           >
             {hoveredSlide === movie.id ? (

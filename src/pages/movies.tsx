@@ -7,6 +7,7 @@ import Footer from '../../components/Footer';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
 
+
 interface SlideProps {
   title: string;
   slideList: any[];
