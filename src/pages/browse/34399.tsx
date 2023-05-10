@@ -1,11 +1,11 @@
-import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavBar from '../../../components/NavBar';
 import Slider from '../../../components/Slider';
 import Banner from '../../../components/Banner';
 import Footer from '../../../components/Footer';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import Head from 'next/head';
 
 
 interface SlideProps {
@@ -140,7 +140,7 @@ export default function Movies() {
   const topRated = movies
   ?.sort((a: any, b: any) => b.vote_count - a.vote_count || b.score - a.score) // sort by vote count and score
   .filter((movie: any) => !trendingNow?.some((trend: any) => trend.id === movie.id) && movie.id !== bannerMovie?.id) // remove all trending movies
-  .slice(0, 24);
+  .slice(0, 28);
 
   // popular
   const popular = movies
@@ -149,7 +149,63 @@ export default function Movies() {
   .filter((movie: any) => !trendingNow?.some((trend: any) =>
     trend.id === movie.id) && !topRated?.some((top: any) =>
     top.id === movie.id) && movie.id !== bannerMovie?.id)
-  .slice(0, 24);
+  .slice(0, 28);
+
+  // comedy
+  const comedy = movies
+  .filter((movie: any) => movie.genre.includes('Comedy'))
+  .sort((a: any, b: any) => b.popularity - a.popularity)
+  // remove all trending movies & top rated movies & popular movies from comedy and banner movie
+  .filter((movie: any) => !trendingNow?.some((trend: any) =>
+    trend.id === movie.id) && !topRated?.some((top: any) =>
+    top.id === movie.id) && !popular?.some((pop: any) =>
+    pop.id === movie.id) && movie.id !== bannerMovie?.id)
+  .slice(0, 28);
+
+  // movies released past year
+  const pastYear = movies
+  ?.filter((movie: any) => {
+    const releaseDate = new Date(movie.release_date);
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return releaseDate >= oneYearAgo;
+  })
+  .sort((a: any, b: any) => b.popularity - a.popularity)
+  // remove all trending movies & top rated movies & popular movies & comedy movies from past year and banner movie
+  .filter((movie: any) => !trendingNow?.some((trend: any) =>
+    trend.id === movie.id) && !topRated?.some((top: any) =>
+    top.id === movie.id) && !popular?.some((pop: any) =>
+    pop.id === movie.id) && !comedy?.some((com: any) =>
+    com.id === movie.id) && movie.id !== bannerMovie?.id)
+  .slice(0, 28);
+
+  // sci-fi
+  const sciFi = movies
+  ?.filter((movie: any) => movie.genre.includes('Science Fiction'))
+  .sort((a: any, b: any) => b.popularity - a.popularity)
+  // remove all trending movies & top rated movies & popular movies & comedy movies & past year movies from sci-fi and banner movie
+  .filter((movie: any) => !trendingNow?.some((trend: any) =>
+    trend.id === movie.id) && !topRated?.some((top: any) =>
+    top.id === movie.id) && !popular?.some((pop: any) =>
+    pop.id === movie.id) && !comedy?.some((com: any) =>
+    com.id === movie.id) && !pastYear?.some((past: any) =>
+    past.id === movie.id) && movie.id !== bannerMovie?.id)
+  .slice(0, 28);
+
+  // family animation
+  const familyAnimation = movies
+  // ?.filter((movie: any) => movie.genre.includes('Family') && movie.genre.includes('Animation'))
+  ?.filter((movie: any) => movie.genre.includes('Animation') && (movie.genre.includes('Family') || movie.rating === '0+' || movie.rating === '7+'))
+  .sort((a: any, b: any) => b.popularity - a.popularity)
+  // remove all trending movies & top rated movies & popular movies & comedy movies & past year movies & sci-fi movies from animation pg and banner movie
+  .filter((movie: any) => !trendingNow?.some((trend: any) =>
+    trend.id === movie.id) && !topRated?.some((top: any) =>
+    top.id === movie.id) && !popular?.some((pop: any) =>
+    pop.id === movie.id) && !comedy?.some((com: any) =>
+    com.id === movie.id) && !pastYear?.some((past: any) =>
+    past.id === movie.id) && !sciFi?.some((sci: any) =>
+    sci.id === movie.id) && movie.id !== bannerMovie?.id)
+  .slice(0, 28);
 
   return (
     <>
@@ -174,8 +230,12 @@ export default function Movies() {
           <>
           <Banner movie={bannerMovie} allMovies={movies} />
           <FullSlider title="Trending Now" slideList={trendingNow} />
-          <FullSlider title="Top Rated" slideList={topRated} />
-          <FullSlider title="Popular" slideList={popular} />
+          <FullSlider title="Critically-acclaimed Movies" slideList={topRated} />
+          <FullSlider title="Popular on Nyetflix" slideList={popular} />
+          <FullSlider title="Family Feature Animation" slideList={familyAnimation} />
+          <FullSlider title="Comedies" slideList={comedy} />
+          <FullSlider title="Mind-Bending Sci-Fi" slideList={sciFi} />
+          <FullSlider title="Released in the Past Year" slideList={pastYear} />
           </>
         ) : (
           <div style={{
@@ -207,7 +267,7 @@ export default function Movies() {
                 alignItems: 'left',
                 margin: '11vw 0 0 6vw',
                 width: '100%',
-                height: '11vw',
+                height: '9vw',
                 gap: '0.25vw',
               }}
             >

@@ -10,9 +10,9 @@ export default function Footer() {
     }, []);
 
   return (
-      <Box className="footer" sx={{ width: '100%', padding: '0' }}>
+      <Box className="footer" sx={{ width: '100%', marginTop: '-100px' }}>
         <Grid container spacing={4} sx={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
-          <Grid item lg={5.7}>
+          <Grid item lg={5.5}>
             <FacebookIcon sx={{ fontSize: '30px', color: 'rgba(255,255,255,0.8)', margin: '0 20px 0 0', cursor: 'pointer' }} />
             <InstagramIcon sx={{ fontSize: '30px', color: 'rgba(255,255,255,0.8)', margin: '0 20px 0 0', cursor: 'pointer' }} />
             <YouTubeIcon sx={{ fontSize: '30px', color: 'rgba(255,255,255,0.8)', margin: '0 0 0 0', cursor: 'pointer' }} />
@@ -99,7 +99,7 @@ export default function Footer() {
               <Button
                 variant="contained"
                 sx={{
-                  margin: '10px 0 5px 0',
+                  margin: '0',
                   color: 'rgba(255,255,255,0.5)',
                   fontWeight: '400',
                   fontSize: '13px',

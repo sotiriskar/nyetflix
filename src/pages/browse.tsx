@@ -1,11 +1,11 @@
-import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavBar from '../../components/NavBar';
 import Slider from '../../components/Slider';
 import Banner from '../../components/Banner';
 import Footer from '../../components/Footer';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import Head from 'next/head';
 
 
 interface SlideProps {

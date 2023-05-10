@@ -1,11 +1,11 @@
-import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavBar from '../../../components/NavBar';
 import Slider from '../../../components/Slider';
 import Banner from '../../../components/Banner';
 import Footer from '../../../components/Footer';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import { Grid, Skeleton, Stack, Paper, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import Head from 'next/head';
 
 
 interface SlideProps {
@@ -15,7 +15,7 @@ interface SlideProps {
 
 const FullSlider = ({ title, slideList }: SlideProps) => {
   return (
-    <Stack spacing={0} sx={{ overflow: 'visible', marginBottom: '10.7vw', zindex: 1 }}>
+    <Stack spacing={0} sx={{ overflow: 'visible', marginBottom: '7vw', zindex: 1 }}>
       <Paper sx={{ 
         backgroundColor: 'transparent',
         marginTop: 'calc(-7vw - .5vw)',
