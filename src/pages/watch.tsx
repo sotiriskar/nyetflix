@@ -5,7 +5,7 @@ export default function Watch() {
 }
 
 export const getServerSideProps: GetServerSideProps = async ({ res }) => {
-  res.writeHead(302, { Location: '/' });
+  res.writeHead(302, { Location: '/browse' });
   res.end();
 
   return { props: {} };

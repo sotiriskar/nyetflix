@@ -23,7 +23,7 @@ export const recommendedVideos = () => {
 export default function MovieCard({ movie }: any) {
   const [subVideoPlaying, setSubVideoPlaying] = useState(true);
   const [showMuteButton, setShowMuteButton] = useState(true);
-  const video = `data/movies/trailers/${movie.imdb_id}.mp4`;
+  const video = `/data/movies/trailers/${movie.imdb_id}.mp4`;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { setModalOpen } = useBetween(useModal);
   const { setRecMedia } = useBetween(recommendedVideos);

@@ -104,6 +104,11 @@ a {
   text-decoration: none;
 }
 
+.footer ul li:hover {
+  cursor: pointer;
+  border-bottom:1px solid rgba(255,255,255,0.3) !important;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;

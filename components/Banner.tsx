@@ -42,7 +42,7 @@ export default function Banner({ movie, allMovies }: BannerProps) {
   const { hoveredSlide } = useBetween(useHoveredSlide);
   const { recMedia, setRecMedia } = useBetween(recommendedVideos);
   const [muted, setMuted] = useState(true);
-  const [video, setVideo] = useState(`data/movies/trailers/${movie.imdb_id}.mp4`);
+  const [video, setVideo] = useState(`/data/movies/trailers/${movie.imdb_id}.mp4`);
   const playerRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
 

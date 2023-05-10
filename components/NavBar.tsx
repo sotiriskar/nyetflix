@@ -55,7 +55,7 @@ export default function NavBar() {
     }}
     >
       <Toolbar sx={{ margin: '0 3%' }}>
-        <Link href="/"
+        <Link href="/browse"
           onClick={(event) => {
             setAnchorEl(event.currentTarget);
           }}
@@ -99,13 +99,13 @@ export default function NavBar() {
             onClose={handleClose}
           >
             <MenuItem onClick={handleClose}>
-              <Link href="/">Home</Link>
+              <Link href="/browse">Home</Link>
             </MenuItem>
             <MenuItem onClick={handleClose}>
-              <Link href="/tvShows">TV Shows</Link>
+              <Link href="/browse/83">TV Shows</Link>
             </MenuItem>
             <MenuItem onClick={handleClose}>
-              <Link href="/movies">Movies</Link>
+              <Link href="/browse/34399">Movies</Link>
             </MenuItem>
           </Menu>
         </>
@@ -115,7 +115,7 @@ export default function NavBar() {
         key="home"
         disableRipple
         sx={{
-          fontWeight: currentRoute === '/' ? '900' : '400',
+          fontWeight: currentRoute === '/browse' ? '900' : '400',
           fontSize: 'clamp(5px, 3vw, 14px)',
           textTransform: 'none',
           marginRight: '1vw',
@@ -124,7 +124,7 @@ export default function NavBar() {
             backgroundColor: 'transparent',
           },
         }}>
-        <Link href="/"
+        <Link href="/browse"
           onClick={(event) => {
             setAnchorEl(event.currentTarget);
           }}
@@ -136,7 +136,7 @@ export default function NavBar() {
         key="tvShows"
         disableRipple
         sx={{
-          fontWeight: currentRoute === '/tvShows' ? '900' : '400',
+          fontWeight: currentRoute === '/browse/83' ? '900' : '400',
           fontSize: 'clamp(5px, 3vw, 14px)',
           textTransform: 'none',
           marginRight: '1vw',
@@ -147,7 +147,7 @@ export default function NavBar() {
           },
         }}
       >
-        <Link href="/tvShows"
+        <Link href="/browse/83"
           onClick={(event) => {
             setAnchorEl(event.currentTarget);
           }}
@@ -159,7 +159,7 @@ export default function NavBar() {
           key="movies"
           disableRipple
           sx={{
-            fontWeight: currentRoute === '/movies' ? '900' : '400',
+            fontWeight: currentRoute === '/browse/34399' ? '900' : '400',
             fontSize: 'clamp(5px, 3vw, 14px)',
             textTransform: 'none',
             marginRight: '1vw',
@@ -170,7 +170,7 @@ export default function NavBar() {
             },
           }}
         >
-          <Link href="/movies"
+          <Link href="/browse/34399"
             onClick={(event) => {
               setAnchorEl(event.currentTarget);
             }}
