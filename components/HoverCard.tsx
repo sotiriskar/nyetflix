@@ -211,7 +211,7 @@ export default function MovieCard({ movie }: any) {
               <VolumeOffIcon
                 className='mute-icon'
                 sx={{
-                  transform: 'scaleX(1.3)',
+                  transform: 'scaleX(1.4)',
                   padding: '0.07vw',
                   alignItems: 'center',
                   display: 'flex',
@@ -229,7 +229,8 @@ export default function MovieCard({ movie }: any) {
               <VolumeUpOutlinedIcon
                 className='mute-icon'
                 sx={{
-                  transform: 'scaleX(1.3)',
+                  transform: 'scaleX(1.4)',
+                  fontSize: '1.2vw',
                   padding: '0.07vw',
                   alignItems: 'center',
                   display: 'flex',

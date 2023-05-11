@@ -309,7 +309,7 @@ export default function Banner({ movie, allMovies }: BannerProps) {
               <VolumeOffIcon
                 sx={{
                 height: '100%',
-                fontSize: '24px',
+                fontSize: '1.3vw',
                 color: 'white',
                 }}
               />  
@@ -317,7 +317,7 @@ export default function Banner({ movie, allMovies }: BannerProps) {
               <VolumeUpOutlinedIcon
                 sx={{
                 height: '100%',
-                fontSize: '1.5vw',
+                fontSize: '1.3vw',
                 color: 'white',
                 }}
               />

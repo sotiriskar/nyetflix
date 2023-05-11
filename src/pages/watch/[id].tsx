@@ -1,4 +1,4 @@
-import { Card, BottomNavigation, Stack, Typography, Slider, CircularProgress } from '@mui/material';
+import { Card, BottomNavigation, Stack, Typography, Slider, CircularProgress, Paper } from '@mui/material';
 import CommentIcon from '@mui/icons-material/InsertCommentOutlined';
 import FullscreenIcon from '@mui/icons-material/FullscreenRounded';
 import VolumeOffIcon from '@mui/icons-material/VolumeOffRounded';
@@ -14,6 +14,7 @@ import ArrowIcon from '@mui/icons-material/West';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { set } from 'lodash';
 
 
 export default function Watch( media: any ) {
@@ -22,6 +23,7 @@ export default function Watch( media: any ) {
   const [progress, setProgress] = useState('00:00');
 	const [loaded, setLoaded] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(100);
 	const playerRef = useRef<HTMLVideoElement>(null);
   const [play, setPlay] = useState(true);
   const [mute, setMute] = useState(false);
@@ -138,7 +140,6 @@ export default function Watch( media: any ) {
 						handleFullscreen();
           }
           router.back();
-          // when router.back() is called, the video audio remains playing in the background. How do I stop it?
         }}
         sx={{
 					display: showControls ? 'flex' : 'none',
@@ -215,9 +216,9 @@ export default function Watch( media: any ) {
 								}}
 							>
 								<Slider
-									defaultValue={0}
+                	min={0}
 									max={100}
-									min={0}
+                  value={duration}
 									onChange={(e: any) => {
 										if (playerRef.current) {
 											const duration = playerRef.current.duration;
@@ -225,7 +226,6 @@ export default function Watch( media: any ) {
 											playerRef.current.currentTime = (value * duration) / 100;
 										}
 									}}
-									value={duration}
 									sx={{
 										width: '100%',
 										height: '0.25vw',
@@ -327,33 +327,101 @@ export default function Watch( media: any ) {
 									},
 								}}
 							/>
-							{!mute ? (
-								<VolumeOnIcon
-									onClick={() => setMute(!mute)}
-										sx={{
-											transition: 'all 0.1s ease-in-out',
-											color: '#fff',
-											cursor: 'pointer',
-											fontSize: '3vw',
-											'&:hover': {
-												transform: 'scale(1.4)',
-											},
-										}}
-								/>
-							) : (
-								<VolumeOffIcon
-									onClick={() => setMute(!mute)}
-									sx={{
-										transition: 'all 0.1s ease-in-out',
-										cursor: 'pointer',
-										fontSize: '3vw',
-										color: '#fff',
-										'&:hover': {
-											transform: 'scale(1.4)',
-										},
-									}}
-								/>
-							)}
+              <Stack direction="column" spacing={0} sx={{
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  display: 'flex',
+                  '&:hover .volume': {
+                    display: 'flex',
+                  },
+                  '&:hover svg': {
+                    transform: 'scale(1.4)',
+                  },
+                }}
+              >
+                <Paper
+                  className='volume'
+                  sx={{ 
+                    backgroundColor: '#202020',
+                    borderRadius: '.1vw',
+                    width: '2vw',
+                    height: '10vw',
+                    bottom: '3.5vw',
+                    position: 'absolute',
+                    display: 'none',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 2,
+                }}>
+                  <Slider
+                      min={0}
+                      max={100}
+                      orientation="vertical"
+                      valueLabelDisplay="off"
+                      className='volume-slider'
+                      value={mute ? 0 : volume}
+                      sx={{
+                        color: 'red',
+                        width: '60%',
+                        borderRadius: '0',
+                        height: '80%',
+                        padding: '0',
+                        '& input[type="range"]': {
+                          WebkitAppearance: 'slider-vertical',
+                          },
+                        '& .MuiSlider-thumb': {
+                          width: '1.1vw',
+                          border: 'none',
+                          boxShadow: 'none',
+                          },
+                        '& .MuiSlider-rail': {
+                          backgroundColor: 'rgba(255,255,255,1)',
+                        },
+                      }}
+                      onChange={(e: any) => {
+                        if (playerRef.current) {
+                          const value = e.target.value;
+                          playerRef.current.volume = value / 100;
+                          setVolume(value);
+                        }
+                      }}
+                  />
+              </Paper>
+                {!mute && volume != 0 ? (
+                  <VolumeOnIcon
+                    onClick={() => {
+                      setMute(!mute)
+                    }}
+                      sx={{
+                        transition: 'all 0.1s ease-in-out',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '3vw',
+                        '&:hover': {
+                          transform: 'scale(1.4)',
+                        },
+                        '&:hover .volume-slider': {
+                          display: 'block',
+                        },
+                      }}
+                  />
+                ) : (
+                  <VolumeOffIcon
+                    onClick={() => {
+                      setMute(!mute)
+                    }}
+                    sx={{
+                      transition: 'all 0.1s ease-in-out',
+                      cursor: 'pointer',
+                      fontSize: '3vw',
+                      color: '#fff',
+                      '&:hover': {
+                        transform: 'scale(1.4)',
+                      },
+                    }}
+                  />
+                )}
+              </Stack>
 						</Stack>
 						<Stack direction="row" spacing={2} sx={{
 								justifyContent: 'center',
