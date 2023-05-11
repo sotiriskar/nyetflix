@@ -1,9 +1,9 @@
-
 import React, { useEffect } from 'react';
 import { Button, Typography, Grid, Box } from '@mui/material';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import YouTubeIcon from '@mui/icons-material/YouTube';
+
 
 export default function Footer() {
     useEffect(() => {

@@ -68,6 +68,17 @@ export default function MovieCard({ movie }: any) {
   const convertedDuration = convertToHours(movie.duration);
 
   useEffect(() => {
+    const audios = document.querySelectorAll('audio');
+    audios.forEach((audio) => {
+      audio.pause();
+    });
+    const videos = document.querySelectorAll('video');
+    videos.forEach((video) => {
+      video.pause();
+    });
+  }, []);
+
+  useEffect(() => {
     const handleMouseMove = () => {
       setShowMuteButton(true);
       const next = document.querySelector('.splide:hover .splide__arrow--next svg');
@@ -116,7 +127,9 @@ export default function MovieCard({ movie }: any) {
     >
       {subVideoPlaying ? (
         <CardMedia
-          onClick={() =>  router.push(`/watch/${movie.imdb_id}`)}
+          onClick={() =>  {
+            router.push(`/watch/${movie.imdb_id}`)
+          }}
           style={{
             justifyContent: 'center',
             alignItems: 'center',

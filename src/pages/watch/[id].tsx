@@ -22,20 +22,20 @@ export default function Watch( media: any ) {
   const [progress, setProgress] = useState('00:00');
 	const [loaded, setLoaded] = useState(false);
   const [duration, setDuration] = useState(0);
-	const ref = useRef<HTMLVideoElement>(null);
+	const playerRef = useRef<HTMLVideoElement>(null);
   const [play, setPlay] = useState(true);
   const [mute, setMute] = useState(false);
 	const timerRef = useRef<number>();
-	const router = useRouter();
+  const router = useRouter();
 
 	const handlePlay = () => {
 		setPlay(true);
-		ref?.current?.play();
+		playerRef?.current?.play();
 	};
 
 	const handlePause = () => {
 		setPlay(false);
-		ref?.current?.pause();
+		playerRef?.current?.pause();
 	};
 
   const handleFullscreen = () => {
@@ -51,14 +51,14 @@ export default function Watch( media: any ) {
   };
 
   const handleForward = () => {
-    if (ref.current) {
-      ref.current.currentTime += 10;
+    if (playerRef.current) {
+      playerRef.current.currentTime += 10;
     }
   };
 
   const handleRewind = () => {
-    if (ref.current) {
-      ref.current.currentTime -= 10;
+    if (playerRef.current) {
+      playerRef.current.currentTime -= 10;
     }
   };
 
@@ -91,9 +91,9 @@ export default function Watch( media: any ) {
 			setLoaded(true);
 		}
 		setInterval(() => {
-			if (ref.current) {
-				const duration = ref.current.duration;
-				const currentTime = ref.current.currentTime;
+			if (playerRef.current) {
+				const duration = playerRef.current.duration;
+				const currentTime = playerRef.current.currentTime;
 				const progress = (currentTime / duration) * 100;
 				setDuration(progress);
 			
@@ -136,9 +136,10 @@ export default function Watch( media: any ) {
         onClick={() => {
 					if (fullscreen) {
 						handleFullscreen();
-					}
-					router.back();
-				}}
+          }
+          router.back();
+          // when router.back() is called, the video audio remains playing in the background. How do I stop it?
+        }}
         sx={{
 					display: showControls ? 'flex' : 'none',
           position: 'absolute',
@@ -174,7 +175,8 @@ export default function Watch( media: any ) {
         controls={false}
         autoPlay={true}
         muted={mute}
-        ref={ref}
+        ref={playerRef}
+        loop={false}
       />       
       	<BottomNavigation
 					sx={{
@@ -217,10 +219,10 @@ export default function Watch( media: any ) {
 									max={100}
 									min={0}
 									onChange={(e: any) => {
-										if (ref.current) {
-											const duration = ref.current.duration;
+										if (playerRef.current) {
+											const duration = playerRef.current.duration;
 											const value = e.target.value;
-											ref.current.currentTime = (value * duration) / 100;
+											playerRef.current.currentTime = (value * duration) / 100;
 										}
 									}}
 									value={duration}

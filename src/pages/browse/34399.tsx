@@ -205,7 +205,7 @@ export default function Movies() {
     com.id === movie.id) && !pastYear?.some((past: any) =>
     past.id === movie.id) && !sciFi?.some((sci: any) =>
     sci.id === movie.id) && movie.id !== bannerMovie?.id)
-  .slice(0, 28);
+  .slice(0, 28)
 
   return (
     <>
