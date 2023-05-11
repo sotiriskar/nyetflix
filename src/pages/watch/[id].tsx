@@ -1,4 +1,5 @@
 import { Card, BottomNavigation, Stack, Typography, Slider, CircularProgress, Paper } from '@mui/material';
+import { Stepper, Step, StepLabel, StepContent, StepButton } from '@mui/material';
 import CommentIcon from '@mui/icons-material/InsertCommentOutlined';
 import FullscreenIcon from '@mui/icons-material/FullscreenRounded';
 import VolumeOffIcon from '@mui/icons-material/VolumeOffRounded';
@@ -14,21 +15,24 @@ import ArrowIcon from '@mui/icons-material/West';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { set } from 'lodash';
 
 
 export default function Watch( media: any ) {
 	const [showControls, setShowControls] = useState(true);
+  const [activeStep, setActiveStep] = React.useState(2);
 	const [fullscreen, setFullscreen] = useState(false);
   const [progress, setProgress] = useState('00:00');
 	const [loaded, setLoaded] = useState(false);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(100);
-	const playerRef = useRef<HTMLVideoElement>(null);
-  const [play, setPlay] = useState(true);
   const [mute, setMute] = useState(false);
-	const timerRef = useRef<number>();
+  const [play, setPlay] = useState(true);
+
+  const playerRef = useRef<HTMLVideoElement>(null);
+  const timerRef = useRef<number>();
   const router = useRouter();
+
+  const steps = [ '0.5x', '0.75x', '1x (Normal)', '1.25x', '1.5x' ];
 
 	const handlePlay = () => {
 		setPlay(true);
@@ -62,6 +66,10 @@ export default function Watch( media: any ) {
     if (playerRef.current) {
       playerRef.current.currentTime -= 10;
     }
+  };
+
+  const handleStep = (step: number) => () => {
+    setActiveStep(step);
   };
 
 	useEffect(() => {
@@ -462,6 +470,141 @@ export default function Watch( media: any ) {
 									},
 								}}
 							/>
+              <Stack direction="column" spacing={0} sx={{
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  display: 'flex',
+                  '&:hover .quality': {
+                    display: 'flex',
+                  },
+                  '&:hover svg': {
+                    transform: 'scale(1.4)',
+                  },
+                }}
+              >
+                <Paper
+                  className='quality'
+                  sx={{
+                    backgroundColor: '#202020',
+                    width: '43vw',
+                    borderRadius: '0.25vw',
+                    height: '10vw',
+                    bottom: '3.5vw',
+                    right: '-.68vw',
+                    position: 'absolute',
+                    display: 'none',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 2,
+                }}>
+                  <Stack direction="column" spacing={0} sx={{
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      display: 'flex',
+                      width: '100%',
+                      height: '100%',
+                    }}
+                  >
+                    <Typography sx={{
+                        justifyContent: 'left',
+                        alignItems: 'left',
+                        textAlign: 'left',
+                        fontSize: '28px',
+                        fontWeight: '400',
+                        display: 'flex',
+                        padding: '1vw 2vw',
+                        color: '#fff',
+                        width: '100%',
+                      }}
+                    >
+                      Playback Speed
+                    </Typography>
+                    <Stepper activeStep={activeStep}
+                      alternativeLabel nonLinear
+                      sx={{
+                        backgroundColor: 'transparent',
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        '& .MuiStep-root': {
+                          width: '100%',
+                        },
+                        // other steps
+                        '& .MuiStepIcon-root': {
+                          backgroundColor: '#fff',
+                          borderRadius: '50%',
+                          color: '#fff',
+                          width: '.8vw',
+                          height: '.8vw',
+                          margin: '.2vw',
+                          cursor: 'pointer',
+                        },
+                        // active
+                        '& .MuiStepIcon-root.Mui-active': {
+                          width: '1.7vw',
+                          height: '1.7vw',
+                          margin: '-.27vw',
+                          color: '#fff',
+                          padding: '0 5px',
+                          backgroundColor: '#202020',
+                          border: '2px solid rgba(255,255,255,.5)',
+                          zIndex: 2,
+                        },
+                        // line
+                        '& .MuiStepConnector-line': {
+                        },
+                        // text color
+                        '& .MuiStepLabel-label': {
+                          color: '#fff',
+                          fontWeight: '400',
+                          fontSize: '1.3vw',
+                        },
+                        '& .MuiStepLabel-label.Mui-active': {
+                          color: '#fff',
+                          fontWeight: '700',
+                          fontSize: '1.3vw',
+                        },
+                      }}
+                    >
+                    {steps.map((label, index) => (
+                      <Step key={label}>
+                        <StepButton disableRipple
+                          onClick={() => {
+                            setActiveStep(index)
+                            if (playerRef.current) {
+                              switch (index) {
+                                case 0:
+                                  playerRef.current.playbackRate = .5
+                                  break
+                                case 1:
+                                  playerRef.current.playbackRate = .75
+                                  break
+                                case 2:
+                                  playerRef.current.playbackRate = 1
+                                  break
+                                case 3:
+                                  playerRef.current.playbackRate = 1.25
+                                  break
+                                case 4:
+                                  playerRef.current.playbackRate = 1.5
+                                  break
+                              }
+                            }
+                          }}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                          }}
+                        >
+                          {label}
+                        </StepButton>
+                      </Step>
+                    ))}
+                  </Stepper>
+                  </Stack>
+                </Paper>
 							<PerformanceIcon
 								sx={{
 									transition: 'all 0.1s ease-in-out',
@@ -473,6 +616,7 @@ export default function Watch( media: any ) {
 									},
 								}}
 							/>
+              </Stack>
 								<FullscreenIcon
 									onClick={() => handleFullscreen()}
 									sx={{
