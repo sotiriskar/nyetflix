@@ -46,7 +46,7 @@
         event.stopPropagation();
 
         const userId = '1'; // Replace with actual user ID
-        let isCurrentlyBookmarked;
+        let isCurrentlyBookmarked = false;
         bookmarkedMovies.update(set => {
             isCurrentlyBookmarked = set.has(movieId);
             if (isCurrentlyBookmarked) {
