@@ -3,6 +3,7 @@
     import type { PopupSettings } from '@skeletonlabs/skeleton';
     import { popup } from '@skeletonlabs/skeleton';
     import { goto } from '$app/navigation';
+    import { LogOut } from 'lucide-svelte';
 
     export let movies: any[] = [];
     export let movieTitles: any[] = [];
@@ -38,7 +39,25 @@
             goto(`/search?movie=${encodeURIComponent(inputPopupDemo.toLowerCase())}`);
         }
     }
+
+    const popupFeatured: PopupSettings = {
+        // Represents the type of event that opens/closed the popup
+        event: 'click',
+        // Matches the data-popup value on your popup element
+        target: 'popupFeatured',
+        // Defines which side of your trigger the popup will appear
+        placement: 'bottom',
+    };
+
 </script>
+
+<div class="card p-4 w-60 shadow-xl" data-popup="popupFeatured">
+    <div>
+      <LogOut class="inline-block mr-2" />
+      <p class="inline-block text-sm cursor-pointer
+      ">Log out</p>
+    </div>
+</div>
 
 <AppBar gridColumns="grid-cols-3" slotDefault="place-self-center" slotTrail="place-content-end">
     <svelte:fragment slot="lead">
@@ -62,8 +81,10 @@
             options={movieOptions}
             on:selection={onPopupDemoSelect}
         />
-    </div>
+    </div>		
     <svelte:fragment slot="trail">
-        <Avatar initials="SK" background="bg-primary-500" class="h-9 w-9 mr-2" />
+        <button use:popup={popupFeatured} class="z-10">
+            <Avatar initials="SK" background="bg-primary-500" class="h-9 w-9 mr-2"/>
+        </button>
     </svelte:fragment>
 </AppBar>
