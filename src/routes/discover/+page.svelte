@@ -48,6 +48,7 @@
 
     let selectedGenre = 'all';
     let selectedYear = 'all';
+    let selectedOrder = 'none';
 
     import { onMount } from 'svelte';
 
@@ -120,11 +121,27 @@
         }
     }
 
-    $: filteredMovies = movies.filter(movie => {
+    function sortMovies(movies: Movie[], order: string): Movie[] {
+        if (order === 'none') {
+            return movies;
+        }
+        return movies.slice().sort((a, b) => {
+            if (order === 'rating') {
+                return b.rating.localeCompare(a.rating);
+            } else if (order === 'date') {
+                return b.year - a.year;
+            } else if (order === 'duration') {
+                return b.duration - a.duration;
+            }
+            return 0;
+        });
+    }
+
+    $: filteredMovies = sortMovies(movies.filter(movie => {
         const matchesGenre = selectedGenre === 'all' || movie.type.split(',').includes(selectedGenre);
         const matchesYear = selectedYear === 'all' || movie.year === Number(selectedYear);
         return matchesGenre && matchesYear;
-    });
+    }), selectedOrder);
 
     $: if (filteredMovies.length > 0) {
         selectedMovie = filteredMovies[0];
@@ -172,20 +189,34 @@
                 </div>
             {/if}
             <section class="pt-10 pl-14">
-                <h2 class="text-2xl font-bold">Genres</h2>
-                <div class="grid grid-cols-4 gap-4 pt-4">
-                    <select class="select" bind:value={selectedGenre}>
-                        <option value="all">All</option>
-                        {#each Array.from(genres) as genre}
-                            <option value={genre}>{genre}</option>
-                        {/each}
-                    </select>
-                    <select class="select" bind:value={selectedYear}>
-                        <option value="all">All</option>
-                        {#each Array.from(movieYears) as movieYear}
-                            <option value={movieYear}>{movieYear}</option>
-                        {/each}
-                    </select>
+                <div class="flex items-center space-x-8">
+                    <div>
+                        <h2 class="text-2xl font-bold">Genres</h2>
+                        <select class="select mt-2 p-2 text-lg w-48" bind:value={selectedGenre}>
+                            <option value="all">All</option>
+                            {#each Array.from(genres) as genre}
+                                <option value={genre}>{genre}</option>
+                            {/each}
+                        </select>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold">Date</h2>
+                        <select class="select mt-2 p-2 text-lg w-48" bind:value={selectedYear}>
+                            <option value="all">All</option>
+                            {#each Array.from(movieYears) as movieYear}
+                                <option value={movieYear}>{movieYear}</option>
+                            {/each}
+                        </select>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold">Order By</h2>
+                        <select class="select mt-2 p-2 text-lg w-48" bind:value={selectedOrder}>
+                            <option value="none">None</option>
+                            <option value="rating">Rating</option>
+                            <option value="date">Date</option>
+                            <option value="duration">Duration</option>
+                        </select>
+                    </div>
                 </div>
             </section>
             <!-- Movies Carousel -->
