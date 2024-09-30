@@ -1,12 +1,11 @@
 <script lang="ts">
     import '../../app.postcss';
-    import { AppShell, AppBar, Avatar, AppRail, AppRailAnchor, Autocomplete } from '@skeletonlabs/skeleton';
-    import { House, Search, Library, Settings } from 'lucide-svelte';
+    import { AppShell } from '@skeletonlabs/skeleton';
+    import { ChevronLeft, ChevronRight, Play } from 'lucide-svelte';
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-    import { popup } from '@skeletonlabs/skeleton';
-    import type { PopupSettings } from '@skeletonlabs/skeleton';
-    import { ChevronLeft, ChevronRight, Play } from 'lucide-svelte';
+    import TopBar from '$lib/components/TopBar.svelte';
+    import NavBar from '$lib/components/NavBar.svelte';
 
     // Highlight JS
     import hljs from 'highlight.js/lib/core';
@@ -29,11 +28,23 @@
     storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
     let currentTile = 0;
 
-    let movies = [];
-    let movieTitles = [];
-    let movieYears = [];
-    let selectedMovie = null;
-    let genres = [];
+    interface Movie {
+        title: string;
+        year: number;
+        type: string;
+        wide_poster: string;
+        duration: number;
+        rating: string;
+        description: string;
+        movie_id: string;
+        poster: string;
+    }
+    
+    let movies: Movie[] = [];
+    let movieTitles: string[] = [];
+    let movieYears: Iterable<any> | ArrayLike<any> = [];
+    let selectedMovie: Movie | null = null;
+    let genres: Iterable<any> | ArrayLike<any> = [];
 
     let selectedGenre = 'all';
     let selectedYear = 'all';
@@ -46,7 +57,6 @@
             movies = await response.json();
             movieTitles = movies.map(movie => movie.title);
             movieYears = [...new Set(movies.map(movie => movie.year))];
-            movieOptions = movieTitles.map(title => ({ label: title, value: title }));
             selectedMovie = movies[0]; // Set the initial selected movie
             genres = [...new Set(movies.flatMap(movie => movie.type.split(',')))];
 
@@ -57,41 +67,9 @@
         }
     });
 
-    // Autocomplete
-    let movieOptions = [];
-    let inputPopupDemo: string = '';
-    let popupSettings: PopupSettings = {
-        event: 'focus-click',
-        target: 'popupAutocomplete',
-        placement: 'bottom',
-    };
-
-    $: if (inputPopupDemo.length > 0) {
-        movieOptions = movieTitles
-            .filter(title => title.toLowerCase().includes(inputPopupDemo.toLowerCase()))
-            .slice(0, 3)
-            .map(title => ({ label: title, value: title }));
-    } else {
-        movieOptions = [];
-    }
-
-    function onPopupDemoSelect(event) {
-        inputPopupDemo = event.detail.value;
-        const selectedMovie = movies.find(movie => movie.title.toLowerCase() === inputPopupDemo.toLowerCase());
-        if (selectedMovie) {
-            goto(`/search?movie=${encodeURIComponent(selectedMovie.title)}`);
-        }
-    }
-
-    function handleKeyPress(event) {
-        if (event.key === 'Enter') {
-            goto(`/search?movie=${encodeURIComponent(inputPopupDemo.toLowerCase())}`);
-        }
-    }
-
     // Search mechanism
     let searchQuery = '';
-    let filteredMovies = [];
+    let filteredMovies: string | any[] = [];
 
     $: {
         const urlParams = new URLSearchParams($page.url.search);
@@ -132,7 +110,7 @@
         return `${hours}h ${remainingMinutes}m`;
     }
 
-    function selectMovie(movie) {
+    function selectMovie(movie: Movie) {
         selectedMovie = movie;
     }
 
@@ -144,7 +122,7 @@
 
     $: filteredMovies = movies.filter(movie => {
         const matchesGenre = selectedGenre === 'all' || movie.type.split(',').includes(selectedGenre);
-        const matchesYear = selectedYear === 'all' || movie.year === selectedYear;
+        const matchesYear = selectedYear === 'all' || movie.year === Number(selectedYear);
         return matchesGenre && matchesYear;
     });
 
@@ -162,65 +140,17 @@
 <!-- App Shell -->
 <AppShell>
     <svelte:fragment slot="header">
-        <!-- App Bar -->
-        <AppBar gridColumns="grid-cols-3" slotDefault="place-self-center" slotTrail="place-content-end">
-            <svelte:fragment slot="lead">
-                <a href="/" class="focus:outline-0">
-                    <img src="/nyetflix-logo.png" alt="Nyetflix Logo" class="h-10 pl-4"/>
-                </a>
-            </svelte:fragment>
-                <input
-                    class="input autocomplete"
-                    type="search"
-                    name="autocomplete-search"
-                    bind:value={inputPopupDemo}
-                    placeholder="Search..."
-                    use:popup={popupSettings}
-                    on:keypress={handleKeyPress}
-                />
-                <div data-popup="popupAutocomplete">
-                    <Autocomplete
-                        class="bg-surface-800 text-surface-50 rounded-md shadow-md p-4"
-                        bind:input={inputPopupDemo}
-                        options={movieOptions}
-                        on:selection={onPopupDemoSelect}
-                    />
-                </div>
-            <svelte:fragment slot="trail">
-                <Avatar initials="SK" background="bg-primary-500" class="h-9 w-9 mr-2" />
-            </svelte:fragment>
-        </AppBar>
+        <TopBar {movies} {movieTitles} />
     </svelte:fragment>
     <!-- Flex Container -->
     <section class="flex w-full h-full">
-        <!-- App Rail -->
-        <AppRail class="flex flex-col items-center justify-center pb-40 fixed">
-            <AppRailAnchor selected={$page.url.pathname === '/'} name="home" title="Home" href="/">
-                <svelte:fragment slot="lead">
-                    <House class="w-20"/>
-                </svelte:fragment>
-            </AppRailAnchor>
-            <AppRailAnchor selected={$page.url.pathname === '/discover'} name="search" title="Search" href="/discover">
-                <svelte:fragment slot="lead">
-                    <Search class="w-20"/>
-                </svelte:fragment>
-            </AppRailAnchor>
-            <AppRailAnchor selected={$page.url.pathname === '/library'} name="library" title="Library" href="/library">
-                <svelte:fragment slot="lead">
-                    <Library class="w-20"/>
-                </svelte:fragment>
-            </AppRailAnchor>
-            <AppRailAnchor bind:group={currentTile} name="settings" value={3} title="Settings">
-                <svelte:fragment slot="lead">
-                    <Settings class="w-20"/>
-                </svelte:fragment>
-            </AppRailAnchor>
-        </AppRail>
+        <!-- NavBar Component -->
+        <NavBar bind:currentTile={currentTile} />
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
             {#if selectedMovie}
                 <div class="relative w-full h-96">
                     <img src={selectedMovie.wide_poster} alt={selectedMovie.title} class="w-full h-full object-cover object-top rounded-lg">
-                    <div class="absolute inset-0 bg-gradient-to-r from-surface-900 to-transparent via-surface-900/90 via-40% to-transparent to-70% rounded-lg"></div>
+                    <div class="absolute inset-0 bg-gradient-to-r from-surface-900 to-transparent via-surface-900/90 via-40% to-70% rounded-lg"></div>
                     <div class="absolute top-10 left-10 text-white max-w-md">
                         <h1 class="text-3xl font-bold py-2">{selectedMovie.title}</h1>
                         <h4 class="text-sm flex space-x-4 py-4">
@@ -268,9 +198,9 @@
                     <!-- Carousel -->
                     <div bind:this={elemMovies} class="snap-x snap-mandatory scroll-smooth flex gap-2 pb-2 overflow-x-auto">
                         {#each filteredMovies as movie}
-                            <a on:click={() => selectMovie(movie)} class="shrink-0 w-[18%] snap-start cursor-pointer">
+                            <button type="button" on:click={() => selectMovie(movie)} on:keydown={(e) => e.key === 'Enter' && selectMovie(movie)} class="shrink-0 w-[18%] snap-start cursor-pointer" aria-label={`Select ${movie.title}`}>
                                 <img src={movie.poster} alt={movie.title} class="w-full h-full object-cover rounded-t-lg">
-                            </a>
+                            </button>
                         {/each}
                     </div>
                     <!-- Button-Right -->

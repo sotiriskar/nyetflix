@@ -1,13 +1,14 @@
 <script lang="ts">
   import '../../../app.postcss';
-  import { onMount } from 'svelte';
+  import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
+  import { storePopup, storeHighlightJs } from '@skeletonlabs/skeleton';
+  import { ArrowLeft } from 'lucide-svelte';
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
 
   // Highlight JS
   import hljs from 'highlight.js/lib/core';
   import 'highlight.js/styles/github-dark.css';
-  import { storeHighlightJs } from '@skeletonlabs/skeleton';
-  import { ArrowLeft } from 'lucide-svelte';
   import xml from 'highlight.js/lib/languages/xml'; // for HTML
   import css from 'highlight.js/lib/languages/css';
   import javascript from 'highlight.js/lib/languages/javascript';
@@ -20,18 +21,19 @@
   storeHighlightJs.set(hljs);
 
   // Floating UI for Popups
-  import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
-  import { storePopup } from '@skeletonlabs/skeleton';
   storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
   // Arrow visibility
+  let videoElement: HTMLVideoElement;
+  let movie: { movie_id: any; };
   let arrowVisible = true;
   let timeoutId: number;
+  let movieId: string;
 
   const resetTimeout = () => {
     clearTimeout(timeoutId);
     arrowVisible = true;
-    timeoutId = setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       arrowVisible = false;
     }, 2500);
   };
@@ -45,11 +47,6 @@
     resetTimeout();
   }
 
-  // Get movie ID from URL
-  let movieId;
-  let movie;
-  let videoElement: HTMLVideoElement;
-
   $: {
     const unsubscribe = page.subscribe(($page) => {
       movieId = $page.params.movie_id;
@@ -59,7 +56,7 @@
         const response = await fetch('/api/movies');
         if (response.ok) {
           const movies = await response.json();
-          movie = movies.find(m => String(m.movie_id) === String(movieId));
+          movie = movies.find((m: { movie_id: any; }) => String(m.movie_id) === String(movieId));
         }
       }
       unsubscribe();
@@ -85,6 +82,7 @@
   {#if movie}
     <video bind:this={videoElement} controls playsinline autoplay loop class="w-full h-full object-cover">
       <source src={`/trailers/${movie.movie_id}.mp4`} type="video/mp4">
+      <track kind="captions" src={`/trailers/${movie.movie_id}.vtt`} srclang="en" label="English">
     </video>
   {:else}
     <p>Loading...</p>
