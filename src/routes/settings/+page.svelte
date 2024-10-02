@@ -5,7 +5,6 @@
     import { Settings, UserRoundPen } from 'lucide-svelte';
     import TopBar from '$lib/components/TopBar.svelte';
     import NavBar from '$lib/components/NavBar.svelte';
-    import { writable } from 'svelte/store';
     import { onMount } from 'svelte';
 
     // Highlight JS
@@ -25,46 +24,64 @@
     // Floating UI for Popups
     storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
-    function getUserIdFromCookie() {
-        const sessionCookie = document.cookie.split('; ').find(row => row.startsWith('session='));
-        if (sessionCookie) {
-            try {
-                const userInfo = JSON.parse(decodeURIComponent(sessionCookie.split('=')[1]));
-                return userInfo.id;
-            } catch (err) {
-                console.error('Failed to parse session cookie:', err);
-            }
-        }
-        return null;
-    }
-
-    let bookmarkedMovies = writable(new Set());
     let currentTile: number = 0;
     let movieTitles: any[] = [];
     let movies: any[] = [];
+    let username: string = '';
+    let pronouns: string = '';
 
     onMount(async () => {
-        const response = await fetch('/api/movies');
-        if (response.ok) {
-            movies = await response.json();
+    try {
+        const movieResponse = await fetch('/api/movies');
+        if (movieResponse.ok) {
+            movies = await movieResponse.json();
             movieTitles = movies.map(movie => movie.title);
         } else {
-            console.error('Failed to fetch movies:', response.statusText);
+            console.error('Failed to fetch movies:', movieResponse.statusText);
         }
 
-        const userId = getUserIdFromCookie();
-        const bookmarkResponse = await fetch(`/api/users/${userId}/bookmark`);
-        if (bookmarkResponse.ok) {
-            const bookmarks = await bookmarkResponse.json();
-            bookmarkedMovies.set(new Set(bookmarks.map((bookmark: { movie_id: any; }) => bookmark.movie_id)));
+        const userResponse = await fetch('/api/users');
+        if (userResponse.ok) {
+            const data = await userResponse.json();
+            if (Array.isArray(data) && data.length > 0) {
+                const userData = data[0];
+                if (userData.username) {
+                    username = userData.username;
+                    pronouns = userData.pronouns.toLowerCase();
+                } else {
+                    console.error('Username is undefined');
+                }
+            } else {
+                console.error('User data array is empty or not an array');
+            }
         } else {
-            console.error('Failed to fetch bookmarks:', bookmarkResponse.statusText);
+            console.error('Failed to fetch user data:', userResponse.statusText);
         }
 
         // Parse the URL to get the search query
         const urlParams = new URLSearchParams(window.location.search);
         const searchQuery = urlParams.get('movie') || '';
-    });
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+});
+
+    async function updateUserData() {
+        try {
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, pronouns })
+            });
+            if (!response.ok) {
+                console.error('Failed to update user data:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error updating user data:', error);
+        }
+    }
 
     import { Toast, getToastStore } from '@skeletonlabs/skeleton';
     import type { ToastSettings } from '@skeletonlabs/skeleton';
@@ -116,11 +133,11 @@
             <div class="form-container">
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4 pt-5">Username</h4>
-                    <input type="text" class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3" />
+                    <input type="text" bind:value={username} class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3" />
                 </div>
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4">Pronouns</h4>
-                    <select class="border bg-surface-700 text-surface-50 rounded-lg pb-2 w-1/3">
+                    <select bind:value={pronouns} class="border bg-surface-700 text-surface-50 rounded-lg pb-2 w-1/3">
                         <option value="he/him">He/Him</option>
                         <option value="she/her">She/Her</option>
                         <option value="they/them">They/Them</option>
@@ -128,11 +145,10 @@
                         <option value="xe/xem">Xe/Xem</option>
                         <option value="ver/vir">Ver/Vir</option>
                         <option value="te/tem">Te/Tem</option>
-                        <option value="e/em">E/Em</option>
                     </select>
                 </div>
                 <div class="form-row pb-6 pt-5">
-                    <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={() => showToast('Changes successful!')}>Update Profile</button>
+                    <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={updateUserData}>Update Profile</button>
                 </div>
                 <h2 class="text-2xl font-bold my-3 ml-4">
                     <UserRoundPen class="w-10 inline-block" />

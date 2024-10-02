@@ -27,8 +27,6 @@
     // Floating UI for Popups
     storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
-    export let session: string;
-
     let bookmarkedMovies = writable(new Set());
     let filteredMovies: any[] = [];
     let searchQuery: string = '';
