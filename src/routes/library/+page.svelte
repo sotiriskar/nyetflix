@@ -1,9 +1,8 @@
 <script lang="ts">
     import '../../app.postcss';
     import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
-    import { AppShell, storeHighlightJs } from '@skeletonlabs/skeleton';
+    import { AppShell, storeHighlightJs, storePopup } from '@skeletonlabs/skeleton';
     import { Bookmark, BookmarkCheck } from 'lucide-svelte';
-    import { storePopup } from '@skeletonlabs/skeleton';
     import TopBar from '$lib/components/TopBar.svelte';
     import NavBar from '$lib/components/NavBar.svelte';
     import Modal from '$lib/components/Modal.svelte';
@@ -34,23 +33,53 @@
     let hoverStates: any[] = [];
     let movies: any[] = [];
     let modal: Modal;
+    let userData: any = null;
+    let initials: string = '';
+
+    function getInitials(username: string): string {
+        return username.split(' ').map(name => name[0]).join('');
+    }
 
     onMount(async () => {
-        const response = await fetch('/api/movies');
-        if (response.ok) {
-            movies = await response.json();
-            movieTitles = movies.map(movie => movie.title);
-        } else {
-            console.error('Failed to fetch movies:', response.statusText);
+        try {
+            const response = await fetch('/api/users');
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    userData = data[0];
+                    if (userData.username) {
+                        initials = getInitials(userData.username);
+                    } else {
+                        console.error('Username is undefined');
+                    }
+                } else {
+                    console.error('User data array is empty or not an array');
+                }
+            } else {
+                console.error('Failed to fetch user data:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
         }
 
-        const userId = '1'; // Replace with actual user ID
-        const bookmarkResponse = await fetch(`/api/users/${userId}/bookmark`);
-        if (bookmarkResponse.ok) {
-            const bookmarks = await bookmarkResponse.json();
-            bookmarkedMovies.set(new Set(bookmarks.map((bookmark: { movie_id: any; }) => bookmark.movie_id)));
+        const movieResponse = await fetch('/api/movies');
+        if (movieResponse.ok) {
+            movies = await movieResponse.json();
+            movieTitles = movies.map(movie => movie.title);
         } else {
-            console.error('Failed to fetch bookmarks:', bookmarkResponse.statusText);
+            console.error('Failed to fetch movies:', movieResponse.statusText);
+        }
+
+        if (userData && userData.user_id) {
+            const bookmarkResponse = await fetch(`/api/users/${userData.user_id}/bookmark`);
+            if (bookmarkResponse.ok) {
+                const bookmarks = await bookmarkResponse.json();
+                bookmarkedMovies.set(new Set(bookmarks.map((bookmark: { movie_id: any; }) => bookmark.movie_id)));
+            } else {
+                console.error('Failed to fetch bookmarks:', bookmarkResponse.statusText);
+            }
+        } else {
+            console.error('User ID not found in userData');
         }
     });
 
@@ -64,7 +93,11 @@
         event.preventDefault();
         event.stopPropagation();
 
-        const userId = '1'; // Replace with actual user ID
+        if (!userData || !userData.user_id) {
+            console.error('User ID not found in userData');
+            return;
+        }
+
         let isCurrentlyBookmarked = false;
         bookmarkedMovies.update(set => {
             isCurrentlyBookmarked = set.has(movieId);
@@ -87,14 +120,14 @@
         try {
             if (isCurrentlyBookmarked) {
                 // Remove bookmark
-                await fetch(`/api/users/${userId}/bookmark`, {
+                await fetch(`/api/users/${userData.user_id}/bookmark`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })
                 });
             } else {
                 // Add bookmark
-                await fetch(`/api/users/${userId}/bookmark`, {
+                await fetch(`/api/users/${userData.user_id}/bookmark`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })

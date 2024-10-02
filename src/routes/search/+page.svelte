@@ -36,7 +36,29 @@
     let searchQuery = '';
     let modal: Modal;
 
+    let userData: { user_id?: string } = {};
+
     onMount(async () => {
+        try {
+            const response = await fetch('/api/users');
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    userData = data[0];
+                    if (userData.user_id) {
+                    } else {
+                        console.error('user_id is undefined');
+                    }
+                } else {
+                    console.error('User data array is empty or not an array');
+                }
+            } else {
+                console.error('Failed to fetch user data:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+        }
+
         const response = await fetch('/api/movies');
         if (response.ok) {
             movies = await response.json();
@@ -45,8 +67,7 @@
             console.error('Failed to fetch movies:', response.statusText);
         }
 
-        const userId = '1'; // Replace with actual user ID
-        const bookmarkResponse = await fetch(`/api/users/${userId}/bookmark`);
+        const bookmarkResponse = await fetch(`/api/users/${userData.user_id}/bookmark`);
         if (bookmarkResponse.ok) {
             const bookmarks = await bookmarkResponse.json();
             bookmarkedMovies.set(new Set(bookmarks.map((bookmark: { movie_id: any; }) => bookmark.movie_id)));
@@ -64,7 +85,6 @@
         event.preventDefault();
         event.stopPropagation();
 
-        const userId = '1'; // Replace with actual user ID
         let isCurrentlyBookmarked: boolean = false;
         bookmarkedMovies.update(set => {
             isCurrentlyBookmarked = set.has(movieId);
@@ -87,14 +107,14 @@
         try {
             if (isCurrentlyBookmarked) {
                 // Remove bookmark
-                await fetch(`/api/users/${userId}/bookmark`, {
+                await fetch(`/api/users/${userData.user_id}/bookmark`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })
                 });
             } else {
                 // Add bookmark
-                await fetch(`/api/users/${userId}/bookmark`, {
+                await fetch(`/api/users/${userData.user_id}/bookmark`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })

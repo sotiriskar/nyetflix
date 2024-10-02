@@ -4,13 +4,18 @@
     import { popup } from '@skeletonlabs/skeleton';
     import { goto } from '$app/navigation';
     import { LogOut } from 'lucide-svelte';
+    import { onMount } from 'svelte';
 
-    export let movies: any[] = [];
-    export let movieTitles: any[] = [];
-
-    let inputPopupDemo: string = '';
     let movieOptions: { label: any; value: any; }[] = [];
+    export let movieTitles: any[] = [];
+    let inputPopupDemo: string = '';
+    export let movies: any[] = [];
+    let initials: string = '';
+    interface UserData {
+        username: string;
+    }
 
+    let userData: UserData = { username: '' };
     let popupSettings: PopupSettings = {
         event: 'focus-click',
         target: 'popupAutocomplete',
@@ -18,46 +23,95 @@
     };
 
     $: if (inputPopupDemo.length > 0) {
+        console.log('Filtering movie titles with input:', inputPopupDemo);
         movieOptions = movieTitles
             .filter(title => title.toLowerCase().includes(inputPopupDemo.toLowerCase()))
             .slice(0, 3)
             .map(title => ({ label: title, value: title }));
+        console.log('Filtered movie options:', movieOptions);
     } else {
         movieOptions = [];
     }
 
     function onPopupDemoSelect(event: { detail: { value: string; }; }) {
         inputPopupDemo = event.detail.value;
+        console.log('Selected movie:', inputPopupDemo);
         const selectedMovie = movies.find(movie => movie.title.toLowerCase() === inputPopupDemo.toLowerCase());
         if (selectedMovie) {
-            goto(`/search?movie=${encodeURIComponent(selectedMovie.title)}`);
+            console.log('Navigating to movie:', selectedMovie.title);
+            goto(`/search?movie=${encodeURIComponent(selectedMovie.title.toLowerCase())}`);
+        } else {
+            console.error('Selected movie not found in movies array');
         }
     }
 
     function handleKeyPress(event: { key: string; }) {
         if (event.key === 'Enter') {
+            console.log('Enter key pressed, navigating to search with input:', inputPopupDemo);
             goto(`/search?movie=${encodeURIComponent(inputPopupDemo.toLowerCase())}`);
         }
     }
 
+    async function handleLogout() {
+        try {
+            const response = await fetch('/api/logout', {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                goto('/login'); // Redirect to the login page or any other page
+            } else {
+                console.error('Logout failed:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+        }
+    }
+
     const popupFeatured: PopupSettings = {
-        // Represents the type of event that opens/closed the popup
         event: 'click',
-        // Matches the data-popup value on your popup element
         target: 'popupFeatured',
-        // Defines which side of your trigger the popup will appear
         placement: 'bottom',
     };
 
+    function getInitials(username: string): string {
+        const parts = username.split(/(?=[A-Z])|[_\s]/).filter(Boolean);
+        if (parts.length > 1) {
+            return parts.map(part => part[0].toUpperCase()).join('');
+        }
+        return username.slice(0, 2).toUpperCase();
+    }
+
+    onMount(async () => {
+        try {
+            const response = await fetch('/api/users');
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    userData = data[0];
+                    if (userData.username) {
+                        initials = getInitials(userData.username);
+                    } else {
+                        console.error('Username is undefined');
+                    }
+                } else {
+                    console.error('User data array is empty or not an array');
+                }
+            } else {
+                console.error('Failed to fetch user data:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+        }
+    });
 </script>
 
-<div class="card p-4 w-60 shadow-xl" data-popup="popupFeatured">
+<button class="card p-4 w-[150px] shadow-xl" data-popup="popupFeatured" on:click={handleLogout} on:keypress={handleKeyPress}>
     <div>
       <LogOut class="inline-block mr-2" />
-      <p class="inline-block text-sm cursor-pointer
-      ">Log out</p>
+      <p class="inline-block text-sm cursor-pointer">Log out</p>
     </div>
-</div>
+</button>
 
 <AppBar gridColumns="grid-cols-3" slotDefault="place-self-center" slotTrail="place-content-end">
     <svelte:fragment slot="lead">
@@ -84,7 +138,7 @@
     </div>		
     <svelte:fragment slot="trail">
         <button use:popup={popupFeatured} class="z-10">
-            <Avatar initials="SK" background="bg-primary-500" class="h-9 w-9 mr-2"/>
+            <Avatar initials={initials} background="bg-primary-500" class="h-9 w-9 mr-2"/>
         </button>
     </svelte:fragment>
 </AppBar>

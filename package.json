@@ -26,6 +26,7 @@
     "@types/eslint": "^9.6.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.5.5",
+    "@types/pg": "^8.11.10",
     "autoprefixer": "10.4.20",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
@@ -47,6 +48,7 @@
   "type": "module",
   "dependencies": {
     "@floating-ui/dom": "1.6.11",
+    "cookie": "^0.6.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "highlight.js": "11.10.0",

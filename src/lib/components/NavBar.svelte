@@ -22,7 +22,7 @@
             <Library class="w-20"/>
         </svelte:fragment>
     </AppRailAnchor>
-    <AppRailAnchor bind:group={currentTile} name="settings" value={3} title="Settings">
+    <AppRailAnchor selected={$page.url.pathname === '/settings'} name="settings" title="Settings" href="/settings">
         <svelte:fragment slot="lead">
             <Settings class="w-20"/>
         </svelte:fragment>

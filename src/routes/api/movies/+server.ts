@@ -7,6 +7,7 @@ export const GET: RequestHandler = async () => {
         const result = await pool.query('SELECT * FROM nyetflix.movies');
         return new Response(JSON.stringify(result.rows), { status: 200 });
     } catch (err) {
+        console.error(err);
         return new Response(JSON.stringify({ error: 'Database error' }), { status: 500 });
     }
 };

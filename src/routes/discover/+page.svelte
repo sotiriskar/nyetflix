@@ -60,9 +60,6 @@
             movieYears = [...new Set(movies.map(movie => movie.year))];
             selectedMovie = movies[0]; // Set the initial selected movie
             genres = [...new Set(movies.flatMap(movie => movie.type.split(',')))];
-
-            // Debugging: Log the genres set
-            console.log('Extracted genres:', Array.from(genres));
         } else {
             console.error('Failed to fetch movies:', response.statusText);
         }
