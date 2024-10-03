@@ -84,7 +84,7 @@
 
     onMount(async () => {
         try {
-            const response = await fetch('/api/users');
+            const response = await fetch('/api/user/');
             if (response.ok) {
                 const data = await response.json();
                 if (Array.isArray(data) && data.length > 0) {

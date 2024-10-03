@@ -42,7 +42,7 @@
 
     onMount(async () => {
         try {
-            const response = await fetch('/api/users');
+            const response = await fetch('/api/user/');
             if (response.ok) {
                 const data = await response.json();
                 if (Array.isArray(data) && data.length > 0) {
@@ -71,7 +71,7 @@
         }
 
         if (userData && userData.user_id) {
-            const bookmarkResponse = await fetch(`/api/users/${userData.user_id}/bookmark`);
+            const bookmarkResponse = await fetch(`/api/user/${userData.user_id}/bookmark`);
             if (bookmarkResponse.ok) {
                 const bookmarks = await bookmarkResponse.json();
                 bookmarkedMovies.set(new Set(bookmarks.map((bookmark: { movie_id: any; }) => bookmark.movie_id)));
@@ -120,14 +120,14 @@
         try {
             if (isCurrentlyBookmarked) {
                 // Remove bookmark
-                await fetch(`/api/users/${userData.user_id}/bookmark`, {
+                await fetch(`/api/user/${userData.user_id}/bookmark`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })
                 });
             } else {
                 // Add bookmark
-                await fetch(`/api/users/${userData.user_id}/bookmark`, {
+                await fetch(`/api/user/${userData.user_id}/bookmark`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })

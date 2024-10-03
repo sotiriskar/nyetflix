@@ -50,9 +50,11 @@
     "@floating-ui/dom": "1.6.11",
     "cookie": "^0.6.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "highlight.js": "11.10.0",
     "lucide-svelte": "^0.445.0",
+    "minio": "^8.0.1",
     "pg": "^8.13.0",
     "plyr": "^3.7.8"
   },

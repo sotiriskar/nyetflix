@@ -5,6 +5,7 @@
     import { Settings, UserRoundPen } from 'lucide-svelte';
     import TopBar from '$lib/components/TopBar.svelte';
     import NavBar from '$lib/components/NavBar.svelte';
+    import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
 
     // Highlight JS
@@ -24,79 +25,173 @@
     // Floating UI for Popups
     storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
+    let newPassword: string = '';
     let currentTile: number = 0;
     let movieTitles: any[] = [];
     let movies: any[] = [];
     let username: string = '';
     let pronouns: string = '';
+    let userId: number;
 
-    onMount(async () => {
-    try {
-        const movieResponse = await fetch('/api/movies');
-        if (movieResponse.ok) {
-            movies = await movieResponse.json();
-            movieTitles = movies.map(movie => movie.title);
-        } else {
-            console.error('Failed to fetch movies:', movieResponse.statusText);
-        }
+    let usernameError: string = '';
+    let passwordError: string = '';
 
-        const userResponse = await fetch('/api/users');
-        if (userResponse.ok) {
-            const data = await userResponse.json();
-            if (Array.isArray(data) && data.length > 0) {
-                const userData = data[0];
-                if (userData.username) {
-                    username = userData.username;
-                    pronouns = userData.pronouns.toLowerCase();
-                } else {
-                    console.error('Username is undefined');
-                }
-            } else {
-                console.error('User data array is empty or not an array');
-            }
-        } else {
-            console.error('Failed to fetch user data:', userResponse.statusText);
-        }
 
-        // Parse the URL to get the search query
-        const urlParams = new URLSearchParams(window.location.search);
-        const searchQuery = urlParams.get('movie') || '';
-    } catch (error) {
-        console.error('Error fetching data:', error);
-    }
-});
-
-    async function updateUserData() {
-        try {
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, pronouns })
-            });
-            if (!response.ok) {
-                console.error('Failed to update user data:', await response.text());
-            }
-        } catch (error) {
-            console.error('Error updating user data:', error);
-        }
-    }
-
+    import { initializeStores, Modal, getModalStore } from '@skeletonlabs/skeleton';
+    import type { ModalSettings } from '@skeletonlabs/skeleton';
     import { Toast, getToastStore } from '@skeletonlabs/skeleton';
     import type { ToastSettings } from '@skeletonlabs/skeleton';
-    import { initializeStores } from '@skeletonlabs/skeleton';
 
     initializeStores();
 
     const toastStore = getToastStore();
-
-    function showToast(message: string) {
+    function showToast(message: string, background: string) {
         const t: ToastSettings = {
             message,
-            background: 'bg-primary-500',
+            background,
         };
         toastStore.trigger(t);
+    }
+
+    async function handleLogout() {
+        try {
+            const response = await fetch('/api/logout', {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                goto('/login'); // Redirect to the login page or any other page
+            } else {
+                console.error('Logout failed:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+        }
+    }
+
+    const modalStore = getModalStore();
+
+    function confirmAccountDeletion() {
+        const modal: ModalSettings = {
+            type: 'confirm',
+            title: 'Delete Account',
+            body: 'Are you sure you want to delete your account? This action cannot be undone.',
+            response: async (r: boolean) => {
+                if (r) {
+                    try {
+                        const response = await fetch('/api/user/delete', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ userId })
+                        });
+                        if (!response.ok) {
+                            showToast('Failed to delete account', 'bg-error-500');
+                        } else {
+                            showToast('Account deleted successfully', 'bg-primary-500');
+                        }
+                    } catch (error) {
+                        console.error('Error updating user data:', error);
+                        showToast('Failed to delete account', 'bg-error-500');
+                    }
+                    // logout
+                    handleLogout();
+                }
+            },
+        };
+        modalStore.trigger(modal);
+    }
+
+    onMount(async () => {
+        try {
+            const movieResponse = await fetch('/api/movies');
+            if (movieResponse.ok) {
+                movies = await movieResponse.json();
+                movieTitles = movies.map(movie => movie.title);
+            } else {
+                console.error('Failed to fetch movies:', movieResponse.statusText);
+            }
+
+            const userResponse = await fetch('/api/user/');
+            if (userResponse.ok) {
+                const data = await userResponse.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    const userData = data[0];
+                    if (userData.username) {
+                        username = userData.username;
+                        pronouns = userData.pronouns.toLowerCase();
+                        userId = userData.user_id;
+                    } else {
+                        console.error('Username is undefined');
+                    }
+                } else {
+                    console.error('User data array is empty or not an array');
+                }
+            } else {
+                console.error('Failed to fetch user data:', userResponse.statusText);
+            }
+
+            // Parse the URL to get the search query
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchQuery = urlParams.get('movie') || '';
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    });
+
+    async function updateUserData() {
+        usernameError = '';
+        if (!username || username.length < 4) {
+            usernameError = 'Username must be at least 4 characters long';
+            showToast('Failed to update user data', 'bg-error-500');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/user/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId, username, pronouns })
+            });
+            if (!response.ok) {
+                showToast('Failed to update user data', 'bg-error-500');
+            } else {
+                showToast('User data updated successfully', 'bg-primary-500');
+            }
+        } catch (error) {
+            console.error('Error updating user data:', error);
+            showToast('Failed to update user data', 'bg-error-500');
+        }
+    }
+
+    async function updatePassword(newPassword: string) {
+        passwordError = '';
+        if (!newPassword || newPassword.length < 4) {
+            passwordError = 'Password must be at least 4 characters long';
+            showToast('Failed to update password', 'bg-error-500');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/user/password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId, newPassword })
+            });
+            if (!response.ok) {
+                showToast('Failed to update password', 'bg-error-500');
+            } else {
+                showToast('Password updated successfully', 'bg-primary-500');
+            }
+        } catch (error) {
+            console.error('Error updating password:', error);
+            showToast('Failed to update password', 'bg-error-500');
+        }
     }
 </script>
 
@@ -109,10 +204,17 @@
         flex-direction: column;
         gap: 1rem;
     }
+    .error-message {
+        color: red;
+        font-size: 0.875rem;
+    }
 </style>
 
 <!-- Pop Up -->
 <Toast />
+
+<!-- Modal -->
+<Modal />
 
 <!-- App Shell -->
 <AppShell>
@@ -134,6 +236,9 @@
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4 pt-5">Username</h4>
                     <input type="text" bind:value={username} class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3" />
+                    {#if usernameError}
+                        <div class="error-message">{usernameError}</div>
+                    {/if}
                 </div>
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4">Pronouns</h4>
@@ -156,12 +261,15 @@
                 <hr class="!border-t-2 px-4" />
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4">Change Password</h4>
-                    <input type="password" class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3 mr-4" />
-                    <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={() => showToast('Password changed successfully!')}>Change Password</button>
+                    <input type="password" bind:value={newPassword} class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3 mr-4" />
+                    <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={() => updatePassword(newPassword)}>Change Password</button>
+                    {#if passwordError}
+                        <div class="error-message">{passwordError}</div>
+                    {/if}
                 </div>
                 <div class="form-row pb-8">
                     <h4 class="text-xl font-bold pb-4">Delete Account</h4>
-                    <button class="border bg-error-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={() => showToast('Account deleted successfully!')}>Delete Account</button>
+                    <button class="border bg-error-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={confirmAccountDeletion}>Delete Account</button>
                 </div>
             </div>
         </section>

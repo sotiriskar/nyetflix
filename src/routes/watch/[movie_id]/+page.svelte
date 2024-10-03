@@ -81,8 +81,8 @@
 <div class="card w-screen h-screen flex items-center justify-center">
   {#if movie}
     <video bind:this={videoElement} controls playsinline autoplay loop class="w-full h-full object-cover">
-      <source src={`/trailers/${movie.movie_id}.mp4`} type="video/mp4">
-      <track kind="captions" src={`/trailers/${movie.movie_id}.vtt`} srclang="en" label="English">
+      <source src={`/api/stream?movie_id=${movie.movie_id}`} type="video/mp4">
+      <track kind="captions" src="" srclang="en" label="English">
     </video>
   {:else}
     <p>Loading...</p>

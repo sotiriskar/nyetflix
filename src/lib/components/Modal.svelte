@@ -68,14 +68,14 @@
         try {
             if (isCurrentlyBookmarked) {
                 // Remove bookmark
-                await fetch(`/api/users/${userId}/bookmark`, {
+                await fetch(`/api/user/${userId}/bookmark`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })
                 });
             } else {
                 // Add bookmark
-                await fetch(`/api/users/${userId}/bookmark`, {
+                await fetch(`/api/user/${userId}/bookmark`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ movie_id: movieId })

@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import pool from '$lib/database';
+import pool from '$lib/postgres';
 
-// POST /api/users/:id/bookmark
+// POST /api/user/:id/bookmark
 export const POST: RequestHandler = async ({ params, request }) => {
     const { id } = params;
     const { movie_id } = await request.json();
@@ -15,7 +15,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
     }
 };
 
-// DELETE /api/users/:id/bookmark
+// DELETE /api/user/:id/bookmark
 export const DELETE: RequestHandler = async ({ params, request }) => {
     const { id } = params;
     const { movie_id } = await request.json();
@@ -29,7 +29,7 @@ export const DELETE: RequestHandler = async ({ params, request }) => {
     }
 };
 
-// GET /api/users/:id/bookmark
+// GET /api/user/:id/bookmark
 export const GET: RequestHandler = async ({ params }) => {
     const { id } = params;
 

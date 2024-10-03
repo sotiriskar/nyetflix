@@ -1,5 +1,5 @@
 import { type RequestHandler } from '@sveltejs/kit';
-import pool from '$lib/database';
+import pool from '$lib/postgres';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
     const { username, password } = await request.json();
