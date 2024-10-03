@@ -30,10 +30,10 @@ export const GET: RequestHandler = async ({ url }) => {
     });
 
     return new Response(readableStream, {
-        headers: {
+      headers: {
         'Content-Type': 'video/mp4',
         'Accept-Ranges': 'bytes'
-        },
+      },
     });
 
   } catch (error) {

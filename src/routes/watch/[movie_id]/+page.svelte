@@ -29,6 +29,9 @@
   let arrowVisible = true;
   let timeoutId: number;
   let movieId: string;
+  let subtitleSrcs: { [key: string]: string } = {};
+  let defaultSubtitleLang: string = 'en';
+  let nonDefaultSubtitleLang: string = 'gr';
 
   const resetTimeout = () => {
     clearTimeout(timeoutId);
@@ -58,6 +61,27 @@
           const movies = await response.json();
           movie = movies.find((m: { movie_id: any; }) => String(m.movie_id) === String(movieId));
         }
+
+        // Fetch subtitle files
+        const subtitleLanguages = ['en', 'gr']; // Add more languages as needed
+        for (const lang of subtitleLanguages) {
+          const subtitleResponse = await fetch(`/api/stream/subtitles?movie_id=${movieId}&lang=${lang}`);
+          if (subtitleResponse.ok) {
+            subtitleSrcs[lang] = `/api/stream/subtitles?movie_id=${movieId}&lang=${lang}`;
+            if (!defaultSubtitleLang) {
+              defaultSubtitleLang = lang;
+              nonDefaultSubtitleLang = lang === 'en' ? 'gr' : 'en';
+            }
+          } else {
+            subtitleSrcs[lang] = '';
+            nonDefaultSubtitleLang = '';
+          }
+        }
+
+        // Set default subtitle language
+        if (!defaultSubtitleLang) {
+          defaultSubtitleLang = subtitleSrcs['en'] ? 'en' : subtitleSrcs['gr'] ? 'gr' : '';
+        }
       }
       unsubscribe();
     });
@@ -82,7 +106,10 @@
   {#if movie}
     <video bind:this={videoElement} controls playsinline autoplay loop class="w-full h-full object-cover">
       <source src={`/api/stream?movie_id=${movie.movie_id}`} type="video/mp4">
-      <track kind="captions" src="" srclang="en" label="English">
+        <track kind="captions" src={subtitleSrcs[defaultSubtitleLang]} srclang={defaultSubtitleLang} label={defaultSubtitleLang.toUpperCase()} default>
+        {#if nonDefaultSubtitleLang}
+          <track kind="captions" src={subtitleSrcs[nonDefaultSubtitleLang]} srclang={nonDefaultSubtitleLang} label={nonDefaultSubtitleLang.toUpperCase()}>
+        {/if}
     </video>
   {:else}
     <p>Loading...</p>
