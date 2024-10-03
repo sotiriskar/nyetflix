@@ -191,6 +191,7 @@
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
+            <h1 class="text-2xl pt-5 pb-4 ml-1">Popular on Nyetflix</h1>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                 {#each movies as movie, index}
                     <div class="card w-full h-[380px] rounded-lg transform hover:scale-[115%] transition-transform duration-300 relative hover:z-10"
