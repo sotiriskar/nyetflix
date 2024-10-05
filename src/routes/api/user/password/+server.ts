@@ -6,7 +6,6 @@ export const POST: RequestHandler = async (request) => {
     try {
         const data = await request.request.json();
         const { userId, newPassword } = data;
-        console.log(userId, newPassword);
         const result = await pool.query('UPDATE nyetflix.users SET password = $1 WHERE user_id = $2 RETURNING *', [newPassword, userId]);
         result.rows.forEach(row => {
             delete row.password;
