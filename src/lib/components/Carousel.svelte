@@ -1,14 +1,13 @@
 <script lang="ts">
     import { ChevronLeft, ChevronRight, CirclePlay, CircleChevronDown, CircleX, CirclePlus } from 'lucide-svelte';
+    import { writable, type Writable } from 'svelte/store';
 
+    export let bookmarkedMovies: Writable<Set<number>> = writable(new Set());
+    export let title: string;
+    export let userData: { user_id: number } | null;
     export let movies: string | any[] = [];
-    import type { Writable } from 'svelte/store';
-
-    export let bookmarkedMovies: Writable<Set<number>>;
-    export let openModal;
     export let playSelectedMovie;
-
-    let userData = { user_id: null }; // Initialize userData with a default value
+    export let openModal;
 
     async function toggleBookmark(event: MouseEvent, movieId: number) {
         event.preventDefault();
@@ -93,7 +92,7 @@
 </script>
 
 <section class="overflow-visible">
-    <h2 class="text-2xl font-bold w-full pl-[100px] relative top-14">Popular on Nyetflix</h2>
+    <h2 class="text-2xl font-bold w-full pl-[100px] relative top-14">{title}</h2>
     <div class="relative flex items-center">
       <!-- Button: Left -->
       <button type="button" class="w-20 h-40 z-10" on:click={multiColumnLeft}>
