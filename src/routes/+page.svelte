@@ -2,7 +2,6 @@
     import '../app.postcss';
     import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
     import { AppShell, storeHighlightJs, storePopup } from '@skeletonlabs/skeleton';
-    import { Bookmark, BookmarkCheck } from 'lucide-svelte';
     import TopBar from '$lib/components/TopBar.svelte';
     import NavBar from '$lib/components/NavBar.svelte';
     import Modal from '$lib/components/Modal.svelte';
@@ -223,9 +222,9 @@
         <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
             {#if selectedMovie}
-                <div class="relative w-full h-96">
-                    <img src={selectedMovie.wide_poster} alt={selectedMovie.title} class="w-full h-full object-cover object-top">
-                    <div class="absolute inset-0 bg-gradient-to-r from-surface-900 to-transparent via-surface-900/90 via-40% to-70%"></div>
+                <div class="relative w-full h-96 rounded-t-lg overflow-hidden">
+                    <img src={selectedMovie.wide_poster} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top">
+                    <div class="absolute inset-0 bg-gradient-to-t from-surface-900 to-transparent rounded-t-lg"></div>
                     <div class="absolute top-10 left-10 text-white max-w-md">
                         <h1 class="text-3xl font-bold py-2">{selectedMovie.title}</h1>
                         <h4 class="text-sm flex space-x-4 py-4">
@@ -247,7 +246,7 @@
                 </div>
             {/if}
             <Carousel
-                {title}
+                title="Popular on Nyetflix"
                 {movies} 
                 {userData}
                 {bookmarkedMovies} 
@@ -255,7 +254,7 @@
                 {playSelectedMovie}
             />
             <Carousel
-                {title}
+                title="Trending Now"
                 {movies} 
                 {userData}
                 {bookmarkedMovies} 
@@ -263,46 +262,12 @@
                 {playSelectedMovie}
             />
             <Carousel
-                {title}
+                title="Top Rated Movies"
                 {movies} 
                 {userData}
                 {bookmarkedMovies} 
                 {openModal} 
                 {playSelectedMovie}
             />
-            <h1 class="text-2xl pt-5 pb-4 ml-1">Popular on Nyetflix</h1>
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
-                {#each movies as movie, index}
-                    <div class="card w-full h-[300px] overflow-hidden transform hover:scale-y-[115%] hover:scale-x-[125%] transition-transform duration-300 relative hover:z-10"
-                        role="button"
-                        tabindex="0"
-                        on:click={() => openModal(movie)}
-                        on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
-                        on:mouseenter={() => hoverStates[index] = true}
-                        on:mouseleave={() => hoverStates[index] = false}>
-                        <!-- {#if hoverStates[index]}
-                            <iframe title={`Trailer for ${movie.title}`} src={`https://www.youtube.com/embed/${movie.youtube_trailer_url}?autoplay=1&controls=0&mute=1&loop=1&rel=0`}
-                                id="iframe" class="w-full h-3/4 aspect-video pointer-events-none">
-                            </iframe>
-                        {:else} -->
-                        <img src={movie.poster} alt={movie.title} class="w-full top-0 h-3/4 object-fill">
-                        <!-- {/if} -->
-                        <div class="flex justify-between items-center mt-2 pl-4 pr-4">
-                            <div class="max-h-[48px] overflow-hidden">
-                                <h2 class="text-sm md:text-base font-bold line-clamp-2">{movie.title}</h2>
-                                <!-- <span class="text-xs md:text-sm line-clamp-1">{movie.type.split(',').slice(0, 2).join(' • ')}</span> -->
-                            </div>
-                            <button type="button" class="btn-icon variant z-50" on:click|stopPropagation={(event) => toggleBookmark(event, movie.movie_id)}>
-                                {#if $bookmarkedMovies.has(movie.movie_id)}
-                                    <BookmarkCheck/>
-                                {:else}
-                                    <Bookmark />
-                                {/if}
-                            </button>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        </section>
     </section>
 </AppShell>

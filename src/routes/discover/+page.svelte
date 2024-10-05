@@ -2,10 +2,14 @@
     import '../../app.postcss';
     import { AppShell } from '@skeletonlabs/skeleton';
     import { ChevronLeft, ChevronRight, Play } from 'lucide-svelte';
-    import { page } from '$app/stores';
-    import { goto } from '$app/navigation';
     import TopBar from '$lib/components/TopBar.svelte';
     import NavBar from '$lib/components/NavBar.svelte';
+    import Modal from '$lib/components/Modal.svelte';
+    import { Bookmark, BookmarkCheck } from 'lucide-svelte';
+    import { writable } from 'svelte/store';
+    import { goto } from '$app/navigation';
+    import { page } from '$app/stores';
+    import { onMount } from 'svelte';
 
     // Highlight JS
     import hljs from 'highlight.js/lib/core';
@@ -39,20 +43,42 @@
         movie_id: string;
         poster: string;
     }
-    
+
+    let bookmarkedMovies = writable<Set<number>>(new Set());
     let movies: Movie[] = [];
     let movieTitles: string[] = [];
+    let hoverStates: any[] = [];
     let movieYears: Iterable<any> | ArrayLike<any> = [];
     let selectedMovie: Movie | null = null;
     let genres: Iterable<any> | ArrayLike<any> = [];
+    let userData: any = null;
+    let modal: Modal;
 
     let selectedGenre = 'all';
     let selectedYear = 'all';
     let selectedOrder = 'none';
 
-    import { onMount } from 'svelte';
-
     onMount(async () => {
+        try {
+            const response = await fetch('/api/user/');
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    userData = data[0];
+                    if (userData.username) {
+                    } else {
+                        console.error('Username is undefined');
+                    }
+                } else {
+                    console.error('User data array is empty or not an array');
+                }
+            } else {
+                console.error('Failed to fetch user data:', await response.text());
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+        }
+
         const response = await fetch('/api/movies');
         if (response.ok) {
             movies = await response.json();
@@ -62,6 +88,17 @@
             genres = [...new Set(movies.flatMap(movie => movie.type.split(',')))];
         } else {
             console.error('Failed to fetch movies:', response.statusText);
+        }
+        if (userData && userData.user_id) {
+            const bookmarkResponse = await fetch(`/api/user/${userData.user_id}/bookmark`);
+            if (bookmarkResponse.ok) {
+                const bookmarks = await bookmarkResponse.json();
+                bookmarkedMovies.set(new Set(bookmarks.map((bookmark: { movie_id: any; }) => bookmark.movie_id)));
+            } else {
+                console.error('Failed to fetch bookmarks:', bookmarkResponse.statusText);
+            }
+        } else {
+            console.error('User ID not found in userData');
         }
     });
 
@@ -118,6 +155,10 @@
         }
     }
 
+    function openModal(movie: { movie_id: number; title: string; wide_poster: string; poster: string; youtube_trailer_url: string; type: string; bookmarked?: boolean; description?: string; rating?: number; duration?: number; } | null) {
+        modal.openModal(movie);
+    }
+
     function sortMovies(movies: Movie[], order: string): Movie[] {
         if (order === 'none') {
             return movies;
@@ -143,6 +184,72 @@
     $: if (filteredMovies.length > 0) {
         selectedMovie = filteredMovies[0];
     }
+
+    // async function toggleBookmark(event: MouseEvent, movieId: number) {
+    //     event.preventDefault();
+    //     event.stopPropagation();
+
+    //     if (!userData || !userData.user_id) {
+    //         console.error('User ID not found in userData');
+    //         return;
+    //     }
+
+    //     let isCurrentlyBookmarked: boolean = false;
+    //     bookmarkedMovies.update(set => {
+    //         isCurrentlyBookmarked = set.has(movieId);
+    //         if (isCurrentlyBookmarked) {
+    //             set.delete(movieId);
+    //         } else {
+    //             set.add(movieId);
+    //         }
+    //         return new Set(set);
+    //     });
+
+    //     // Update the movies array to trigger reactivity
+    //     movies = movies.map(movie => {
+    //         if (movie.movie_id === String(movieId)) {
+    //             return { ...movie, bookmarked: !isCurrentlyBookmarked };
+    //         }
+    //         return movie;
+    //     });
+
+    //     try {
+    //         if (isCurrentlyBookmarked) {
+    //             // Remove bookmark
+    //             await fetch(`/api/user/${userData.user_id}/bookmark`, {
+    //                 method: 'DELETE',
+    //                 headers: { 'Content-Type': 'application/json' },
+    //                 body: JSON.stringify({ movie_id: movieId })
+    //             });
+    //         } else {
+    //             // Add bookmark
+    //             await fetch(`/api/user/${userData.user_id}/bookmark`, {
+    //                 method: 'POST',
+    //                 headers: { 'Content-Type': 'application/json' },
+    //                 body: JSON.stringify({ movie_id: movieId })
+    //             });
+    //         }
+    //     } catch (err) {
+    //         console.error('Failed to toggle bookmark:', err);
+    //         // Revert the UI change if the API call fails
+    //         bookmarkedMovies.update(set => {
+    //             if (isCurrentlyBookmarked) {
+    //                 set.add(movieId);
+    //             } else {
+    //                 set.delete(movieId);
+    //             }
+    //             return new Set(set);
+    //         });
+
+    //         // Revert the movies array change
+    //         movies = movies.map(movie => {
+    //             if (movie.movie_id === String(movieId)) {
+    //                 return { ...movie, bookmarked: isCurrentlyBookmarked };
+    //             }
+    //             return movie;
+    //         });
+    //     }
+    // }
 </script>
 
 <style>
@@ -150,6 +257,13 @@
         margin-left: 80px; /* Adjust this value based on the actual width of your AppRail */
     }
 </style>
+
+<!-- Modal Component -->
+<Modal
+    bind:this={modal}
+    {movies}
+    {bookmarkedMovies}
+/>
 
 <!-- App Shell -->
 <AppShell>
@@ -161,30 +275,6 @@
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
-            {#if selectedMovie}
-                <div class="relative w-full h-96">
-                    <img src={selectedMovie.wide_poster} alt={selectedMovie.title} class="w-full h-full object-cover object-top rounded-lg">
-                    <div class="absolute inset-0 bg-gradient-to-r from-surface-900 to-transparent via-surface-900/90 via-40% to-70% rounded-lg"></div>
-                    <div class="absolute top-10 left-10 text-white max-w-md">
-                        <h1 class="text-3xl font-bold py-2">{selectedMovie.title}</h1>
-                        <h4 class="text-sm flex space-x-4 py-4">
-                            <span>{formatDuration(selectedMovie.duration)}</span>
-                            <span>{selectedMovie.year}</span>
-                            <span>{selectedMovie.rating}</span>
-                            <span>{selectedMovie.type.split(',').slice(0,3).join(' • ')}</span>
-                        </h4>
-                        <div class="description-container">
-                            <span class="text-sm break-words">{selectedMovie.description}</span>
-                        </div>
-                        <div class="btn-group-vertical variant-filled mt-4 plr-10">
-                            <button on:click={playSelectedMovie}>
-                                <Play class="black" fill="#111" />
-                                <span class="text-xl">  Play</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            {/if}
             <section class="pt-10 pl-14">
                 <div class="flex items-center space-x-8">
                     <div>
@@ -216,25 +306,19 @@
                     </div>
                 </div>
             </section>
-            <!-- Movies Carousel -->
             <section class="pt-10">
-                <div class="grid grid-cols-[auto_1fr_auto] gap-4 items-center">
-                    <!-- Button: Left -->
-                    <button type="button" class="btn-icon border" on:click={multiColumnLeft}>
-                        <ChevronLeft class="white transition-transform transform hover:scale-[115%]" />
-                    </button>
-                    <!-- Carousel -->
-                    <div bind:this={elemMovies} class="snap-x snap-mandatory scroll-smooth flex gap-2 pb-2 overflow-x-auto">
-                        {#each filteredMovies as movie}
-                            <button type="button" on:click={() => selectMovie(movie)} on:keydown={(e) => e.key === 'Enter' && selectMovie(movie)} class="shrink-0 w-[18%] snap-start cursor-pointer" aria-label={`Select ${movie.title}`}>
-                                <img src={movie.poster} alt={movie.title} class="w-full h-full object-cover rounded-t-lg">
-                            </button>
-                        {/each}
-                    </div>
-                    <!-- Button-Right -->
-                    <button type="button" class="btn-icon border" on:click={multiColumnRight}>
-                        <ChevronRight class="white transition-transform transform hover:scale-[115%]" />
-                    </button>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+                    {#each filteredMovies as movie, index}
+                        <div class="card w-full h-[300px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                            role="button"
+                            tabindex="0"
+                            on:click={() => openModal(movie)}
+                            on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
+                            on:mouseenter={() => hoverStates[index] = true}
+                            on:mouseleave={() => hoverStates[index] = false}>
+                            <img src={movie.poster} alt={movie.title} class="w-full top-0 h-full object-cover">
+                        </div>
+                    {/each}
                 </div>
             </section>
         </section>
