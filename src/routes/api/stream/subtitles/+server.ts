@@ -49,8 +49,9 @@ async function streamToString(stream: Readable): Promise<string> {
 
 // Helper function to convert SRT to VTT
 function convertSrtToVtt(srt: string): string {
+  // Replace SRT timestamps with VTT timestamps
   const vtt = srt
-    .replace(/(\d+)\n(\d{2}:\d{2}:\d{2}),(\d{3}) --> (\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1\n$2.$3 --> $4.$5')
+    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3}) --> (\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2 --> $3.$4')
     .replace(/^\d+\n/gm, '');
   return `WEBVTT\n\n${vtt}`;
 }

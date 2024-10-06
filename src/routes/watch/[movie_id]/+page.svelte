@@ -2,6 +2,7 @@
   import '../../../app.postcss';
   import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
   import { storePopup, storeHighlightJs } from '@skeletonlabs/skeleton';
+  import VideoPlayer from '$lib/components/VideoPlayer.svelte';
   import { ArrowLeft } from 'lucide-svelte';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
@@ -13,6 +14,7 @@
   import css from 'highlight.js/lib/languages/css';
   import javascript from 'highlight.js/lib/languages/javascript';
   import typescript from 'highlight.js/lib/languages/typescript';
+  import { goto } from '$app/navigation';
 
   hljs.registerLanguage('xml', xml); // for HTML
   hljs.registerLanguage('css', css);
@@ -24,21 +26,18 @@
   storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
   // Arrow visibility
-  let videoElement: HTMLVideoElement;
   let movie: { movie_id: any; };
   let arrowVisible = true;
   let timeoutId: number;
   let movieId: string;
-  let subtitleSrcs: { [key: string]: string } = {};
-  let defaultSubtitleLang: string = 'en';
-  let nonDefaultSubtitleLang: string = 'gr';
+  let videoElement: HTMLVideoElement;
 
   const resetTimeout = () => {
     clearTimeout(timeoutId);
     arrowVisible = true;
     timeoutId = window.setTimeout(() => {
       arrowVisible = false;
-    }, 2500);
+    }, 2000);
   };
 
   // Add event listeners for user activity if in the browser
@@ -61,56 +60,18 @@
           const movies = await response.json();
           movie = movies.find((m: { movie_id: any; }) => String(m.movie_id) === String(movieId));
         }
-
-        // Fetch subtitle files
-        const subtitleLanguages = ['en', 'gr']; // Add more languages as needed
-        for (const lang of subtitleLanguages) {
-          const subtitleResponse = await fetch(`/api/stream/subtitles?movie_id=${movieId}&lang=${lang}`);
-          if (subtitleResponse.ok) {
-            subtitleSrcs[lang] = `/api/stream/subtitles?movie_id=${movieId}&lang=${lang}`;
-            if (!defaultSubtitleLang) {
-              defaultSubtitleLang = lang;
-              nonDefaultSubtitleLang = lang === 'en' ? 'gr' : 'en';
-            }
-          } else {
-            subtitleSrcs[lang] = '';
-            nonDefaultSubtitleLang = '';
-          }
-        }
-
-        // Set default subtitle language
-        if (!defaultSubtitleLang) {
-          defaultSubtitleLang = subtitleSrcs['en'] ? 'en' : subtitleSrcs['gr'] ? 'gr' : '';
-        }
       }
       unsubscribe();
     });
   }
-
-  onMount(() => {
-    if (videoElement) {
-      videoElement.addEventListener('canplay', () => {
-        videoElement.play().catch(error => {
-          console.error('Error playing video:', error);
-        });
-      });
-    }
-  });
 </script>
 
-<a href="/" class="absolute top-4 left-4 cursor-pointer z-10" class:hidden={!arrowVisible}>
-  <ArrowLeft class="w-8 h-8" />
-</a>
-
-<div class="card w-screen h-screen flex items-center justify-center">
+<div class="bg-gray-900 w-screen h-screen flex items-center justify-center">
+  <a href="/" class="absolute top-4 left-4 cursor-pointer z-10" class:hidden={!arrowVisible} on:click={() => goto('/')}>
+    <ArrowLeft class="w-8 h-8" />
+  </a>
   {#if movie}
-    <video bind:this={videoElement} controls playsinline autoplay loop class="w-full h-full object-cover">
-      <source src={`/api/stream?movie_id=${movie.movie_id}`} type="video/mp4">
-        <track kind="captions" src={subtitleSrcs[defaultSubtitleLang]} srclang={defaultSubtitleLang} label={defaultSubtitleLang.toUpperCase()} default>
-        {#if nonDefaultSubtitleLang}
-          <track kind="captions" src={subtitleSrcs[nonDefaultSubtitleLang]} srclang={nonDefaultSubtitleLang} label={nonDefaultSubtitleLang.toUpperCase()}>
-        {/if}
-    </video>
+    <VideoPlayer {movieId} />
   {:else}
     <p>Loading...</p>
   {/if}

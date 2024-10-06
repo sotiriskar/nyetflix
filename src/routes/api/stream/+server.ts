@@ -12,27 +12,56 @@ const minioClient = new Client({
     secretKey: process.env.MINIO_SECRET_KEY || ''
 });
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request }) => {
   const movieId = url.searchParams.get('movie_id');
 
   if (!movieId) {
     return new Response('Movie ID is required', { status: 400 });
   }
 
+  const range = request.headers.get('Range');
+  let start = 0;
+  let end = 0;
+  let contentLength = 0;
+
   try {
-    const stream = await minioClient.getObject('movies', `${movieId}/movie.mp4`);
+    const stat = await minioClient.statObject('movies', `${movieId}/movie.mp4`);
+    contentLength = stat.size;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      start = parseInt(parts[0], 10);
+      end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
+    } else {
+      end = contentLength - 1;
+    }
+
+    const stream = await minioClient.getPartialObject('movies', `${movieId}/movie.mp4`, start, end - start + 1);
+
     const readableStream = new ReadableStream({
       start(controller) {
-        stream.on('data', (chunk) => controller.enqueue(chunk));
-        stream.on('end', () => controller.close());
-        stream.on('error', (err) => controller.error(err));
+        stream.on('data', (chunk) => {
+          controller.enqueue(chunk);
+        });
+        stream.on('end', () => {
+          controller.close();
+        });
+        stream.on('error', (err) => {
+          controller.error(err);
+        });
+      },
+      cancel() {
+        stream.destroy();
       }
     });
 
     return new Response(readableStream, {
+      status: range ? 206 : 200,
       headers: {
-        'Content-Type': 'video/mp4',
-        'Accept-Ranges': 'bytes'
+        'Content-Range': `bytes ${start}-${end}/${contentLength}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': `${end - start + 1}`,
+        'Content-Type': 'video/mp4'
       },
     });
 
@@ -40,4 +69,4 @@ export const GET: RequestHandler = async ({ url }) => {
     console.error('Error fetching movie from MinIO:', error);
     return new Response('Error fetching movie', { status: 500 });
   }
-};
+}
