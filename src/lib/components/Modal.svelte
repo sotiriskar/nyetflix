@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { Bookmark, BookmarkCheck, X, Play, VolumeX, Volume2 } from 'lucide-svelte';
+    import { CirclePlus , CircleX, X, Play, VolumeX, Volume2 } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import { writable } from 'svelte/store';
 
@@ -112,39 +112,41 @@
 </script>
 
 {#if selectedMovie}
-    <div class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick}>
-        <div class="modal-content bg-surface-800 text-surface-50 rounded-lg w-1/2 relative" role="dialog" on:click|stopPropagation>
+    <div class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto rounded-t-lg" on:click={handleOutsideClick}>
+        <div class="modal-content rounded-lg bg-surface-800 text-surface-50 w-1/2 h-3/4 relative" role="dialog" on:click|stopPropagation>
             <button on:click={closeModal} class="absolute top-5 right-5 cursor-pointer z-10 focus:outline-0">
                 <X class="text-white w-6 h-6" />
             </button>
-            <div class="relative w-full h-4/5">
-                <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-[400px] object-fit rounded-t-lg pointer-events-none"></iframe>
-                <div class="absolute bottom-10 left-10 btn-group-vertical variant-filled">
+            <div class="relative w-full h-4/5 overflow-hidden rounded-lg">
+                <div class="scale-150 rounded-lg">
+                    <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-[400px] object-fit rounded-t-lg pointer-events-none"></iframe>
+                </div>
+                <div class="absolute bottom-[90px] left-10 btn-group-vertical variant-filled">
                     <button on:click={() => goto(`/watch/${selectedMovie.movie_id}`)} class="bg-white flex items-center space-x-2 focus:outline-0">
                         <Play class="text-black" fill="#111" />
                         <span class="text-xl text-black">Play</span>
                     </button>
                 </div>
-                <div class="absolute bottom-8 left-[120px] mt-4 pl-10">
+                <div class="absolute bottom-[80px] left-[120px] mt-4 pl-10">
                     <button type="button" class="focus:outline-0" on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}>
                         {#if $bookmarkedMovies.has(selectedMovie.movie_id)}
-                            <BookmarkCheck stroke="black" class="w-12 h-12 pb-1"/>
+                            <CircleX strokeWidth={1} class="w-12 h-12 pb-1"/>
                         {:else}
-                            <Bookmark class="w-12 h-12 pb-1"/>
+                            <CirclePlus strokeWidth={1} class="w-12 h-12 pb-1"/>
                         {/if}
                     </button>
                 </div>
-                <div class="absolute bottom-10 right-10 btn">
-                    <button type="button" class="btn p-1.5 border-2 focus:outline-0" on:click={toggleMute}>
+                <div class="absolute bottom-15 right-10 btn">
+                    <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
                         {#if muted}
-                            <VolumeX class="w-6 h-6"/>
+                            <VolumeX strokeWidth={1.5} class="w-6 h-6"/>
                         {:else}
-                            <Volume2 class="w-6 h-6"/>
+                            <Volume2 strokeWidth={1.5} class="w-6 h-6"/>
                         {/if}
                     </button>
                 </div>
             </div>
-            <div class="text-white w-full p-8 flex gap-5">
+            <div class="text-white w-full px-8 flex gap-x-5">
                 <div class="left-content w-full">
                     <div class="description-container">
                         <span class="text-sm break-words">{selectedMovie.description}</span>
