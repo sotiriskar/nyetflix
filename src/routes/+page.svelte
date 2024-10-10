@@ -222,7 +222,7 @@
         <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
             {#if selectedMovie}
-                <div class="relative w-full h-96 rounded-t-lg overflow-hidden">
+                <div class="relative w-full h-[26%] rounded-t-lg overflow-hidden">
                     <img src={selectedMovie.wide_poster} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top">
                     <div class="absolute inset-0 bg-gradient-to-t from-surface-900 to-transparent rounded-t-lg"></div>
                     <div class="absolute top-10 left-10 text-white max-w-md">

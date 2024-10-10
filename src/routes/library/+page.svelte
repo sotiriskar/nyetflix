@@ -2,7 +2,6 @@
     import '../../app.postcss';
     import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
     import { AppShell, storeHighlightJs, storePopup } from '@skeletonlabs/skeleton';
-    import { Bookmark, BookmarkCheck } from 'lucide-svelte';
     import TopBar from '$lib/components/TopBar.svelte';
     import NavBar from '$lib/components/NavBar.svelte';
     import Modal from '$lib/components/Modal.svelte';
