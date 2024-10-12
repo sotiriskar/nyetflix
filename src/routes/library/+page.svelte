@@ -88,7 +88,7 @@
         });
     }
 
-    function openModal(movie: { movie_id: number; title: string; wide_poster: string; poster: string; youtube_trailer_url: string; type: string; bookmarked?: boolean; description?: string; rating?: number; duration?: number; } | null) {
+    function openModal(movie: { movie_id: number; title: string; backdrop: string; poster: string; youtube_trailer_url: string; type: string; bookmarked?: boolean; description?: string; rating?: number; duration?: number; } | null) {
         modal.openModal(movie);
     }
 </script>
@@ -117,9 +117,9 @@
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+            <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
                 {#each bookmarkedMoviesList as movie, index}
-                    <div class="card w-full h-[300px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                    <div class="card w-full h-[360px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
                         role="button"
                         tabindex="0"
                         on:click={() => openModal(movie)}

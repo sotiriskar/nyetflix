@@ -10,7 +10,7 @@
     let selectedMovie: {
         movie_id: number;
         title: string;
-        wide_poster: string;
+        backdrop: string;
         poster: string;
         youtube_trailer_url: string;
         type: string;
@@ -117,17 +117,17 @@
             <button on:click={closeModal} class="absolute top-5 right-5 cursor-pointer z-10 focus:outline-0">
                 <X class="text-white w-6 h-6" />
             </button>
-            <div class="relative w-full h-4/5 overflow-hidden rounded-lg">
-                <div class="scale-150 rounded-lg">
-                    <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-[400px] object-fit rounded-t-lg pointer-events-none"></iframe>
+            <div class="relative w-full h-4/6 overflow-hidden rounded-t-lg">
+                <div class="w-full h-full scale-[150%] rounded-none overflow-hidden">
+                    <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-full object-cover pointer-events-none"></iframe>
                 </div>
-                <div class="absolute bottom-[90px] left-10 btn-group-vertical variant-filled">
+                <div class="absolute bottom-[37px] left-10 px-5 btn-group-vertical variant-filled">
                     <button on:click={() => goto(`/watch/${selectedMovie.movie_id}`)} class="bg-white flex items-center space-x-2 focus:outline-0">
                         <Play class="text-black" fill="#111" />
                         <span class="text-xl text-black">Play</span>
                     </button>
                 </div>
-                <div class="absolute bottom-[80px] left-[120px] mt-4 pl-10">
+                <div class="absolute bottom-[30px] left-[160px] mt-4 pl-10">
                     <button type="button" class="focus:outline-0" on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}>
                         {#if $bookmarkedMovies.has(selectedMovie.movie_id)}
                             <CircleX strokeWidth={1} class="w-12 h-12 pb-1"/>
@@ -136,7 +136,7 @@
                         {/if}
                     </button>
                 </div>
-                <div class="absolute bottom-15 right-10 btn">
+                <div class="absolute bottom-[30px] right-10 btn">
                     <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
                         {#if muted}
                             <VolumeX strokeWidth={1.5} class="w-6 h-6"/>

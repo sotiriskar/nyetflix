@@ -37,17 +37,39 @@ export const GET: RequestHandler = async ({ url, request }) => {
     }
 
     const stream = await minioClient.getPartialObject('movies', `${movieId}/movie.mp4`, start, end - start + 1);
-
     const readableStream = new ReadableStream({
       start(controller) {
+        let closed = false;
+
         stream.on('data', (chunk) => {
-          controller.enqueue(chunk);
+          if (!closed) {
+            try {
+              controller.enqueue(chunk);
+            } catch (err) {
+              console.error('Error enqueuing chunk:', err);
+              closed = true;
+            }
+          }
         });
+
         stream.on('end', () => {
-          controller.close();
+          if (!closed) {
+            console.log('Stream end event');
+            controller.close();
+            closed = true;
+          }
         });
+
         stream.on('error', (err) => {
-          controller.error(err);
+          if (!closed) {
+            console.log('Stream error event:', err);
+            controller.error(err);
+            closed = true;
+          }
+        });
+
+        stream.on('close', () => {
+          closed = true;
         });
       },
       cancel() {

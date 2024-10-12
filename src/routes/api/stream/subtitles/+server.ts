@@ -2,6 +2,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { Client } from 'minio';
 import dotenv from 'dotenv';
 import { Readable } from 'stream';
+import iconv from 'iconv-lite';
 
 dotenv.config();
 
@@ -23,12 +24,12 @@ export const GET: RequestHandler = async ({ url }) => {
 
   try {
     const subtitleStream = await minioClient.getObject('movies', `${movieId}/subtitles/${lang}.srt`);
-    const subtitleText = await streamToString(subtitleStream);
+    const subtitleText = await streamToString(subtitleStream, lang);
     const vttText = convertSrtToVtt(subtitleText);
 
     return new Response(vttText, {
       headers: {
-        'Content-Type': 'text/vtt'
+        'Content-Type': 'text/vtt; charset=utf-8'
       },
     });
 
@@ -38,13 +39,17 @@ export const GET: RequestHandler = async ({ url }) => {
   }
 };
 
-// Helper function to convert stream to string
-async function streamToString(stream: Readable): Promise<string> {
+// Helper function to convert stream to string with encoding support
+async function streamToString(stream: Readable, lang: string): Promise<string> {
   const chunks: Uint8Array[] = [];
   for await (const chunk of stream) {
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks).toString('utf-8');
+  const buffer = Buffer.concat(chunks);
+  if (lang === 'gr') {
+    return iconv.decode(buffer, 'windows-1253'); // Use 'windows-1253' for Greek encoding
+  }
+  return buffer.toString('utf-8');
 }
 
 // Helper function to convert SRT to VTT

@@ -9,7 +9,7 @@
     import { writable } from 'svelte/store';
     import { page } from '$app/stores';
     import { onMount } from 'svelte';
-    import { Play } from 'lucide-svelte';
+    import { Play, Info, VolumeX, Volume2 } from 'lucide-svelte';
     import { goto } from '$app/navigation';
 
     // Highlight JS
@@ -30,27 +30,28 @@
     storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
     let bookmarkedMovies = writable<Set<number>>(new Set());
+    let selectedMovie: Movie | null = null;
     let filteredMovies: any[] = [];
     let searchQuery: string = '';
-    let hoverStates: any[] = [];
     let currentTile: number = 0;
     let movieTitles: any[] = [];
+    let userData: any = null;
     let movies: any[] = [];
     let modal: Modal;
-    let title: string = 'Popular on Nyetflix';
-    let userData: any = null;
-    let selectedMovie: Movie | null = null;
+    let muted = true;
 
     interface Movie {
         title: string;
         year: number;
         type: string;
-        wide_poster: string;
+        backdrop: string;
         duration: number;
-        rating: string;
+        rating: number;
         description: string;
-        movie_id: string;
+        movie_id: number;
         poster: string;
+        logo: string;
+        youtube_trailer_url: string;
     }
 
     onMount(async () => {
@@ -113,7 +114,7 @@
         }
     }
 
-    function openModal(movie: { movie_id: number; title: string; wide_poster: string; poster: string; youtube_trailer_url: string; type: string; bookmarked?: boolean; description?: string; rating?: number; duration?: number; } | null) {
+    function openModal(movie: { movie_id: number; title: string; backdrop: string; poster: string; youtube_trailer_url: string; type: string; bookmarked?: boolean; description?: string; rating?: number; duration?: number; } | null) {
         modal.openModal(movie);
     }
 
@@ -183,6 +184,10 @@
         }
     }
 
+    function toggleMute() {
+        muted = !muted;
+    }
+
     function formatDuration(seconds: number): string {
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
@@ -222,26 +227,44 @@
         <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
             {#if selectedMovie}
-                <div class="relative w-full h-[26%] rounded-t-lg overflow-hidden">
-                    <img src={selectedMovie.wide_poster} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top">
+                <div class="relative w-full h-[45%] rounded-t-lg overflow-hidden">
+                    <div class="rounded-t-lg w-full h-full scale-[180%] object-cover object-top">
+                        <iframe title={`Trailer for ${selectedMovie.title}`} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1&rel=0`}
+                            id="iframe" class="pointer-events-none rounded-t-lg w-full h-full object-cover object-top">
+                        </iframe>
+                    </div>
+                    <!-- <img src={selectedMovie.backdrop} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top"> --> -->
                     <div class="absolute inset-0 bg-gradient-to-t from-surface-900 to-transparent rounded-t-lg"></div>
-                    <div class="absolute top-10 left-10 text-white max-w-md">
-                        <h1 class="text-3xl font-bold py-2">{selectedMovie.title}</h1>
+                    <div class="absolute bottom-20 left-20 text-white max-w-md">
+                        <img src={selectedMovie.logo} alt={selectedMovie.title} class="rounded-t-lg w-[60%] h-[50%] object-contain object-top">
                         <h4 class="text-sm flex space-x-4 py-4">
                             <span>{formatDuration(selectedMovie.duration)}</span>
                             <span>{selectedMovie.year}</span>
                             <span>{selectedMovie.rating}</span>
                             <span>{selectedMovie.type.split(',').slice(0,3).join(' • ')}</span>
                         </h4>
-                        <div class="description-container">
-                            <span class="text-sm break-words">{selectedMovie.description}</span>
-                        </div>
-                        <div class="btn-group-vertical variant-filled mt-4 plr-10">
+                        <div class="btn-group-vertical variant-filled px-[10px] hover:opacity-80">
                             <button on:click={playSelectedMovie}>
                                 <Play class="black" fill="#111" />
-                                <span class="text-xl">  Play</span>
+                                <span class="text-xl">Play</span>
                             </button>
                         </div>
+                        <div class="ml-1 btn-group-vertical hover:bg-gray-500" >
+                            <!-- ON CLICK OPEN MODAL AND MUTE -->
+                            <button class="bg-gray-400 hover:bg-gray-500" on:click={() => { openModal(selectedMovie); muted=true; }}>
+                                <Info class="text-white"/>
+                                <span class="text-xl text-white">More Info</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-20 right-20 text-white max-w-md">
+                        <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
+                            {#if muted}
+                                <VolumeX strokeWidth={1.5} class="w-6 h-6"/>
+                            {:else}
+                                <Volume2 strokeWidth={1.5} class="w-6 h-6"/>
+                            {/if}
+                        </button>
                     </div>
                 </div>
             {/if}
