@@ -62,7 +62,6 @@ export const GET: RequestHandler = async ({ url, request }) => {
 
         stream.on('error', (err) => {
           if (!closed) {
-            console.log('Stream error event:', err);
             controller.error(err);
             closed = true;
           }

@@ -121,51 +121,57 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
     <button type="button" class="w-20 h-40 z-10" on:click={multiColumnLeft}>
       <ChevronLeft class="white transition-transform transform hover:scale-[115%] w-full h-full" />
     </button>
-    <!-- Carousel -->
-    <div bind:this={elemMovies} class=" hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto  overflow-y-visible flex-grow pl-20">
-      {#each movies as movie, index}
-      <button type="button" class="card shrink-0 h-[170px] md:w-[22%] snap-start transform hover:scale-y-[200%] hover:scale-x-[130%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
-        on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
-        on:mouseenter={() => hoverStates[index] = true}
-        on:mouseleave={() => hoverStates[index] = false}>
-        {#if hoverStates[index]}
-        <div class="overflow-hidden w-full h-full relative flex flex-col hide-scrollbar rounded-lg">
-          <button class="h-4/6 relative overflow-hidden hide-scrollbar" on:click={() => openModal(movie)}>
-            <div class="scale-x-[200%] scale-y-[200%] origin-center w-full h-full">
-              <iframe title={`Trailer for ${movie.title}`} src={`https://www.youtube.com/embed/${movie.youtube_trailer_url}?autoplay=1&controls=0&mute=1&loop=1&rel=0`}
-                id="iframe" class="absolute top-0 left-0 w-full h-full object-fill pointer-events-none hide-scrollbar">
-              </iframe>
-            </div>
-          </button>
-          <div class="scale-x-[150%] h-1/6 w-full flex px-[55px] justify-between items-center overflow-visible hide-scrollbar">
-            <div class="pl-3 pt-3">
-              <button type="button" class="z-10" on:click={playSelectedMovie}>
-                <CirclePlay strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-              </button>
-              <button type="button" class="z-10" on:click={(event) => toggleBookmark(event, movie.movie_id)}>
-                {#if $bookmarkedMovies.has(movie.movie_id)}
-                  <CircleX strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-                {:else}
-                  <CirclePlus strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-                {/if}
-              </button>
-            </div>
-            <button type="button" class="pt-2 btn-icon z-10 h-full" on:click={() => openModal(movie)}>
-              <CircleChevronDown strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-            </button>
-          </div>
-          <div class="scale-x-[150%] h-2/7 w-full flex justify-start pl-[70px] pb-2 overflow-hidden hide-scrollbar">
-            <span class="text-[10px]">{movie.type.split(',').slice(0, 2).join(' • ')}</span>
-          </div>
-        </div>
+    <!-- Carousel or Placeholder -->
+    <div bind:this={elemMovies} class="hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto  overflow-y-visible flex-grow pl-20">
+      {#if movies.length === 0}
+        {#each Array(1) as _, i}
+          <div class="card shrink-0 h-[170px] md:w-[22%] snap-start transform transition-transform duration-300 relative hover:brightness-110 rounded-lg hide-scrollbarplaceholder animate-pulse" />
+        {/each}
       {:else}
-        <div class="w-full h-full object-cover relative">
-          <img src={movie.backdrop} alt={movie.title} class="w-full h-full object-cover rounded-lg">
-          <img src={movie.logo} alt={movie.title} class="w-[40%] h-[30%] object-contain rounded-lg absolute bottom-4 left-4">
-        </div>
+        {#each movies as movie, index}
+          <button type="button" class="card shrink-0 h-[170px] md:w-[22%] snap-start transform hover:scale-y-[200%] hover:scale-x-[130%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
+            on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
+            on:mouseenter={() => hoverStates[index] = true}
+            on:mouseleave={() => hoverStates[index] = false}>
+            {#if hoverStates[index]}
+              <div class="overflow-hidden w-full h-full relative flex flex-col hide-scrollbar rounded-lg">
+                <button class="h-4/6 relative overflow-hidden hide-scrollbar" on:click={() => openModal(movie)}>
+                  <div class="scale-x-[200%] scale-y-[200%] origin-center w-full h-full">
+                    <iframe title={`Trailer for ${movie.title}`} src={`https://www.youtube.com/embed/${movie.youtube_trailer_url}?autoplay=1&controls=0&mute=1&loop=1&rel=0`}
+                      id="iframe" class="absolute top-0 left-0 w-full h-full object-fill pointer-events-none hide-scrollbar">
+                    </iframe>
+                  </div>
+                </button>
+                <div class="scale-x-[150%] h-1/6 w-full flex px-[55px] justify-between items-center overflow-visible hide-scrollbar">
+                  <div class="pl-3 pt-3">
+                    <button type="button" class="z-10" on:click={playSelectedMovie}>
+                      <CirclePlay strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                    </button>
+                    <button type="button" class="z-10" on:click={(event) => toggleBookmark(event, movie.movie_id)}>
+                      {#if $bookmarkedMovies.has(movie.movie_id)}
+                        <CircleX strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                      {:else}
+                        <CirclePlus strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                      {/if}
+                    </button>
+                  </div>
+                  <button type="button" class="pt-2 btn-icon z-10 h-full" on:click={() => openModal(movie)}>
+                    <CircleChevronDown strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                  </button>
+                </div>
+                <div class="scale-x-[150%] h-2/7 w-full flex justify-start pl-[70px] pb-2 overflow-hidden hide-scrollbar">
+                  <span class="text-[10px]">{movie.type.split(',').slice(0, 2).join(' • ')}</span>
+                </div>
+              </div>
+            {:else}
+              <div class="w-full h-full object-cover relative">
+                <img src={movie.backdrop} alt={movie.title} class="w-full h-full object-cover rounded-lg">
+                <img src={movie.logo} alt={movie.title} class="w-[40%] h-[30%] object-contain rounded-lg absolute bottom-4 left-4">
+              </div>
+            {/if}
+          </button>
+        {/each}
       {/if}
-      </button>
-    {/each}
     </div>
     <!-- Button: Right -->
     <button type="button" class="w-20 h-40 z-10" on:click={multiColumnRight}>

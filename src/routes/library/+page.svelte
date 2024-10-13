@@ -118,17 +118,23 @@
         <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
             <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
-                {#each bookmarkedMoviesList as movie, index}
-                    <div class="card w-full h-[360px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
-                        role="button"
-                        tabindex="0"
-                        on:click={() => openModal(movie)}
-                        on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
-                        on:mouseenter={() => hoverStates[index] = true}
-                        on:mouseleave={() => hoverStates[index] = false}>
-                        <img src={movie.poster} alt={movie.title} class="w-full top-0 h-full object-cover">
-                    </div>
-                {/each}
+                {#if bookmarkedMoviesList.length === 0}
+                    {#each Array(1) as _, i}
+                        <div class="card w-full h-[360px] overflow-hidden transform hover:brightness-110 rounded-lg transition-transform duration-300 relative placeholder animate-pulse" />
+                    {/each}
+                {:else}
+                    {#each bookmarkedMoviesList as movie, index}
+                        <div class="card w-full h-[360px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                            role="button"
+                            tabindex="0"
+                            on:click={() => openModal(movie)}
+                            on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
+                            on:mouseenter={() => hoverStates[index] = true}
+                            on:mouseleave={() => hoverStates[index] = false}>
+                            <img src={movie.poster} alt={movie.title} class="w-full top-0 h-full object-cover">
+                        </div>
+                    {/each}
+                {/if}
             </div>
         </section>
     </section>

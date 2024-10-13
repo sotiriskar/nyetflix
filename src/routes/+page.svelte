@@ -233,7 +233,7 @@
                             id="iframe" class="pointer-events-none rounded-t-lg w-full h-full object-cover object-top">
                         </iframe>
                     </div>
-                    <!-- <img src={selectedMovie.backdrop} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top"> --> -->
+                    <!-- <img src={selectedMovie.backdrop} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top"> -->
                     <div class="absolute inset-0 bg-gradient-to-t from-surface-900 to-transparent rounded-t-lg"></div>
                     <div class="absolute bottom-20 left-20 text-white max-w-md">
                         <img src={selectedMovie.logo} alt={selectedMovie.title} class="rounded-t-lg w-[60%] h-[50%] object-contain object-top">
@@ -249,8 +249,7 @@
                                 <span class="text-xl">Play</span>
                             </button>
                         </div>
-                        <div class="ml-1 btn-group-vertical hover:bg-gray-500" >
-                            <!-- ON CLICK OPEN MODAL AND MUTE -->
+                        <div class="ml-1 btn-group-vertical hover:bg-gray-500">
                             <button class="bg-gray-400 hover:bg-gray-500" on:click={() => { openModal(selectedMovie); muted=true; }}>
                                 <Info class="text-white"/>
                                 <span class="text-xl text-white">More Info</span>
@@ -267,6 +266,8 @@
                         </button>
                     </div>
                 </div>
+            {:else}
+                <div class="card relative w-full h-[53%] overflow-hidden placeholder animate-pulse rounded-lg"></div>
             {/if}
             <Carousel
                 title="Popular on Nyetflix"

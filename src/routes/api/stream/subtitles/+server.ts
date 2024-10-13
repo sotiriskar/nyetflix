@@ -46,9 +46,16 @@ async function streamToString(stream: Readable, lang: string): Promise<string> {
     chunks.push(chunk);
   }
   const buffer = Buffer.concat(chunks);
+
   if (lang === 'gr') {
-    return iconv.decode(buffer, 'windows-1253'); // Use 'windows-1253' for Greek encoding
+    let decodedText = iconv.decode(buffer, 'windows-1253');
+    if (decodedText.includes('�')) {
+      decodedText = buffer.toString('utf-8');
+    }
+    return decodedText;
   }
+
+  // Default to UTF-8 for English and any other languages
   return buffer.toString('utf-8');
 }
 
