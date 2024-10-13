@@ -122,14 +122,14 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
       <ChevronLeft class="white transition-transform transform hover:scale-[115%] w-full h-full" />
     </button>
     <!-- Carousel or Placeholder -->
-    <div bind:this={elemMovies} class="hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto  overflow-y-visible flex-grow pl-20">
+    <div bind:this={elemMovies} class="hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto overflow-y-visible flex-grow pl-20">
       {#if movies.length === 0}
         {#each Array(1) as _, i}
           <div class="card shrink-0 h-[170px] md:w-[22%] snap-start transform transition-transform duration-300 relative hover:brightness-110 rounded-lg hide-scrollbarplaceholder animate-pulse" />
         {/each}
       {:else}
         {#each movies as movie, index}
-          <button type="button" class="card shrink-0 h-[170px] md:w-[22%] snap-start transform hover:scale-y-[200%] hover:scale-x-[130%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
+          <button type="button" class="card shrink-0 h-[170px] md:w-[19%] snap-start transform hover:scale-y-[200%] hover:scale-x-[130%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
             on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
             on:mouseenter={() => hoverStates[index] = true}
             on:mouseleave={() => hoverStates[index] = false}>

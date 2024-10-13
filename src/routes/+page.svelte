@@ -225,10 +225,10 @@
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
-        <section class="pl-10 pr-10 pt-10 flex-grow main-content">
+        <section class=" flex-grow main-content">
             {#if selectedMovie}
-                <div class="relative w-full h-[45%] rounded-t-lg overflow-hidden">
-                    <div class="rounded-t-lg w-full h-full scale-[180%] object-cover object-top">
+                <div class="relative w-full h-[50%] rounded-t-lg overflow-hidden">
+                    <div class="rounded-t-lg w-full h-full scale-[190%] object-cover object-top">
                         <iframe title={`Trailer for ${selectedMovie.title}`} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1&rel=0`}
                             id="iframe" class="pointer-events-none rounded-t-lg w-full h-full object-cover object-top">
                         </iframe>
