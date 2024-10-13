@@ -52,7 +52,7 @@
     "@types/fluent-ffmpeg": "^2.1.26",
     "@vime/core": "^5.4.1",
     "@vime/svelte": "^5.4.1",
-    "cookie": "^0.6.0",
+    "cookie": "^0.7.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
