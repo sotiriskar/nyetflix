@@ -227,7 +227,7 @@
         <!-- Movies Grid -->
         <section class=" flex-grow main-content">
             {#if selectedMovie}
-                <div class="relative w-full h-[50%] rounded-t-lg overflow-hidden">
+                <div class="relative w-full h-[50%] overflow-hidden">
                     <div class="rounded-t-lg w-full h-full scale-[190%] object-cover object-top">
                         <iframe title={`Trailer for ${selectedMovie.title}`} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1&rel=0`}
                             id="iframe" class="pointer-events-none rounded-t-lg w-full h-full object-cover object-top">
