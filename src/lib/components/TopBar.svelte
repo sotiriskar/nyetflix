@@ -113,32 +113,30 @@
     </div>
 </button>
 
-<AppBar gridColumns="grid-cols-3" slotDefault="place-self-center" slotTrail="place-content-end">
-    <svelte:fragment slot="lead">
-        <a href="/" class="focus:outline-0">
-            <img src="/nyetflix-logo.png" alt="Nyetflix Logo" class="h-10 pl-4"/>
-        </a>
-    </svelte:fragment>
-    <input
-        class="input autocomplete"
-        type="search"
-        name="autocomplete-search"
-        bind:value={inputPopupDemo}
-        placeholder="Search..."
-        use:popup={popupSettings}
-        on:keypress={handleKeyPress}
-    />
-    <div data-popup="popupAutocomplete">
-        <Autocomplete
-            class="bg-surface-800 text-surface-50 rounded-md shadow-md p-4"
-            bind:input={inputPopupDemo}
-            options={movieOptions}
-            on:selection={onPopupDemoSelect}
+<div class="flex items-center justify-between w-full h-20 bg-surface-800">
+    <a href="/" class="focus:outline-0">
+        <img src="/nyetflix-logo.png" alt="Nyetflix Logo" class="h-11 ml-3 object-contain"/>
+    </a>
+    <div class="flex items-center justify-center flex-grow mx-4">
+        <input
+            class="input autocomplete flex-grow min-w-[7vh] max-w-[30vh] ml-2"
+            type="search"
+            name="autocomplete-search"
+            bind:value={inputPopupDemo}
+            placeholder="Search..."
+            use:popup={popupSettings}
+            on:keypress={handleKeyPress}
         />
-    </div>		
-    <svelte:fragment slot="trail">
-        <button use:popup={popupFeatured} class="z-10">
-            <Avatar initials={initials} background="bg-primary-500" class="h-9 w-9 mr-2"/>
-        </button>
-    </svelte:fragment>
-</AppBar>
+        <div data-popup="popupAutocomplete">
+            <Autocomplete
+                class="bg-surface-800 text-surface-50 rounded-md shadow-md p-4"
+                bind:input={inputPopupDemo}
+                options={movieOptions}
+                on:selection={onPopupDemoSelect}
+            />
+        </div>
+    </div>
+    <button use:popup={popupFeatured} class="z-10">
+        <Avatar initials={initials} background="bg-primary-500" class="h-9 w-9 mr-3"/>
+    </button>
+</div>
