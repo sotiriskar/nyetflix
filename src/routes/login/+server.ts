@@ -19,8 +19,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
                 path: '/',
                 httpOnly: true, // Set to true for security
                 secure: false, // Set to true if your site is served over HTTPS
-                sameSite: 'strict',
-                maxAge: 60 * 60 * 24 // 1 day
+                maxAge: 60 * 60 * 24, // 1 day
+                sameSite: 'strict'
             });
 
             return new Response(JSON.stringify(userInfo), {
