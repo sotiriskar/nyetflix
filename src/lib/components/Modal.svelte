@@ -112,12 +112,12 @@
 </script>
 
 {#if selectedMovie}
-    <div class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto rounded-t-lg" on:click={handleOutsideClick}>
-        <div class="modal-content rounded-lg bg-surface-800 text-surface-50 w-1/2 h-3/4 relative" role="dialog" on:click|stopPropagation>
+    <div class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick}>
+        <div class="modal-content rounded-lg bg-surface-800 text-surface-50 w-1/2 max-h-[90vh] overflow-y-auto relative" role="dialog" on:click|stopPropagation>
             <button on:click={closeModal} class="absolute top-5 right-5 cursor-pointer z-10 focus:outline-0">
                 <X class="text-white w-6 h-6" />
             </button>
-            <div class="relative w-full h-4/6 overflow-hidden rounded-t-lg">
+            <div class="relative w-full h-[60vh] overflow-hidden rounded-t-lg">
                 <div class="w-full h-full scale-[150%] rounded-none overflow-hidden">
                     <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-full object-cover pointer-events-none"></iframe>
                 </div>
