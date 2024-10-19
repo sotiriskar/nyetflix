@@ -87,13 +87,13 @@
                             body: JSON.stringify({ userId })
                         });
                         if (!response.ok) {
-                            showToast('Failed to delete account', 'bg-error-500');
+                            showToast('Failed to delete account', 'bg-red-500');
                         } else {
                             showToast('Account deleted successfully', 'bg-primary-500');
                         }
                     } catch (error) {
                         console.error('Error updating user data:', error);
-                        showToast('Failed to delete account', 'bg-error-500');
+                        showToast('Failed to delete account', 'bg-red-500');
                     }
                     // logout
                     handleLogout();
@@ -144,7 +144,7 @@
         usernameError = '';
         if (!username || username.length < 4) {
             usernameError = 'Username must be at least 4 characters long';
-            showToast('Failed to update user data', 'bg-error-500');
+            showToast('Failed to update user data', 'bg-red-500');
             return;
         }
 
@@ -157,13 +157,13 @@
                 body: JSON.stringify({ userId, username, pronouns })
             });
             if (!response.ok) {
-                showToast('Failed to update user data', 'bg-error-500');
+                showToast('Failed to update user data', 'bg-red-500');
             } else {
                 showToast('User data updated successfully', 'bg-primary-500');
             }
         } catch (error) {
             console.error('Error updating user data:', error);
-            showToast('Failed to update user data', 'bg-error-500');
+            showToast('Failed to update user data', 'bg-red-500');
         }
     }
 
@@ -171,7 +171,7 @@
         passwordError = '';
         if (!newPassword || newPassword.length < 4) {
             passwordError = 'Password must be at least 4 characters long';
-            showToast('Failed to update password', 'bg-error-500');
+            showToast('Failed to update password', 'bg-red-500');
             return;
         }
 
@@ -184,31 +184,16 @@
                 body: JSON.stringify({ userId, newPassword })
             });
             if (!response.ok) {
-                showToast('Failed to update password', 'bg-error-500');
+                showToast('Failed to update password', 'bg-red-500');
             } else {
                 showToast('Password updated successfully', 'bg-primary-500');
             }
         } catch (error) {
             console.error('Error updating password:', error);
-            showToast('Failed to update password', 'bg-error-500');
+            showToast('Failed to update password', 'bg-red-500');
         }
     }
 </script>
-
-<style>
-    .main-content {
-        margin-left: 80px; /* Adjust this value based on the actual width of your AppRail */
-    }
-    .form-container {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .error-message {
-        color: red;
-        font-size: 0.875rem;
-    }
-</style>
 
 <!-- Pop Up -->
 <Toast />
@@ -221,28 +206,25 @@
     <svelte:fragment slot="header">
         <TopBar {movies} {movieTitles} />
     </svelte:fragment>
-    <!-- Flex Container -->
     <section class="flex w-full h-full">
-        <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
-        <!-- Movies Grid -->
-        <section class="pl-10 pr-10 pt-10 flex-grow main-content">
-            <h2 class="text-3xl font-bold my-3 ml-3">
-                <Settings class="w-10 inline-block" />
+        <section class="px-[10vw] pt-10 flex-grow ml-20">
+            <h2 class="text-3xl font-bold my-3 ml-3 flex items-center">
+                <Settings class="w-10 inline-block mr-2" />
                 General
             </h2>
-            <hr class="!border-t-2 px-4" />
-            <div class="form-container">
+            <hr />
+            <div class="flex flex-col gap-4">
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4 pt-5">Username</h4>
-                    <input type="text" bind:value={username} class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3" />
+                    <input type="text" bind:value={username} class="border bg-surface-700 text-surface-50 rounded-lg" />
                     {#if usernameError}
-                        <div class="error-message">{usernameError}</div>
+                        <div class="text-red-500 text-sm">{usernameError}</div>
                     {/if}
                 </div>
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4">Pronouns</h4>
-                    <select bind:value={pronouns} class="border bg-surface-700 text-surface-50 rounded-lg pb-2 w-1/3">
+                    <select bind:value={pronouns} class="border bg-surface-700 text-surface-50 rounded-lg pb-2">
                         <option value="he/him">He/Him</option>
                         <option value="she/her">She/Her</option>
                         <option value="they/them">They/Them</option>
@@ -255,21 +237,22 @@
                 <div class="form-row pb-6 pt-5">
                     <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={updateUserData}>Update Profile</button>
                 </div>
-                <h2 class="text-2xl font-bold my-3 ml-4">
-                    <UserRoundPen class="w-10 inline-block" />
-                    Profile Settings</h2>
-                <hr class="!border-t-2 px-4" />
-                <div class="form-row">
+                <h2 class="text-2xl font-bold my-3 ml-4 flex items-center">
+                    <UserRoundPen class="w-10 inline-block mr-2" />
+                    Profile Settings
+                </h2>
+                <hr class="border-t-2 px-4" />
+                <div class="form-row gap-4">
                     <h4 class="text-xl font-bold pb-4">Change Password</h4>
-                    <input type="password" bind:value={newPassword} class="border bg-surface-700 text-surface-50 rounded-lg p-2 w-1/3 mr-4" />
+                    <input type="password" bind:value={newPassword} class="border bg-surface-700 text-surface-50 rounded-lg p-2 mr-4 mb-4" />
                     <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={() => updatePassword(newPassword)}>Change Password</button>
                     {#if passwordError}
-                        <div class="error-message">{passwordError}</div>
+                        <div class="mt-2 text-red-500 text-sm">{passwordError}</div>
                     {/if}
                 </div>
                 <div class="form-row pb-8">
                     <h4 class="text-xl font-bold pb-4">Delete Account</h4>
-                    <button class="border bg-error-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={confirmAccountDeletion}>Delete Account</button>
+                    <button class="border bg-red-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={confirmAccountDeletion}>Delete Account</button>
                 </div>
             </div>
         </section>
