@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import pool from '$lib/postgres'; // Import your database connection
+import pool from '$lib/postgres';
 
 // GET /api/movies - Get all movies
 export const GET: RequestHandler = async () => {

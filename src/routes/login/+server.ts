@@ -18,6 +18,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
             cookies.set('session', JSON.stringify(userInfo), {
                 path: '/',
                 httpOnly: true, // Set to true for security
+                secure: false, // Set to true if your site is served over HTTPS
                 sameSite: 'strict',
                 maxAge: 60 * 60 * 24 // 1 day
             });

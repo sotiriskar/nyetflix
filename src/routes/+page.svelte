@@ -267,7 +267,7 @@
                     </div>
                 </div>
             {:else}
-                <div class="card relative w-full h-[53%] overflow-hidden placeholder animate-pulse rounded-lg"></div>
+                <div class="card relative w-full h-[53%] overflow-hidden placeholder animate-pulse rounded-none"></div>
             {/if}
             <Carousel
                 title="Popular on Nyetflix"

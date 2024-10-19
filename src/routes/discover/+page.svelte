@@ -309,7 +309,7 @@
             <section class="pt-10">
                 <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
                     {#if filteredMovies.length === 0}
-                        {#each Array(14) as _, i}
+                        {#each Array(1) as _, i}
                             <div class="card w-full h-[360px] overflow-hidden transform rounded-lg hover:brightness-110 transition-transform duration-300 relative placeholder animate-pulse" />
                         {/each}
                     {:else}
