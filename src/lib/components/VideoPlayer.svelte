@@ -47,9 +47,9 @@
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
 />
-
-  <div class="w-[82%]">
-    <vm-player autoplay={true} muted={false} paused={false}>
+<div class="w-full h-full flex flex-col items-center">
+  <div class="w-[80%] mx-auto">
+    <vm-player class="responsive-player" autoplay={true} muted={false} paused={false}>
       <vm-video cross-origin>
           <source data-src={`/api/stream?movie_id=${movieId}&type=mp4`} type="video/mp4"/>
           <track src={subtitleSrcs[defaultSubtitleLang]} srclang={defaultSubtitleLang} label={defaultSubtitleLang.toUpperCase()} default />
@@ -65,3 +65,4 @@
       </vm-default-ui>
     </vm-player>
   </div>
+</div>

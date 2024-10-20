@@ -51,7 +51,7 @@
   }
 
   $: {
-    const unsubscribe = page.subscribe(($page) => {
+    page.subscribe(($page) => {
       movieId = $page.params.movie_id;
     });
     onMount(async () => {
@@ -63,14 +63,6 @@
       } else {
         console.error('Failed to fetch movies:', movieResponse.statusText);
       }
-
-      if (movieId) {
-        const response = await fetch(`/api/movies/${movieId}`);
-        if (response.ok) {
-          selectedMovie = await response.json();
-        }
-      }
-      unsubscribe();
     });
   }
 </script>
