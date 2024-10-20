@@ -116,6 +116,10 @@
     {bookmarkedMovies}
 />
 
+<svelte:head>
+    <title>Nyetflix - Searching for "{searchQuery}"</title>
+</svelte:head>
+
 <!-- App Shell -->
 <AppShell>
     <svelte:fragment slot="header">
@@ -142,7 +146,7 @@
                     {/each}
                 </div>
             {:else}
-                <p>No movies found for "{searchQuery}".</p>
+                <h2 class="text-xl pb-10">No movies found for "{searchQuery}".</h2>
             {/if}
         </section>
     </section>

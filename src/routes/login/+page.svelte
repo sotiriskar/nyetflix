@@ -79,6 +79,10 @@
 <!-- Pop Up -->
 <Toast />
 
+<svelte:head>
+    <title>Nyetflix - Login</title>
+</svelte:head>
+
 <!-- App Shell -->
 <AppShell class="w-full h-full">
     <section class="flex items-center justify-center h-full w-full px-10 py-2">

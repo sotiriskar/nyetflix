@@ -15,6 +15,7 @@
     import css from 'highlight.js/lib/languages/css';
     import javascript from 'highlight.js/lib/languages/javascript';
     import typescript from 'highlight.js/lib/languages/typescript';
+	import { Library } from 'lucide-svelte';
 
     hljs.registerLanguage('xml', xml); // for HTML
     hljs.registerLanguage('css', css);
@@ -155,6 +156,10 @@
     {movies}
     {bookmarkedMovies}
 />
+
+<svelte:head>
+    <title>Nyetflix - Library</title>
+</svelte:head>
 
 <!-- App Shell -->
 <AppShell>

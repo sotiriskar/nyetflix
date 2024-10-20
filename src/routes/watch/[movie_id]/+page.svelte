@@ -26,11 +26,12 @@
   storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
   // Arrow visibility
-  let movie: { movie_id: any; };
+  let movies = [];
+  let selectedMovie: { movie_id: any; title: string } = { movie_id: null, title: '' };
+  let movieTitles = [];
   let arrowVisible = true;
   let timeoutId: number;
   let movieId: string;
-  let videoElement: HTMLVideoElement;
 
   const resetTimeout = () => {
     clearTimeout(timeoutId);
@@ -54,11 +55,19 @@
       movieId = $page.params.movie_id;
     });
     onMount(async () => {
+      const movieResponse = await fetch('/api/movies');
+      if (movieResponse.ok) {
+        movies = await movieResponse.json();
+        selectedMovie = movies[0];
+        movieTitles = movies.map((movie: { title: any; }) => movie.title);
+      } else {
+        console.error('Failed to fetch movies:', movieResponse.statusText);
+      }
+
       if (movieId) {
-        const response = await fetch('/api/movies');
+        const response = await fetch(`/api/movies/${movieId}`);
         if (response.ok) {
-          const movies = await response.json();
-          movie = movies.find((m: { movie_id: any; }) => String(m.movie_id) === String(movieId));
+          selectedMovie = await response.json();
         }
       }
       unsubscribe();
@@ -66,11 +75,15 @@
   }
 </script>
 
+<svelte:head>
+    <title>Nyetflix - {selectedMovie.title}</title>
+</svelte:head>
+
 <div class="bg-gray-900 w-screen h-screen flex items-center justify-center">
   <a href="/" class="absolute top-4 left-4 cursor-pointer z-10" class:hidden={!arrowVisible} on:click={() => goto('/')}>
     <ArrowLeft class="w-8 h-8" />
   </a>
-  {#if movie}
+  {#if selectedMovie.movie_id}
     <VideoPlayer {movieId} />
   {:else}
     <p>Loading...</p>

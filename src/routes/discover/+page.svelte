@@ -199,6 +199,10 @@
     {bookmarkedMovies}
 />
 
+<svelte:head>
+    <title>Nyetflix - Discover</title>
+</svelte:head>
+
 <!-- App Shell -->
 <AppShell>
     <svelte:fragment slot="header">

@@ -201,6 +201,10 @@
 <!-- Modal -->
 <Modal />
 
+<svelte:head>
+    <title>Nyetflix - Settings</title>
+</svelte:head>
+
 <!-- App Shell -->
 <AppShell>
     <svelte:fragment slot="header">
