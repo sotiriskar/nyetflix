@@ -198,7 +198,7 @@
                   </div>
                 </div>
               </section>
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
+              <div class="grid grid-cols-3 md:grid-cols-7 gap-4 mb-10">
                 {#if movies.length === 0}
                 {#each Array(1) as _, i}
                     <div class="card w-full h-0 pt-[140%] overflow-hidden transform hover:brightness-110 rounded-lg transition-transform duration-300 relative placeholder animate-pulse" style="max-height: 350px; max-width: 233px;"/>

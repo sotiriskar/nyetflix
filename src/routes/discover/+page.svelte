@@ -208,59 +208,58 @@
     <section class="flex w-full h-full">
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
+        <!-- Movies Grid -->
         <section class="pl-10 pr-10 pt-10 flex-grow main-content">
-            <section class="pt-10 pl-14">
-                <div class="flex items-center space-x-8">
-                    <div>
-                        <h2 class="text-2xl font-bold">Genres</h2>
-                        <select class="select mt-2 p-2 text-lg w-48" bind:value={selectedGenre}>
-                            <option value="all">All</option>
-                            {#each Array.from(genres) as genre}
-                                <option value={genre}>{genre}</option>
-                            {/each}
-                        </select>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold">Date</h2>
-                        <select class="select mt-2 p-2 text-lg w-48" bind:value={selectedYear}>
-                            <option value="all">All</option>
-                            {#each Array.from(movieYears) as movieYear}
-                                <option value={movieYear}>{movieYear}</option>
-                            {/each}
-                        </select>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold">Order By</h2>
-                        <select class="select mt-2 p-2 text-lg w-48" bind:value={selectedOrder}>
-                            <option value="none">None</option>
-                            <option value="rating">Rating</option>
-                            <option value="date">Date</option>
-                            <option value="duration">Duration</option>
-                        </select>
-                    </div>
+            <section class="pt-10 pb-10">
+                <div class="flex flex-row items-start space-y-0 space-x-4">
+                  <div class="flex-1 min-w-[100px] max-w-[250px]">
+                    <h2 class="text-2xl font-bold">Genres</h2>
+                    <select class="select mt-2 p-2 text-lg w-full" bind:value={selectedGenre}>
+                      <option value="all">All</option>
+                      {#each Array.from(genres) as genre}
+                        <option value={genre}>{genre}</option>
+                      {/each}
+                    </select>
+                  </div>
+                  <div class="flex-1 min-w-[100px] max-w-[250px]">
+                    <h2 class="text-2xl font-bold">Date</h2>
+                    <select class="select mt-2 p-2 text-lg w-full" bind:value={selectedYear}>
+                      <option value="all">All</option>
+                      {#each Array.from(movieYears) as movieYear}
+                        <option value={movieYear}>{movieYear}</option>
+                      {/each}
+                    </select>
+                  </div>
+                  <div class="flex-1 min-w-[100px] max-w-[250px]">
+                    <h2 class="text-2xl font-bold">Order By</h2>
+                    <select class="select mt-2 p-2 text-lg w-full" bind:value={selectedOrder}>
+                      <option value="none">None</option>
+                      <option value="rating">Rating</option>
+                      <option value="date">Date</option>
+                      <option value="duration">Duration</option>
+                    </select>
+                  </div>
                 </div>
-            </section>
-            <section class="pt-10">
-                <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
-                    {#if filteredMovies.length === 0}
-                        {#each Array(1) as _, i}
-                            <div class="card w-full h-[360px] overflow-hidden transform rounded-lg hover:brightness-110 transition-transform duration-300 relative placeholder animate-pulse" />
-                        {/each}
-                    {:else}
-                        {#each filteredMovies as movie, index}
-                            <div class="card w-full h-[360px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
-                                role="button"
-                                tabindex="0"
-                                on:click={() => openModal(movie)}
-                                on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
-                                on:mouseenter={() => hoverStates[index] = true}
-                                on:mouseleave={() => hoverStates[index] = false}>
-                                <img src={movie.poster} alt={movie.title} class="w-full top-0 h-full object-cover">
-                            </div>
-                        {/each}
-                    {/if}
-                </div>
-            </section>
+              </section>
+              <div class="grid grid-cols-3 md:grid-cols-7 gap-4 mb-10">
+                {#if filteredMovies.length === 0}
+                {#each Array(1) as _, i}
+                    <div class="card w-full h-0 pt-[140%] overflow-hidden transform hover:brightness-110 rounded-lg transition-transform duration-300 relative placeholder animate-pulse" style="max-height: 350px; max-width: 233px;"/>
+                {/each}
+                {:else}
+                    {#each filteredMovies as movie, index}
+                        <div class="card w-full h-full overflow-hidden transform brightness-[85%] hover:brightness-100 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                            role="button"
+                            tabindex="0"
+                            on:click={() => openModal(movie)}
+                            on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
+                            on:mouseenter={() => hoverStates[index] = true}
+                            on:mouseleave={() => hoverStates[index] = false}>
+                            <img src={movie.poster} alt={movie.title} class="w-full top-0 h-full object-cover">
+                        </div>
+                    {/each}
+                {/if}
+            </div>
         </section>
     </section>
 </AppShell>
