@@ -125,12 +125,12 @@
     <section class="flex w-full h-full">
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
-        <!-- Movies Grid -->
-        <section class="pl-14 pr-10 pt-10 flex-grow main-content">
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-10">
-                {#if filteredMovies.length > 0}
+        <section class="pl-14 pr-10 pt-20 flex-grow main-content">
+            {#if filteredMovies.length > 0}
+                <h2 class="text-xl pb-10">Movies found for: "{searchQuery}".</h2>
+                <div class="grid grid-cols-3 md:grid-cols-7 gap-4 mb-10">
                     {#each filteredMovies as movie, index}
-                        <div class="card w-full h-[360px] overflow-hidden transform hover:brightness-110 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                        <div class="card w-full h-full overflow-hidden transform brightness-[85%] hover:brightness-100 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
                             role="button"
                             tabindex="0"
                             on:click={() => openModal(movie)}
@@ -140,10 +140,10 @@
                             <img src={movie.poster} alt={movie.title} class="w-full top-0 h-full object-cover">
                         </div>
                     {/each}
-                {:else}
-                    <p>No movies found for "{searchQuery}".</p>
-                {/if}
-            </div>
+                </div>
+            {:else}
+                <p>No movies found for "{searchQuery}".</p>
+            {/if}
         </section>
     </section>
 </AppShell>
