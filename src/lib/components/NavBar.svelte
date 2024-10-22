@@ -5,15 +5,20 @@
     import { onMount } from 'svelte';
 
     export let currentTile: number;
-    let isMobile = window.matchMedia('(max-width: 768px)').matches;
+    let isMobile = false;
 
     const checkScreenWidth = () => {
-        isMobile = window.innerWidth <= 768; // Adjust the width threshold as needed
+        if (typeof window !== 'undefined') {
+            isMobile = window.innerWidth <= 768; // Adjust the width threshold as needed
+        }
     };
 
     onMount(() => {
-        window.addEventListener('resize', checkScreenWidth);
-        return () => window.removeEventListener('resize', checkScreenWidth);
+        if (typeof window !== 'undefined') {
+            isMobile = window.matchMedia('(max-width: 768px)').matches;
+            window.addEventListener('resize', checkScreenWidth);
+            return () => window.removeEventListener('resize', checkScreenWidth);
+        }
     });
 </script>
 
