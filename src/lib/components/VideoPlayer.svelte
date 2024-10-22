@@ -1,15 +1,14 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import * as pkg from '@vime/core';
-  const { defineCustomElements, VmTimeProgress, VmPlaybackControl, VmMuteControl, VmControlSpacer, VmControls, VmScrim, VmAudio, VmFile, VmDefaultControls, VmPlayer, VmVideo, VmDefaultUi } = pkg;
+  const { defineCustomElements, VmTimeProgress, VmPlaybackControl, VmMuteControl, VmControlSpacer, VmControls, VmScrim, VmAudio, VmFile, VmDefaultControls, VmPlayer, VmVideo, VmDefaultUi, VmFullscreenControl, VmSettingsControl, VmPipControl, VmVolumeControl } = pkg;
   defineCustomElements();
-
-  let videoElement: HTMLVideoElement;
 
   export let movieId: string;
   let subtitleSrcs: { [key: string]: string } = {};
   let defaultSubtitleLang: string = 'en';
   let nonDefaultSubtitleLang: string = 'gr';
+  let videoElement: HTMLVmVideoElement;
 
   onMount(async () => {
     // Fetch subtitle files
@@ -35,7 +34,7 @@
 
     if (videoElement) {
       videoElement.addEventListener('canplay', () => {
-        videoElement.play().catch(error => {
+        (videoElement as unknown as HTMLVideoElement).play().catch(error => {
           console.error('Error playing video:', error);
         });
       });
@@ -47,10 +46,10 @@
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
 />
-<div class="w-full h-full flex flex-col items-center">
-  <div class="w-[80%] mx-auto">
+<div class="w-full h-full flex flex-col items-center overflow-auto">
+  <div class="w-full mx-auto">
     <vm-player class="responsive-player" autoplay={true} muted={false} paused={false}>
-      <vm-video cross-origin>
+      <vm-video cross-origin bind:this={videoElement}>
           <source data-src={`/api/stream?movie_id=${movieId}&type=mp4`} type="video/mp4"/>
           <track src={subtitleSrcs[defaultSubtitleLang]} srclang={defaultSubtitleLang} label={defaultSubtitleLang.toUpperCase()} default />
           {#if nonDefaultSubtitleLang}

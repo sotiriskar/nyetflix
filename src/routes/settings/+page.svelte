@@ -212,7 +212,7 @@
     </svelte:fragment>
     <section class="flex w-full h-full">
         <NavBar bind:currentTile={currentTile} />
-        <section class="px-[10vw] pt-10 flex-grow ml-20">
+        <section class="pt-10 pb-10 flex-grow ml-20 md:px-[10vw]">
             <h2 class="text-3xl font-bold my-3 ml-3 flex items-center">
                 <Settings class="w-10 inline-block mr-2" />
                 General

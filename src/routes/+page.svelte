@@ -202,11 +202,6 @@
     }
 </script>
 
-<style>
-    .main-content {
-        margin-left: 80px; /* Adjust this value based on the actual width of your AppRail */
-    }
-</style>
 
 <!-- Modal Component -->
 <Modal
@@ -229,7 +224,7 @@
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
-        <section class=" flex-grow main-content">
+        <section class="flex-grow main-content md:pl-[80px]">
             {#if selectedMovie}
                 <div class="relative w-full h-[50%] overflow-hidden">
                     <div class="rounded-t-lg w-full h-full scale-[190%] object-cover object-top">

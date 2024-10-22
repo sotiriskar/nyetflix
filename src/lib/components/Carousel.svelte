@@ -118,8 +118,8 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
   <h2 class="text-2xl font-bold w-full pl-[100px] relative top-14">{title}</h2>
   <div class="relative flex items-center">
     <!-- Button: Left -->
-    <button type="button" class="w-20 h-40 z-10" on:click={multiColumnLeft}>
-      <ChevronLeft class="white transition-transform transform hover:scale-[115%] w-full h-full" />
+    <button type="button" class="mx-2 min-w-[50px] h-[170px] py-[45px] rounded-l-lg bg-black bg-opacity-20 hover:bg-opacity-30 z-10" on:click={multiColumnLeft}>
+      <ChevronLeft class="white transition-transform transform hover:scale-[115%]  w-full h-full" />
     </button>
     <!-- Carousel or Placeholder -->
     <div bind:this={elemMovies} class="hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto overflow-y-visible flex-grow pl-20">
@@ -129,7 +129,7 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
         {/each}
       {:else}
         {#each movies as movie, index}
-          <button type="button" class="card shrink-0 h-[170px] md:w-[19%] snap-start transform hover:scale-y-[200%] hover:scale-x-[130%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
+          <button type="button" class="card shrink-0 h-[170px] md:w-[19%] snap-start transform hover:scale-y-[190%] hover:scale-x-[120%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
             on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
             on:mouseenter={() => hoverStates[index] = true}
             on:mouseleave={() => hoverStates[index] = false}>
@@ -174,7 +174,7 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
       {/if}
     </div>
     <!-- Button: Right -->
-    <button type="button" class="w-20 h-40 z-10" on:click={multiColumnRight}>
+    <button type="button" class="mx-2 min-w-[50px] h-[170px] py-[45px] rounded-r-lg bg-black bg-opacity-20 hover:bg-opacity-30 z-10" on:click={multiColumnRight}>
       <ChevronRight class="white transition-transform transform hover:scale-[115%] w-full h-full" />
     </button>
   </div>

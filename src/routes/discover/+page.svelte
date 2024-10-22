@@ -186,12 +186,6 @@
     }
 </script>
 
-<style>
-    .main-content {
-        margin-left: 80px; /* Adjust this value based on the actual width of your AppRail */
-    }
-</style>
-
 <!-- Modal Component -->
 <Modal
     bind:this={modal}
@@ -213,7 +207,7 @@
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
-        <section class="pl-10 pr-10 pt-10 flex-grow main-content">
+        <section class="pl-10 pb-10 pr-10 flex-grow md:px-[10vw]">
             <section class="pt-10 pb-10">
                 <div class="flex flex-row items-start space-y-0 space-x-4">
                   <div class="flex-1 min-w-[100px] max-w-[250px]">
