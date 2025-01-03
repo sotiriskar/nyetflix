@@ -112,29 +112,29 @@
 </script>
 
 {#if selectedMovie}
-    <div class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick}>
-        <div class="modal-content rounded-lg bg-surface-800 text-surface-50 w-1/2 max-h-[90vh] overflow-y-auto relative" role="dialog" on:click|stopPropagation>
+    <div class="modal fixed inset-0 z-50 min-w-[318px] flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick}>
+        <div class="modal-content rounded-lg bg-surface-800 text-surface-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative mx-4 sm:mx-6 lg:mx-8" role="dialog" on:click|stopPropagation>
             <button on:click={closeModal} class="absolute top-5 right-5 cursor-pointer z-10 focus:outline-0">
                 <X class="text-white w-6 h-6" />
             </button>
-            <div class="relative w-full h-[60vh] overflow-hidden rounded-t-lg">
+            <div class="relative w-full h-[40vh] sm:h-[50vh] lg:h-[60vh] overflow-hidden rounded-t-lg">
                 <div class="w-full h-full scale-[150%] rounded-none overflow-hidden">
                     <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-full object-cover pointer-events-none"></iframe>
                 </div>
-                <button on:click={() => goto(`/watch/${selectedMovie.movie_id}`)} class="absolute bottom-[40px] left-10 px-9 py-2 rounded-lg variant-filled bg-gray-200 hover:bg-gray-300 flex items-center">
-                    <Play class="text-black" fill="#111" />
-                    <span class="text-xl text-black">Play</span>
-                </button>
-                <div class="absolute bottom-[30px] left-[160px] mt-4 pl-5">
+                <div class="absolute bottom-[40px] left-10 flex flex-wrap gap-4 items-center">
+                    <button on:click={() => goto(`/watch/${selectedMovie.movie_id}`)} class="px-6 py-2 rounded-lg variant-filled bg-gray-200 hover:bg-gray-300 flex items-center text-sm sm:text-base">
+                        <Play class="text-black" fill="#111" />
+                        <span class="text-black ml-2">Play</span>
+                    </button>
                     <button type="button" class="focus:outline-0" on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}>
                         {#if $bookmarkedMovies.has(selectedMovie.movie_id)}
-                            <CircleX strokeWidth={1} class="w-12 h-12 pb-1"/>
+                            <CircleX strokeWidth={1} class="w-11 h-11"/>
                         {:else}
-                            <CirclePlus strokeWidth={1} class="w-12 h-12 pb-1"/>
+                            <CirclePlus strokeWidth={1} class="w-11 h-11"/>
                         {/if}
                     </button>
                 </div>
-                <div class="absolute bottom-[30px] right-10 btn">
+                <div class="absolute bottom-[41px] right-10">
                     <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
                         {#if muted}
                             <VolumeX strokeWidth={1.5} class="w-6 h-6"/>
@@ -144,14 +144,14 @@
                     </button>
                 </div>
             </div>
-            <div class="text-white w-full py-10 px-8 flex gap-x-5">
-                <div class="left-content w-full">
+            <div class="text-white w-full max-h-[30vh] py-10 px-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row overflow-y-auto scrollbar-hidden">
+                <div class="left-content w-full ml-2 mb-2">
                     <div class="description-container">
                         <span class="text-sm break-words">{selectedMovie.description}</span>
                     </div>
                 </div>
-                <div class="right-content w-full">
-                    <ul class="list-none space-y-4 float-right">
+                <div class="right-content w-full mr-2">
+                    <ul class="list-none space-y-4 sm:float-right float-left">
                         <li class="text-sm">
                             <span><span class="text-surface-400">Genres:</span> {selectedMovie.type}</span>
                         </li>
