@@ -215,7 +215,7 @@
 </svelte:head>
 
 <!-- App Shell -->
-<AppShell>
+<AppShell class="min-w-[360px]">
     <svelte:fragment slot="header">
         <TopBar {movies} {movieTitles} />
     </svelte:fragment>

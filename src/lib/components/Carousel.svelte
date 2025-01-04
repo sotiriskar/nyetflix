@@ -125,11 +125,11 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
     <div bind:this={elemMovies} class="hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto overflow-y-visible flex-grow pl-20">
       {#if movies.length === 0}
         {#each Array(5) as _, i}
-          <div class="card shrink-0 h-[170px] md:w-[22%] snap-start transform transition-transform duration-300 relative hover:brightness-110 rounded-lg hide-scrollbarplaceholder animate-pulse" />
+          <div class="card shrink-0 h-[170px] w-[22%] snap-start transform transition-transform duration-300 relative hover:brightness-110 rounded-lg hide-scrollbarplaceholder animate-pulse" />
         {/each}
       {:else}
         {#each movies as movie, index}
-          <button type="button" class="card shrink-0 h-[170px] md:w-[19%] snap-start transform hover:scale-y-[190%] hover:scale-x-[120%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
+          <button type="button" class="card shrink-0 h-[170px] w-full xs:w-[90%] sm:w-[32%] md:w-[30%] lg:w-[22%] snap-start transform hover:scale-y-[190%] hover:scale-x-[120%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
             on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
             on:mouseenter={() => hoverStates[index] = true}
             on:mouseleave={() => hoverStates[index] = false}>
@@ -142,25 +142,27 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
                     </iframe>
                   </div>
                 </button>
-                <div class="scale-x-[150%] h-1/6 w-full flex px-[55px] justify-between items-center overflow-visible hide-scrollbar">
-                  <div class="pl-3 pt-3">
+                <div class="my-1 px-4 h-1/6 w-full flex justify-between items-center border-slate-200">
+                  <div class="flex space-x-2">
                     <button type="button" class="z-10" on:click={playSelectedMovie}>
-                      <CirclePlay strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                      <CirclePlay strokeWidth={1} class="scale-x-[150%] flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
                     </button>
                     <button type="button" class="z-10" on:click={(event) => toggleBookmark(event, movie.movie_id)}>
                       {#if $bookmarkedMovies.has(movie.movie_id)}
-                        <CircleX strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                        <CircleX strokeWidth={1} class="ml-1 scale-x-[150%] flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
                       {:else}
-                        <CirclePlus strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                        <CirclePlus strokeWidth={1} class="ml-1 scale-x-[150%] flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
                       {/if}
                     </button>
                   </div>
-                  <button type="button" class="pt-2 btn-icon z-10 h-full" on:click={() => openModal(movie)}>
-                    <CircleChevronDown strokeWidth={1} class="flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-                  </button>
+                  <div class="flex space-x-2">
+                    <button type="button" class="z-10" on:click={() => openModal(movie)}>
+                      <CircleChevronDown strokeWidth={1} class="scale-x-[150%] flex-shrink-0 flex-grow-0 hover:border-none hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                    </button>
+                  </div>
                 </div>
-                <div class="scale-x-[150%] h-2/7 w-full flex justify-start pl-[70px] pb-2 overflow-hidden hide-scrollbar">
-                  <span class="text-[10px]">{movie.type.split(',').slice(0, 2).join(' • ')}</span>
+                <div class="px-8 sm:px-8 md:px-8 h-2/7 w-full flex justify-start pb-2 overflow-hidden hide-scrollbar">
+                  <span class="inline-block transform scale-x-150 text-[9px] sm:text-[8px] md:text-[8px] lg:text-[9px]">{movie.type.split(',').slice(0, 2).join(' • ')}</span>
                 </div>
               </div>
             {:else}

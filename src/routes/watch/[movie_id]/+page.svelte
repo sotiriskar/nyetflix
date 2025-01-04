@@ -72,11 +72,14 @@
 </svelte:head>
 
 <div class="bg-gray-900 w-screen h-screen flex items-center justify-center">
-  <a href="/" class="absolute top-4 left-4 cursor-pointer z-10" class:hidden={!arrowVisible} on:click={() => goto('/')}>
-    <ArrowLeft class="w-8 h-8" />
+  <a href="/" 
+    class="absolute top-4 left-4 cursor-pointer z-50" 
+    class:hidden={!arrowVisible} 
+    on:click={() => goto('/')}>
+      <ArrowLeft class="w-8 h-8" />
   </a>
   {#if selectedMovie.movie_id}
-    <VideoPlayer {movieId} />
+    <VideoPlayer {movieId}/>
   {:else}
     <p>Loading...</p>
   {/if}
