@@ -234,7 +234,7 @@
                     </div>
                     <!-- <img src={selectedMovie.backdrop} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top"> -->
                     <div class="absolute inset-0 bg-gradient-to-t from-surface-900 to-transparent rounded-t-lg"></div>
-                    <div class="absolute bottom-20 left-20 text-white max-w-md">
+                    <div class="absolute bottom-20 left-5 lg:left-20 md:left-10 sm:left-10 text-white max-w-md">
                         <img src={selectedMovie.logo} alt={selectedMovie.title} class="rounded-t-lg w-[60%] h-[50%] object-contain object-top">
                         <h4 class="text-sm flex space-x-4 py-4">
                             <span>{formatDuration(selectedMovie.duration)}</span>
@@ -242,20 +242,20 @@
                             <span>{selectedMovie.rating}</span>
                             <span>{selectedMovie.type.split(',').slice(0,3).join(' • ')}</span>
                         </h4>
-                        <div class="btn-group-vertical variant-filled px-[10px] hover:opacity-80">
+                        <div class="btn-group-vertical variant-filled xl:px-[10px] lg:px-[6px] md:px-[4px] hover:opacity-80">
                             <button on:click={playSelectedMovie}>
-                                <Play class="black" fill="#111" />
-                                <span class="text-xl">Play</span>
+                                <Play class="black lg:text-lg xl:text-xl md:text-md" fill="#111" />
+                                <span class="lg:text-lg xl:text-xl md:text-md">Play</span>
                             </button>
                         </div>
                         <div class="ml-1 btn-group-vertical hover:bg-gray-500">
                             <button class="bg-gray-400 hover:bg-gray-500" on:click={() => { openModal(selectedMovie); muted=true; }}>
-                                <Info class="text-white"/>
-                                <span class="text-xl text-white">More Info</span>
+                                <Info class="text-white lg:text-lg xl:text-xl md:text-md"/>
+                                <span class="text-white lg:text-lg xl:text-xl md:text-md">More Info</span>
                             </button>
                         </div>
                     </div>
-                    <div class="absolute bottom-20 right-20 text-white max-w-md">
+                    <div class="absolute bottom-20 text-white max-w-md right-5 md:right-10 sm:right-10 lg:right-20">
                         <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
                             {#if muted}
                                 <VolumeX strokeWidth={1.5} class="w-6 h-6"/>

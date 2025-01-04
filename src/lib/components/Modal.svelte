@@ -128,18 +128,18 @@
                     </button>
                     <button type="button" class="focus:outline-0" on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}>
                         {#if $bookmarkedMovies.has(selectedMovie.movie_id)}
-                            <CircleX strokeWidth={1} class="w-11 h-11"/>
+                            <CircleX strokeWidth={1} class="w-10 h-10"/>
                         {:else}
-                            <CirclePlus strokeWidth={1} class="w-11 h-11"/>
+                            <CirclePlus strokeWidth={1} class="w-10 h-10"/>
                         {/if}
                     </button>
                 </div>
-                <div class="absolute bottom-[41px] right-10">
-                    <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
+                <div class="absolute bottom-[42px] right-10">
+                    <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-grey-300" on:click={toggleMute}>
                         {#if muted}
-                            <VolumeX strokeWidth={1.5} class="w-6 h-6"/>
+                            <VolumeX strokeWidth={1.5} class="w-5 h-5"/>
                         {:else}
-                            <Volume2 strokeWidth={1.5} class="w-6 h-6"/>
+                            <Volume2 strokeWidth={1.5} class="w-5 h-5"/>
                         {/if}
                     </button>
                 </div>
@@ -150,7 +150,7 @@
                         <span class="text-sm break-words">{selectedMovie.description}</span>
                     </div>
                 </div>
-                <div class="right-content w-full mr-2">
+                <div class="right-content w-full mx-2">
                     <ul class="list-none space-y-4 sm:float-right float-left">
                         <li class="text-sm">
                             <span><span class="text-surface-400">Genres:</span> {selectedMovie.type}</span>
