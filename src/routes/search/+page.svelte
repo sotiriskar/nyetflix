@@ -103,12 +103,6 @@
     }
 </script>
 
-<style>
-    .main-content {
-        margin-left: 80px; /* Adjust this value based on the actual width of your AppRail */
-    }
-</style>
-
 <!-- Modal Component -->
 <Modal
     bind:this={modal}
@@ -126,15 +120,15 @@
         <TopBar {movies} {movieTitles} />
     </svelte:fragment>
     <!-- Flex Container -->
-    <section class="flex w-full h-full">
+    <section class="flex w-full h-full bg-[#111823]">
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
-        <section class="pl-14 pr-10 pt-20 flex-grow main-content">
+        <section class="px-10 pb-10 pt-10 flex-grow main-content md:px-[12vw] mx-auto">
             {#if filteredMovies.length > 0}
                 <h2 class="text-xl pb-10">Movies found for: "{searchQuery}".</h2>
                 <div class="grid grid-cols-3 md:grid-cols-7 gap-4 mb-10">
                     {#each filteredMovies as movie, index}
-                        <div class="card w-full h-full overflow-hidden transform brightness-[85%] hover:brightness-100 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                        <div class="card !bg-[#3f4756] w-full h-full overflow-hidden transform brightness-[85%] hover:brightness-100 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
                             role="button"
                             tabindex="0"
                             on:click={() => openModal(movie)}

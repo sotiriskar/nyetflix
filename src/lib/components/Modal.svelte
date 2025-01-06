@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { CirclePlus , CircleX, X, Play, VolumeX, Volume2 } from 'lucide-svelte';
+    import { Plus, X, Play, VolumeX, Volume2 } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import { writable } from 'svelte/store';
 
@@ -113,7 +113,7 @@
 
 {#if selectedMovie}
     <div class="modal fixed inset-0 z-50 min-w-[318px] flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick}>
-        <div class="modal-content rounded-lg bg-surface-800 text-surface-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative mx-4 sm:mx-6 lg:mx-8" role="dialog" on:click|stopPropagation>
+        <div class="modal-content rounded-lg bg-[#111823] text-surface-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative mx-4 sm:mx-6 lg:mx-8" role="dialog" on:click|stopPropagation>
             <button on:click={closeModal} class="absolute top-5 right-5 cursor-pointer z-10 focus:outline-0">
                 <X class="text-white w-6 h-6" />
             </button>
@@ -122,20 +122,22 @@
                     <iframe bind:this={iframeElement} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1`} class="w-full h-full object-cover pointer-events-none"></iframe>
                 </div>
                 <div class="absolute bottom-[40px] left-10 flex flex-wrap gap-4 items-center">
-                    <button on:click={() => goto(`/watch/${selectedMovie.movie_id}`)} class="px-6 py-2 rounded-lg variant-filled bg-gray-200 hover:bg-gray-300 flex items-center text-sm sm:text-base">
-                        <Play class="text-black" fill="#111" />
-                        <span class="text-black ml-2">Play</span>
+                    <button on:click={() => goto(`/watch/${selectedMovie.movie_id}`)} class="hover:!bg-[#ba3a46] !bg-[#ff4654] px-6 py-2 rounded-lg variant-filled bg-gray-200 hover:bg-gray-300 flex items-center text-sm sm:text-base">
+                        <Play class="text-white lg:text-lg xl:text-xl md:text-md" fill="white" />
+                    <span class="lg:text-lg xl:text-xl md:text-md text-white">Play</span>
                     </button>
-                    <button type="button" class="focus:outline-0" on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}>
+                    <button type="button" class="hover:bg-white hover:bg-opacity-25 flex items-center justify-center focus:outline-0 w-[35px] h-[35px] border-[2px] rounded-full p-1"
+                        on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}
+                    >
                         {#if $bookmarkedMovies.has(selectedMovie.movie_id)}
-                            <CircleX strokeWidth={1} class="w-10 h-10"/>
+                            <X strokeWidth={2} class="w-8 h-8"/>
                         {:else}
-                            <CirclePlus strokeWidth={1} class="w-10 h-10"/>
+                            <Plus strokeWidth={2} class="w-8 h-8"/>
                         {/if}
                     </button>
                 </div>
                 <div class="absolute bottom-[42px] right-10">
-                    <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-grey-300" on:click={toggleMute}>
+                    <button type="button" class="hover:bg-white hover:bg-opacity-25 btn p-1.5 border-[2px] focus:outline-0 border-grey-300" on:click={toggleMute}>
                         {#if muted}
                             <VolumeX strokeWidth={1.5} class="w-5 h-5"/>
                         {:else}

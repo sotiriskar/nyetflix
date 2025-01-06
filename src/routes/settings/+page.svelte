@@ -87,13 +87,13 @@
                             body: JSON.stringify({ userId })
                         });
                         if (!response.ok) {
-                            showToast('Failed to delete account', 'bg-red-500');
+                            showToast('Failed to delete account', 'bg-[#ff4654]');
                         } else {
                             showToast('Account deleted successfully', 'bg-primary-500');
                         }
                     } catch (error) {
                         console.error('Error updating user data:', error);
-                        showToast('Failed to delete account', 'bg-red-500');
+                        showToast('Failed to delete account', 'bg-[#ff4654]');
                     }
                     // logout
                     handleLogout();
@@ -144,7 +144,7 @@
         usernameError = '';
         if (!username || username.length < 4) {
             usernameError = 'Username must be at least 4 characters long';
-            showToast('Failed to update user data', 'bg-red-500');
+            showToast('Failed to update user data', 'bg-[#ff4654]');
             return;
         }
 
@@ -157,13 +157,13 @@
                 body: JSON.stringify({ userId, username, pronouns })
             });
             if (!response.ok) {
-                showToast('Failed to update user data', 'bg-red-500');
+                showToast('Failed to update user data', 'bg-[#ff4654]');
             } else {
                 showToast('User data updated successfully', 'bg-primary-500');
             }
         } catch (error) {
             console.error('Error updating user data:', error);
-            showToast('Failed to update user data', 'bg-red-500');
+            showToast('Failed to update user data', 'bg-[#ff4654]');
         }
     }
 
@@ -171,7 +171,7 @@
         passwordError = '';
         if (!newPassword || newPassword.length < 4) {
             passwordError = 'Password must be at least 4 characters long';
-            showToast('Failed to update password', 'bg-red-500');
+            showToast('Failed to update password', 'bg-[#ff4654]');
             return;
         }
 
@@ -184,13 +184,13 @@
                 body: JSON.stringify({ userId, newPassword })
             });
             if (!response.ok) {
-                showToast('Failed to update password', 'bg-red-500');
+                showToast('Failed to update password', 'bg-[#ff4654]');
             } else {
                 showToast('Password updated successfully', 'bg-primary-500');
             }
         } catch (error) {
             console.error('Error updating password:', error);
-            showToast('Failed to update password', 'bg-red-500');
+            showToast('Failed to update password', 'bg-[#ff4654]');
         }
     }
 </script>
@@ -199,7 +199,7 @@
 <Toast />
 
 <!-- Modal -->
-<Modal />
+<Modal background="bg-[#111823]" class="border-white" />
 
 <svelte:head>
     <title>Nyetflix - Settings</title>
@@ -210,7 +210,7 @@
     <svelte:fragment slot="header">
         <TopBar {movies} {movieTitles} />
     </svelte:fragment>
-    <section class="flex w-full h-full">
+    <section class="flex w-full h-full bg-[#111823]">
         <NavBar bind:currentTile={currentTile} />
         <section class="pt-10 pb-10 flex-grow ml-10 lg:ml-20 md:px-[10vw]">
             <h2 class="text-3xl font-bold my-3 flex items-center">
@@ -221,14 +221,14 @@
             <div class="flex flex-col gap-4">
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4 pt-5">Username</h4>
-                    <input type="text" bind:value={username} class="border bg-surface-700 text-surface-50 rounded-lg" />
+                    <input type="text" bind:value={username} class="placeholder-[#EBE8E1] placeholder-opacity-60 border bg-[#111823] text-surface-50 rounded-lg" />
                     {#if usernameError}
-                        <div class="text-red-500 text-sm">{usernameError}</div>
+                        <div class="text-[#ff4654] text-sm">{usernameError}</div>
                     {/if}
                 </div>
                 <div class="form-row">
                     <h4 class="text-xl font-bold pb-4">Pronouns</h4>
-                    <select bind:value={pronouns} class="border bg-surface-700 text-surface-50 rounded-lg pb-2">
+                    <select bind:value={pronouns} class="border bg-[#111823] text-surface-50 rounded-lg pb-2">
                         <option value="he/him">He/Him</option>
                         <option value="she/her">She/Her</option>
                         <option value="they/them">They/Them</option>
@@ -239,24 +239,24 @@
                     </select>
                 </div>
                 <div class="form-row pb-6 pt-5">
-                    <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={updateUserData}>Update Profile</button>
+                    <button class="border bg-[#14a586] text-white rounded-lg p-2 w-[150px]" on:click={updateUserData}>Update Profile</button>
                 </div>
                 <h2 class="text-2xl font-bold my-3 ml-4 flex items-center">
                     <UserRoundPen class="w-10 inline-block mr-2" />
                     Profile Settings
                 </h2>
-                <hr class="border-t-2 px-4" />
+                <hr class="border-t-2 px-4"/>
                 <div class="form-row gap-4">
                     <h4 class="text-xl font-bold pb-4">Change Password</h4>
-                    <input type="password" bind:value={newPassword} class="border bg-surface-700 text-surface-50 rounded-lg p-2 mr-4 mb-4" />
-                    <button class="border bg-primary-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={() => updatePassword(newPassword)}>Change Password</button>
+                    <input type="password" placeholder="Password" bind:value={newPassword} class="placeholder-[#EBE8E1] placeholder-opacity-60 border bg-[#111823] text-surface-50 rounded-lg p-2 mr-4 mb-4" />
+                    <button class="border bg-[#14a586] text-white rounded-lg p-2 w-[150px]" on:click={() => updatePassword(newPassword)}>Change Password</button>
                     {#if passwordError}
-                        <div class="mt-2 text-red-500 text-sm">{passwordError}</div>
+                        <div class="mt-2 text-[#ff4654] text-sm">{passwordError}</div>
                     {/if}
                 </div>
                 <div class="form-row pb-8">
                     <h4 class="text-xl font-bold pb-4">Delete Account</h4>
-                    <button class="border bg-red-500 text-surface-50 rounded-lg p-2 w-[150px]" on:click={confirmAccountDeletion}>Delete Account</button>
+                    <button class="border bg-[#ff4654] text-white rounded-lg p-2 w-[150px]" on:click={confirmAccountDeletion}>Delete Account</button>
                 </div>
             </div>
         </section>

@@ -106,20 +106,21 @@
     });
 </script>
 
-<button class="card p-4 w-[150px] shadow-xl" data-popup="popupFeatured" on:click={handleLogout} on:keypress={handleKeyPress}>
+<button style="background-color: #111823;" class="card p-4 w-[150px] shadow-xl" data-popup="popupFeatured" on:click={handleLogout} on:keypress={handleKeyPress}>
     <div>
       <LogOut class="inline-block mr-2" />
       <p class="inline-block text-sm cursor-pointer">Log out</p>
     </div>
 </button>
 
-<div class="flex items-center justify-between w-full h-20 bg-surface-800">
+<div class="flex items-center justify-between w-full h-20 bg-[#111823]">
     <a href="/" class="focus:outline-0">
         <img src="/nyetflix-logo.png" alt="Nyetflix Logo" class="h-11 ml-3 object-contain"/>
     </a>
     <div class="flex items-center justify-center flex-grow mx-4">
         <input
-            class="input autocomplete flex-grow min-w-[7vh] max-w-[30vh] ml-2"
+            style="background-color: #111823; color: #EBE8E1; border-color: #EBE8E1; border-opacity: 0.6;"
+            class="input autocomplete flex-grow min-w-[7vh] max-w-[30vh] ml-2 placeholder-[#EBE8E1] placeholder-opacity-60"
             type="search"
             name="autocomplete-search"
             bind:value={inputPopupDemo}
@@ -129,7 +130,7 @@
         />
         <div data-popup="popupAutocomplete">
             <Autocomplete
-                class="bg-surface-800 text-surface-50 rounded-md shadow-md p-4"
+                class="text-white rounded-md shadow-md p-4 bg-[#111823] border-[#EBE8E1] border-opacity-60"
                 bind:input={inputPopupDemo}
                 options={movieOptions}
                 on:selection={onPopupDemoSelect}
@@ -137,6 +138,6 @@
         </div>
     </div>
     <button use:popup={popupFeatured} class="z-10">
-        <Avatar initials={initials} background="bg-primary-500" class="h-9 w-9 mr-3"/>
+        <Avatar initials={initials} background="bg-[#ff4654]" class="h-9 w-9 mr-3"/>
     </button>
 </div>

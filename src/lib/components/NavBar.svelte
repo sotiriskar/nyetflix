@@ -25,12 +25,12 @@
 {#if isMobile}
     <TabGroup 
         justify="justify-center"
-        active="variant-filled-primary"
-        hover="hover:variant-soft-primary"
+        active="bg-[#ff4654]"
+        hover=""
         flex="flex-row"
         rounded=""
         border=""
-        class="bg-surface-100-800-token w-full bottom-0 fixed z-20"
+        class="bg-[#111823] w-full bottom-0 fixed z-20"
     >
         <TabAnchor selected={$page.url.pathname === '/'} name="home" title="Home" href="/" class="w-[25%] flex items-center justify-center">
             <svelte:fragment slot="lead">
@@ -54,7 +54,7 @@
         </TabAnchor>
     </TabGroup>
 {:else}
-    <AppRail class="flex flex-col items-center justify-center pb-[20%] fixed">
+    <AppRail class="flex flex-col items-center justify-center pb-[20%] fixed" background="bg-[#111823]" active="bg-[#ff4654]" hover="">
         <AppRailAnchor selected={$page.url.pathname === '/'} name="home" title="Home" href="/">
             <svelte:fragment slot="lead">
                 <House class="w-20"/>

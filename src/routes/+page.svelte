@@ -215,25 +215,25 @@
 </svelte:head>
 
 <!-- App Shell -->
-<AppShell class="min-w-[360px]">
+<AppShell class="min-w-[360px] bg-[#111823]">
     <svelte:fragment slot="header">
         <TopBar {movies} {movieTitles} />
     </svelte:fragment>
     <!-- Flex Container -->
-    <section class="flex w-full h-full">
+    <section class="flex w-full h-full bg-[#111823]">
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
-        <section class="flex-grow main-content md:pl-[80px]">
+        <section class="flex-grow main-content md:pl-[80px] bg-[#111823]">
             {#if selectedMovie}
-                <div class="relative w-full h-[50%] overflow-hidden">
+                <div class="relative w-full h-[50%] overflow-hidden bg-[#111823]">
                     <div class="rounded-t-lg w-full h-full scale-[190%] object-cover object-top">
                         <iframe title={`Trailer for ${selectedMovie.title}`} src={`https://www.youtube.com/embed/${selectedMovie.youtube_trailer_url}?autoplay=1&controls=0&mute=${muted ? 1 : 0}&loop=1&rel=0`}
                             id="iframe" class="pointer-events-none rounded-t-lg w-full h-full object-cover object-top">
                         </iframe>
                     </div>
                     <!-- <img src={selectedMovie.backdrop} alt={selectedMovie.title} class="rounded-t-lg w-full h-full object-cover object-top"> -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-surface-900 to-transparent rounded-t-lg"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#111823] to-transparent rounded-t-lg"></div>
                     <div class="absolute bottom-20 left-5 lg:left-20 md:left-10 sm:left-10 text-white max-w-md">
                         <img src={selectedMovie.logo} alt={selectedMovie.title} class="rounded-t-lg w-[60%] h-[50%] object-contain object-top">
                         <h4 class="text-sm flex space-x-4 py-4">
@@ -242,10 +242,10 @@
                             <span>{selectedMovie.rating}</span>
                             <span>{selectedMovie.type.split(',').slice(0,3).join(' • ')}</span>
                         </h4>
-                        <div class="btn-group-vertical variant-filled xl:px-[10px] lg:px-[6px] md:px-[4px] hover:opacity-80">
+                        <div class="btn-group-vertical xl:px-[10px] lg:px-[6px] md:px-[4px] hover:!bg-[#ba3a46] !bg-[#ff4654]">
                             <button on:click={playSelectedMovie}>
-                                <Play class="black lg:text-lg xl:text-xl md:text-md" fill="#111" />
-                                <span class="lg:text-lg xl:text-xl md:text-md">Play</span>
+                                <Play class="text-white lg:text-lg xl:text-xl md:text-md" fill="white" />
+                                <span class="lg:text-lg xl:text-xl md:text-md text-white">Play</span>
                             </button>
                         </div>
                         <div class="ml-1 btn-group-vertical hover:bg-gray-500">
@@ -256,7 +256,7 @@
                         </div>
                     </div>
                     <div class="absolute bottom-20 text-white max-w-md right-5 md:right-10 sm:right-10 lg:right-20">
-                        <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color border-gray-300" on:click={toggleMute}>
+                        <button type="button" class="btn p-1.5 border-[2px] focus:outline-0 border-color !border-gray-300" on:click={toggleMute}>
                             {#if muted}
                                 <VolumeX strokeWidth={1.5} class="w-6 h-6"/>
                             {:else}
@@ -266,7 +266,7 @@
                     </div>
                 </div>
             {:else}
-                <div class="card relative w-full h-[53%] overflow-hidden placeholder animate-pulse rounded-none"></div>
+            <div class="card relative w-full h-[53%] overflow-hidden placeholder animate-pulse rounded-none !bg-[#3f4756]"></div>
             {/if}
             <Carousel
                 title="Popular on Nyetflix"

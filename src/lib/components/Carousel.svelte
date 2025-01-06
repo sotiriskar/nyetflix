@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronLeft, ChevronRight, CirclePlay, CircleChevronDown, CircleX, CirclePlus } from 'lucide-svelte';
+  import { ChevronLeft, ChevronRight, Play, ChevronDown, X, Plus } from 'lucide-svelte';
   import { writable, type Writable } from 'svelte/store';
   import { defineCustomElements } from '@vime/core/loader';
   import * as pkg from '@vime/core';
@@ -114,7 +114,7 @@ rel="stylesheet"
 href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
 />
 
-<section class="overflow-visible">
+<section class="overflow-visible bg-[#111823]">
   <h2 class="text-2xl font-bold w-full pl-[100px] relative top-14">{title}</h2>
   <div class="relative flex items-center">
     <!-- Button: Left -->
@@ -125,16 +125,16 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
     <div bind:this={elemMovies} class="hide-scrollbar relative pt-20 pb-20 snap-x snap-mandatory scroll-smooth flex gap-2 overflow-x-auto overflow-y-visible flex-grow pl-20">
       {#if movies.length === 0}
         {#each Array(5) as _, i}
-          <div class="card shrink-0 h-[170px] w-[22%] snap-start transform transition-transform duration-300 relative hover:brightness-110 rounded-lg hide-scrollbarplaceholder animate-pulse" />
+          <div class="card !bg-[#3f4756] shrink-0 h-[170px] w-[22%] snap-start transform transition-transform duration-300 relative hover:brightness-110 rounded-lg hide-scrollbarplaceholder animate-pulse" />
         {/each}
       {:else}
         {#each movies as movie, index}
-          <button type="button" class="card shrink-0 h-[170px] w-full xs:w-[90%] sm:w-[32%] md:w-[30%] lg:w-[22%] snap-start transform hover:scale-y-[190%] hover:scale-x-[120%] transition-transform duration-300 relative hover:z-10 rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
+          <button type="button" class="card shrink-0 h-[170px] w-full xs:w-[85%] sm:w-[40%] md:w-[40%] lg:w-[28%] xl:w-[18%] snap-start transform hover:scale-y-[190%] hover:scale-x-[120%] transition-transform duration-300 relative hover:z-10 shadow-md rounded-lg hide-scrollbar" aria-label={`Select ${movie.title}`}
             on:keydown={(event) => event.key === 'Enter' && openModal(movie)}
             on:mouseenter={() => hoverStates[index] = true}
             on:mouseleave={() => hoverStates[index] = false}>
             {#if hoverStates[index]}
-              <div class="overflow-hidden w-full h-full relative flex flex-col hide-scrollbar rounded-lg">
+              <div class="bg-[#111823] overflow-hidden w-full h-full relative flex flex-col hide-scrollbar rounded-lg">
                 <button class="h-4/6 relative overflow-hidden hide-scrollbar" on:click={() => openModal(movie)}>
                   <div class="scale-x-[200%] scale-y-[200%] origin-center w-full h-full">
                     <iframe title={`Trailer for ${movie.title}`} src={`https://www.youtube.com/embed/${movie.youtube_trailer_url}?autoplay=1&controls=0&mute=1&loop=1&rel=0`}
@@ -144,20 +144,33 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
                 </button>
                 <div class="my-1 px-4 h-1/6 w-full flex justify-between items-center border-slate-200">
                   <div class="flex space-x-2">
-                    <button type="button" class="z-10" on:click={playSelectedMovie}>
-                      <CirclePlay strokeWidth={1} class="scale-x-[150%] flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                    <button 
+                      type="button" 
+                      class="scale-x-[150%] z-10 mr-2 w-[22px] h-[22px] p-1 flex items-center justify-center rounded-full border border-white hover:bg-[#ff4654] transition-transform" 
+                      on:click={playSelectedMovie}
+                    >
+                      <Play strokeWidth={1} class="fill-white"/>
                     </button>
-                    <button type="button" class="z-10" on:click={(event) => toggleBookmark(event, movie.movie_id)}>
-                      {#if $bookmarkedMovies.has(movie.movie_id)}
-                        <CircleX strokeWidth={1} class="ml-1 scale-x-[150%] flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-                      {:else}
-                        <CirclePlus strokeWidth={1} class="ml-1 scale-x-[150%] flex-shrink-0 flex-grow-0 hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
-                      {/if}
-                    </button>
+                    <div class="flex space-x-2">
+                      <button 
+                        type="button" 
+                        class="scale-x-[150%] z-10 w-[22px] h-[22px] p-1 flex items-center justify-center rounded-full border border-white hover:bg-white hover:bg-opacity-25 transition-transform" 
+                        on:click={(event) => toggleBookmark(event, movie.movie_id)}>
+                        {#if $bookmarkedMovies.has(movie.movie_id)}
+                          <X strokeWidth={2}/>
+                        {:else}
+                          <Plus strokeWidth={2}/>
+                        {/if}
+                      </button>
+                    </div>
                   </div>
                   <div class="flex space-x-2">
-                    <button type="button" class="z-10" on:click={() => openModal(movie)}>
-                      <CircleChevronDown strokeWidth={1} class="scale-x-[150%] flex-shrink-0 flex-grow-0 hover:border-none hover:bg-slate-200 hover:bg-opacity-25 hover:rounded-full"/>
+                    <button 
+                      type="button" 
+                      class="scale-x-[150%] z-10 w-[22px] h-[22px] flex items-center justify-center rounded-full border border-white hover:bg-white hover:bg-opacity-25 transition-transform" 
+                      on:click={() => openModal(movie)}
+                    >
+                      <ChevronDown strokeWidth={1.3} class="mt-0.5"/>
                     </button>
                   </div>
                 </div>

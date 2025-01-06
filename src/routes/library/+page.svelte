@@ -144,6 +144,23 @@
     }
 </script>
 
+<style>
+    select {
+        background-color: #111823;
+        color: white;
+        border: 1px solid #4B5563;
+    }
+
+    select option {
+        background-color: #111823;
+        color: white;
+    }
+
+    select > option:focus { 
+        background: #000 !important;
+    }
+</style>
+
 <!-- Modal Component -->
 <Modal
     bind:this={modal}
@@ -161,11 +178,11 @@
         <TopBar {movies} {movieTitles} />
     </svelte:fragment>
     <!-- Flex Container -->
-    <section class="flex w-full h-full">
+    <section class="flex w-full h-full bg-[#111823]">
         <!-- NavBar Component -->
         <NavBar bind:currentTile={currentTile} />
         <!-- Movies Grid -->
-        <section class="px-10 pb-10 pt-10 flex-grow main-content md:px-[10vw] mx-auto">
+        <section class="px-10 pb-10 pt-10 flex-grow main-content md:px-[12vw] mx-auto">
             <section class="pt-10 pb-10">
                 <div class="flex flex-row items-start space-y-0 space-x-4">
                   <div class="flex-1 min-w-[100px] max-w-[250px]">
@@ -200,11 +217,11 @@
               <div class="grid grid-cols-3 md:grid-cols-7 gap-4 mb-10">
                 {#if movies.length === 0}
                 {#each Array(1) as _, i}
-                    <div class="card w-full h-0 pt-[140%] overflow-hidden transform hover:brightness-110 rounded-lg transition-transform duration-300 relative placeholder animate-pulse" style="max-height: 350px; max-width: 233px;"/>
+                    <div class="card !bg-[#3f4756] w-full h-0 pt-[140%] overflow-hidden transform hover:brightness-110 rounded-lg transition-transform duration-300 relative placeholder animate-pulse" style="max-height: 350px; max-width: 233px;"/>
                 {/each}
                 {:else}
                     {#each filteredMovies as movie, index}
-                        <div class="card w-full h-full overflow-hidden transform brightness-[85%] hover:brightness-100 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
+                        <div class="card !bg-[#3f4756] w-full h-full overflow-hidden transform brightness-[85%] hover:brightness-100 hover:scale-y-[115%] hover:scale-x-[115%] transition-transform duration-300 relative hover:z-10"
                             role="button"
                             tabindex="0"
                             on:click={() => openModal(movie)}
