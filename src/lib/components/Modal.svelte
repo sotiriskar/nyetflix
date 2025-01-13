@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { Plus, X, Play, VolumeX, Volume2 } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import { writable } from 'svelte/store';
@@ -22,6 +22,7 @@
 
     let muted = true;
     let iframeElement: HTMLIFrameElement | null = null;
+    let userId: string | null = null;
 
     const dispatch = createEventDispatcher();
 
@@ -45,7 +46,11 @@
         event.preventDefault();
         event.stopPropagation();
 
-        const userId = '1'; // Replace with actual user ID
+        if (!userId) {
+            console.error('User ID is not available');
+            return;
+        }
+
         let isCurrentlyBookmarked = false;
         bookmarkedMovies.update(set => {
             isCurrentlyBookmarked = set.has(movieId);
@@ -109,10 +114,27 @@
         const remainingMinutes = minutes % 60;
         return `${hours}h ${remainingMinutes}m`;
     }
+
+    onMount(async () => {
+        try {
+            const userResponse = await fetch('/api/user/');
+            if (userResponse.ok) {
+                const data = await userResponse.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    const userData = data[0];
+                    if (userData.username) {
+                        userId = userData.user_id;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch user data:', err);
+        }
+    });
 </script>
 
 {#if selectedMovie}
-    <div class="modal fixed inset-0 z-50 min-w-[318px] flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick}>
+    <div class="modal fixed inset-0 z-50 min-w-[318px] flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto" on:click={handleOutsideClick} role="dialog" tabindex="0" on:keydown|preventDefault={(e) => e.key === 'Escape' && closeModal()}>
         <div class="modal-content rounded-lg bg-[#111823] text-surface-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative mx-4 sm:mx-6 lg:mx-8" role="dialog" on:click|stopPropagation>
             <button on:click={closeModal} class="absolute top-5 right-5 cursor-pointer z-10 focus:outline-0">
                 <X class="text-white w-6 h-6" />
@@ -127,7 +149,7 @@
                     <span class="lg:text-lg xl:text-xl md:text-md text-white">Play</span>
                     </button>
                     <button type="button" class="hover:bg-white hover:bg-opacity-25 flex items-center justify-center focus:outline-0 w-[35px] h-[35px] border-[2px] rounded-full p-1"
-                        on:click={(event) => toggleBookmark(event, selectedMovie.movie_id)}
+                        on:click={(event) => selectedMovie && toggleBookmark(event, selectedMovie.movie_id)}
                     >
                         {#if $bookmarkedMovies.has(selectedMovie.movie_id)}
                             <X strokeWidth={2} class="w-8 h-8"/>

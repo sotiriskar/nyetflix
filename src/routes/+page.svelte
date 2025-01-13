@@ -1,4 +1,5 @@
 <script lang="ts">
+    import LastSeenComponent from './../lib/components/LastSeen.svelte';
     import '../app.postcss';
     import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
     import { AppShell, storeHighlightJs, storePopup } from '@skeletonlabs/skeleton';
@@ -30,6 +31,7 @@
     storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
     let bookmarkedMovies = writable<Set<number>>(new Set());
+    let lastSeen: LastSeen[] = [];
     let selectedMovie: Movie | null = null;
     let filteredMovies: any[] = [];
     let searchQuery: string = '';
@@ -52,6 +54,13 @@
         poster: string;
         logo: string;
         youtube_trailer_url: string;
+    }
+
+    interface LastSeen {
+        id: number;
+        movie_id: number;
+        user_id: number;
+        last_seen: number;
     }
 
     onMount(async () => {
@@ -94,6 +103,14 @@
             }
         } else {
             console.error('User ID not found in userData');
+        }
+
+        const lastSeenResponse = await fetch(`/api/lastseen?user_id=${userData.user_id}`);
+        if (lastSeenResponse.ok) {
+            const lastSeenData = await lastSeenResponse.json();
+            lastSeen = lastSeenData;
+        } else {
+            console.error('Failed to fetch last seen:', lastSeenResponse.statusText);
         }
     });
 
@@ -195,13 +212,12 @@
         return `${hours}h ${remainingMinutes}m`;
     }
 
-    function playSelectedMovie() {
+    function playSelectedMovie(movie: Movie) {
         if (selectedMovie) {
-            goto(`/watch/${selectedMovie.movie_id}`);
+            goto(`/watch/${movie.movie_id}`);
         }
     }
 </script>
-
 
 <!-- Modal Component -->
 <Modal
@@ -243,7 +259,7 @@
                             <span>{selectedMovie.type.split(',').slice(0,3).join(' • ')}</span>
                         </h4>
                         <div class="btn-group-vertical xl:px-[10px] lg:px-[6px] md:px-[4px] hover:!bg-[#ba3a46] !bg-[#ff4654]">
-                            <button on:click={playSelectedMovie}>
+                            <button on:click={() => { if (selectedMovie) playSelectedMovie(selectedMovie); }}>
                                 <Play class="text-white lg:text-lg xl:text-xl md:text-md" fill="white" />
                                 <span class="lg:text-lg xl:text-xl md:text-md text-white">Play</span>
                             </button>
@@ -268,6 +284,15 @@
             {:else}
             <div class="card relative w-full h-[53%] overflow-hidden placeholder animate-pulse rounded-none !bg-[#3f4756]"></div>
             {/if}
+            <LastSeenComponent
+            title="Continue Watching"
+            {movies} 
+            {userData}
+            {bookmarkedMovies} 
+            {openModal} 
+            {playSelectedMovie}
+            {lastSeen}
+            />
             <Carousel
                 title="Popular on Nyetflix"
                 {movies} 

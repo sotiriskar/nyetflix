@@ -147,7 +147,7 @@ href="https://cdn.jsdelivr.net/npm/@vime/core@^5/themes/default.css"
                     <button 
                       type="button" 
                       class="scale-x-[150%] z-10 mr-2 w-[22px] h-[22px] p-1 flex items-center justify-center rounded-full border border-white hover:bg-[#ff4654] transition-transform" 
-                      on:click={playSelectedMovie}
+                      on:click={() => playSelectedMovie(movie)}
                     >
                       <Play strokeWidth={1} class="fill-white"/>
                     </button>

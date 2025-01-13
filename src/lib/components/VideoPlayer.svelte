@@ -1,14 +1,19 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import * as pkg from '@vime/core';
   const { defineCustomElements, VmTimeProgress, VmPlaybackControl, VmMuteControl, VmControlSpacer, VmControls, VmScrim, VmAudio, VmFile, VmDefaultControls, VmPlayer, VmVideo, VmDefaultUi, VmFullscreenControl, VmSettingsControl, VmPipControl, VmVolumeControl } = pkg;
   defineCustomElements();
 
   export let movieId: string;
+  export let userId: string;
+  export let lastseen: string | null;
+  const dispatch = createEventDispatcher();
   let subtitleSrcs: { [key: string]: string } = {};
   let defaultSubtitleLang: string = 'en';
   let nonDefaultSubtitleLang: string = 'gr';
   let videoElement: HTMLVmVideoElement;
+  let updateInterval: ReturnType<typeof setInterval>;
+  let currentTime: number = 0;
 
   onMount(async () => {
     // Fetch subtitle files
@@ -32,13 +37,45 @@
       defaultSubtitleLang = subtitleSrcs['en'] ? 'en' : subtitleSrcs['gr'] ? 'gr' : '';
     }
 
-    if (videoElement) {
-      videoElement.addEventListener('canplay', () => {
-        (videoElement as unknown as HTMLVideoElement).play().catch(error => {
-          console.error('Error playing video:', error);
-        });
-      });
+    const userResponse = await fetch('/api/user/');
+    if (userResponse.ok) {
+      const data = await userResponse.json();
+      if (Array.isArray(data) && data.length > 0) {
+        userId = data[0].user_id;
+      }
     }
+
+    // Fetch last seen duration
+    const lastSeenResponse = await fetch(`/api/lastseen?movie_id=${movieId}&user_id=${userId}`);
+    if (lastSeenResponse.ok) {
+      const lastSeenData = await lastSeenResponse.json();
+      lastseen = lastSeenData.last_seen;
+      console.log('Last seen:', lastseen);
+      if (lastseen) {
+        currentTime = parseFloat(lastseen);
+      }
+    }
+
+    if (videoElement) {
+      videoElement.addEventListener('timeupdate', () => {
+        const currentTime = document.querySelector('video')?.currentTime;
+        if (currentTime !== undefined && !isNaN(currentTime)) {
+          dispatch('updateProgress', currentTime);
+        }
+      });
+
+      // Update progress every 10 seconds
+      updateInterval = setInterval(() => {
+        const currentTime = document.querySelector('video')?.currentTime;
+        if (currentTime !== undefined && !isNaN(currentTime)) {
+          dispatch('updateProgress', currentTime);
+        }
+      }, 5000);
+    }
+  });
+
+  onDestroy(() => {
+    clearInterval(updateInterval);
   });
 </script>
 
@@ -48,7 +85,7 @@
 />
 <div class="w-full h-full flex flex-col items-center overflow-auto">
   <div class="w-full mx-auto">
-    <vm-player class="responsive-player" autoplay={true} muted={false} paused={false}>
+    <vm-player class="responsive-player" autoplay={true} muted={false} paused={false} currentTime={currentTime | 0}>
       <vm-video cross-origin bind:this={videoElement}>
           <source data-src={`/api/stream?movie_id=${movieId}&type=mp4`} type="video/mp4"/>
           <track src={subtitleSrcs[defaultSubtitleLang]} srclang={defaultSubtitleLang} label={defaultSubtitleLang.toUpperCase()} default />
