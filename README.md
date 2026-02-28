@@ -1,4 +1,5 @@
-# Nyetflix
+
+<img width="35%" height="100%" alt="logo" src="https://github.com/user-attachments/assets/241af65d-7418-4902-afc3-f73aa275f9be" />
 
 A simple, local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—just your files and your browser.
 
