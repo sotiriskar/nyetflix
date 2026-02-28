@@ -18,8 +18,8 @@ function rowToJson(row: SettingsRow | undefined): SettingsState & { saved: boole
   const state = !row
     ? { language: 'en' as const, subtitleLanguage: 'en' as const, moviesFolderPath: '', profileName: 'Profile', profileIsKid: false }
     : {
-        language: row.language === 'el' ? 'el' : 'en',
-        subtitleLanguage: row.subtitle_language === 'el' ? 'el' : 'en',
+        language: (row.language === 'el' ? 'el' : 'en') as 'en' | 'el',
+        subtitleLanguage: (row.subtitle_language === 'el' ? 'el' : 'en') as 'en' | 'el',
         moviesFolderPath: row.movies_folder_path ?? '',
         profileName: row.profile_name ?? 'Profile',
         profileIsKid: row.profile_is_kid === 1,

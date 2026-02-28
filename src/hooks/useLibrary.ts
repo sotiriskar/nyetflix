@@ -19,6 +19,7 @@ export interface UseLibraryResult {
   error: string | null;
   refresh: () => void;
   clearError: () => void;
+  setError: (error: string | null) => void;
 }
 
 function getCacheKey(path: string): string {
@@ -122,5 +123,5 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
   const refresh = useCallback(() => fetchLibrary(true), [fetchLibrary]);
   const clearError = useCallback(() => setError(null), []);
 
-  return { carousels, detailsMap, loading, error, refresh, clearError };
+  return { carousels, detailsMap, loading, error, refresh, clearError, setError };
 }

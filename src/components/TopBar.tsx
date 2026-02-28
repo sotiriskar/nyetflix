@@ -47,7 +47,7 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
 
   // Sync search input with URL when on search page
   useEffect(() => {
-    if (pathname === '/search') {
+    if (pathname === '/search' && searchParams) {
       const q = searchParams.get('q') ?? '';
       setSearchQuery(q);
     }

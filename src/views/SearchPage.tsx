@@ -16,7 +16,7 @@ import { useProgress } from '@/context/ProgressContext';
 
 export function SearchPage() {
   const searchParams = useSearchParams();
-  const q = (searchParams.get('q') ?? '').trim();
+  const q = (searchParams?.get('q') ?? '').trim();
   const { moviesFolderPath, subtitleLanguage } = useSettings();
   const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibrary(moviesFolderPath);
   const { toggle: toggleMyList, has: isInMyList } = useMyList();

@@ -5,7 +5,7 @@ import Close from '@mui/icons-material/Close';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import ThumbUp from '@mui/icons-material/ThumbUp';
 import VolumeUp from '@mui/icons-material/VolumeUp';
-import type { MovieDetail, SeriesSeason, SeriesEpisode } from '../types/movie';
+import type { MovieDetail, SeriesSeason } from '../types/movie';
 
 interface DetailCardProps {
   detail: MovieDetail;

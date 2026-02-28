@@ -107,7 +107,8 @@ export interface TmdbVideosResponse {
 /** Words in video name that suggest mobile/vertical – skip these so we only use wide videos. */
 const VERTICAL_INDICATORS = /mobile|vertical|portrait|phone|instagram|tiktok|story|reel|shorts|9:16|1:1|square/i;
 
-function isWideFriendly(v: TmdbVideoResult): boolean {
+/** Exported for unit tests. */
+export function isWideFriendly(v: TmdbVideoResult): boolean {
   const name = (v.name ?? '').trim();
   if (VERTICAL_INDICATORS.test(name)) return false;
   return true;
@@ -116,8 +117,8 @@ function isWideFriendly(v: TmdbVideoResult): boolean {
 /** Type preference: Trailer > Teaser > Clip (trailers are usually the main wide promo). */
 const TYPE_ORDER: Record<string, number> = { Trailer: 3, Teaser: 2, Clip: 1 };
 
-/** Prefer wide videos: higher TMDB size (720/1080), then type (Trailer > Teaser > Clip), then name hints like "official"/"theatrical". */
-function trailerScore(v: TmdbVideoResult): number {
+/** Prefer wide videos: higher TMDB size (720/1080), then type (Trailer > Teaser > Clip), then name hints like "official"/"theatrical". Exported for unit tests. */
+export function trailerScore(v: TmdbVideoResult): number {
   const size = v.size ?? 0;
   const name = (v.name ?? '').toLowerCase();
   let score = 0;

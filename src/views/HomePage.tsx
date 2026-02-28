@@ -58,7 +58,7 @@ function CarouselRowSkeleton() {
 
 export function HomePage() {
   const { moviesFolderPath, subtitleLanguage } = useSettings();
-  const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh } = useLibrary(moviesFolderPath);
+  const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh, setError } = useLibrary(moviesFolderPath);
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
   const { progressByItemId, getProgress } = useProgress();
@@ -90,7 +90,7 @@ export function HomePage() {
       const resumeEpisodeId = detailsMap[item.id]?.mediaType === 'series' ? prog?.lastEpisodeId : undefined;
       setNowPlayingId(resumeEpisodeId ?? item.id);
     },
-    [moviesFolderPath, getProgress, detailsMap]
+    [moviesFolderPath, getProgress, detailsMap, setError]
   );
 
   const getDetail = useMemo(
