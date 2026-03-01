@@ -188,7 +188,7 @@ export function SeriesPage() {
             onMoreInfo={setSelectedItem}
             onPlay={handlePlay}
             getMovieDetail={getDetail}
-            categoryLabels={['Series', 'Movies']}
+            pageTitle="Series"
           />
           <div className="bg-[#141414]">
             {displayCarousels.map((row) => (
@@ -211,7 +211,7 @@ export function SeriesPage() {
         <>
           <section className="relative w-full min-h-[40vh] flex items-end bg-[#1a1a1a]">
             <div className="relative z-10 w-full px-6 md:px-12 pb-8 pt-28">
-              <p className="text-white/90 text-lg md:text-xl font-medium mb-4">Series  ·  Movies</p>
+              <h2 className="text-white text-3xl md:text-4xl font-bold mb-4">Series</h2>
               <p className="text-white/60">No series in your library. Add series and scan in Settings.</p>
             </div>
           </section>

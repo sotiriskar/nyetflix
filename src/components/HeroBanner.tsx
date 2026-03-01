@@ -15,11 +15,11 @@ export interface HeroBannerProps {
   /** Called when "Play" is clicked – e.g. open video player. */
   onPlay?: (item: CarouselItem) => void;
   getMovieDetail?: (id: string) => MovieDetail | undefined;
-  /** Optional category labels shown in the hero (e.g. ["Series", "Movies"]). No dropdown. */
-  categoryLabels?: string[];
+  /** Optional page title shown top-left (e.g. "Films" or "Series"). */
+  pageTitle?: string;
 }
 
-export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMovieDetailProp, categoryLabels }: HeroBannerProps) {
+export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMovieDetailProp, pageTitle }: HeroBannerProps) {
   const [muted, setMuted] = useState(true);
   const detail = getMovieDetailProp?.(heroItem.id) ?? getMovieDetail(heroItem.id);
   const description = detail?.description ?? 'No description available.';
@@ -61,13 +61,17 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
         aria-hidden
       />
 
-      {/* Content */}
+      {/* Page title – fixed near top of hero, just under nav */}
+      {pageTitle && (
+        <div className="absolute top-24 left-0 z-10 px-6 md:px-12">
+          <h2 className="text-white text-3xl md:text-4xl font-bold drop-shadow-md">
+            {pageTitle}
+          </h2>
+        </div>
+      )}
+
+      {/* Content – stays at bottom of hero */}
       <div className="relative z-10 w-full px-6 md:px-12 pb-8 md:pb-12 pt-32">
-        {categoryLabels && categoryLabels.length > 0 && (
-          <p className="text-white/90 text-lg md:text-xl font-medium mb-4 drop-shadow-md">
-            {categoryLabels.join('  ·  ')}
-          </p>
-        )}
         <div className="max-w-4xl flex flex-col gap-5">
           {titleLogoUrl ? (
             <img

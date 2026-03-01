@@ -4,8 +4,11 @@ import './globals.css';
 
 /* eslint-disable react-refresh/only-export-components */
 export const metadata: Metadata = {
-  title: 'nyetflix',
+  title: 'Nyetflix',
   description: 'Your personal Netflix-style library',
+  icons: {
+    icon: '/static/favicon.png',
+  },
 };
 
 export default function RootLayout({

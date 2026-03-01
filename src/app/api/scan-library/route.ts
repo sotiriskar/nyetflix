@@ -262,6 +262,7 @@ export async function GET(request: NextRequest) {
         if (tmdb.cast) detail.cast = tmdb.cast;
         if (tmdb.genres) detail.genres = tmdb.genres;
         if (tmdb.trailerYouTubeId) detail.trailerYouTubeId = tmdb.trailerYouTubeId;
+        if (tmdb.englishTitle?.trim()) detail.title = tmdb.englishTitle.trim();
       } catch {
         // no TMDB key or request failed
       }
@@ -279,7 +280,7 @@ export async function GET(request: NextRequest) {
       detailsMap[localId] = detail;
       items.push({
         id: localId,
-        title,
+        title: detail.title,
         posterUrl: detail.posterUrl,
         backdropUrl: detail.backdropUrl,
         titleLogoUrl: detail.titleLogoUrl,

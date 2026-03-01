@@ -106,17 +106,22 @@ export function CarouselHoverCard({
         )}
       </div>
 
-      {/* Title – bottom left over image */}
-      <div className="absolute left-0 right-0 bottom-0 pt-12 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-lg pointer-events-none">
-        <div className="flex items-end">
+      {/* Title – bottom left over image; hide when trailer is playing so it doesn't overlap video */}
+      <div
+        className={`absolute left-0 right-0 bottom-0 pt-12 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-lg pointer-events-none transition-opacity duration-200 ${showTrailer ? 'opacity-0' : ''}`}
+      >
+        <div className="flex items-end min-h-[clamp(1.5rem,6vmin,2.5rem)]">
           {item.titleLogoUrl ? (
             <img
               src={item.titleLogoUrl}
               alt={item.title}
-              className="max-h-6 md:max-h-8 w-auto object-contain object-left"
+              className="max-h-[clamp(2rem,10vmin,4.5rem)] w-auto object-contain object-left"
             />
           ) : (
-            <span className="text-white font-semibold text-sm truncate drop-shadow-md">
+            <span
+              className="text-white font-semibold truncate drop-shadow-md"
+              style={{ fontSize: 'clamp(0.95rem, 2.8vmin, 1.4rem)' }}
+            >
               {item.title}
             </span>
           )}

@@ -18,7 +18,7 @@ export interface TmdbMultiResult {
 }
 
 export interface TmdbImagesResponse {
-  logos?: Array<{ file_path?: string }>;
+  logos?: Array<{ file_path?: string; iso_639_1?: string | null }>;
 }
 
 export interface TmdbSearchMultiResponse {
@@ -47,6 +47,8 @@ export interface TmdbImages {
   genres: string | null;
   /** YouTube video ID for a trailer/teaser (for hover card preview). */
   trailerYouTubeId: string | null;
+  /** English title/name from TMDB (for carousel display when we want English). */
+  englishTitle: string | null;
 }
 
 /** Fetch credits (cast) and details (genres) for a movie or TV show. */
@@ -75,18 +77,20 @@ async function fetchCreditsAndGenres(
   return { cast, genres };
 }
 
-/** Fetch logo (title treatment) for a movie or TV show. */
+/** Fetch logo (title treatment) for a movie or TV show. Prefers English logo when available. */
 async function fetchTitleLogo(
   apiKey: string,
   tmdbId: number,
   mediaType: string
 ): Promise<string | null> {
   const type = mediaType === 'tv' ? 'tv' : 'movie';
-  const url = `${TMDB_BASE}/${type}/${tmdbId}/images?api_key=${encodeURIComponent(apiKey)}`;
+  const url = `${TMDB_BASE}/${type}/${tmdbId}/images?api_key=${encodeURIComponent(apiKey)}&language=en-US&include_image_language=en,null`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = (await res.json()) as TmdbImagesResponse;
-  const first = data.logos?.[0];
+  const logos = data.logos ?? [];
+  const enLogo = logos.find((l) => l.iso_639_1 === 'en');
+  const first = enLogo ?? logos[0];
   const path = first?.file_path;
   if (!path) return null;
   return buildImageUrl(path, 'w500');
@@ -158,16 +162,16 @@ async function fetchTrailerKey(
   return best.key ?? null;
 }
 
-/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, and trailer YouTube id from the first result. */
+/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, and English title from the first result. */
 export async function getImagesForTitle(title: string): Promise<TmdbImages> {
-  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null };
+  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null, englishTitle: null };
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey?.trim()) return out;
 
   const query = title.trim();
   if (!query) return out;
 
-  const url = `${TMDB_BASE}/search/multi?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}`;
+  const url = `${TMDB_BASE}/search/multi?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&language=en-US`;
   const res = await fetch(url);
   if (!res.ok) return out;
 
@@ -176,6 +180,7 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   const first = results.find((r) => r.poster_path || r.backdrop_path) ?? results[0];
   if (!first) return out;
 
+  out.englishTitle = (first.title ?? first.name ?? null) || null;
   out.posterUrl = buildImageUrl(first.poster_path, POSTER_SIZE);
   out.backdropUrl = buildImageUrl(first.backdrop_path, BACKDROP_SIZE);
   if (first.id != null && first.media_type) {
