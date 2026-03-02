@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { ClientShell } from './ClientShell';
 import './globals.css';
 
-/* eslint-disable react-refresh/only-export-components */
 export const metadata: Metadata = {
   title: 'Nyetflix',
   description: 'Your personal Netflix-style library',

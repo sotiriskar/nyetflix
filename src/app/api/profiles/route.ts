@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { name?: string; avatarPath?: string; isKid?: boolean };
     const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : `Profile ${newId}`;
     const avatarPath = typeof body.avatarPath === 'string' && body.avatarPath ? body.avatarPath : (AVATAR_PATHS[newId - 1] ?? AVATAR_PATHS[0]);
-    const isKid = Boolean(body.isKid) ? 1 : 0;
+    const isKid = body.isKid ? 1 : 0;
     database.prepare('INSERT INTO profiles (id, name, avatar_path, is_kid) VALUES (?, ?, ?, ?)').run(newId, name, avatarPath, isKid);
     database.prepare('INSERT INTO settings (profile_id, language, subtitle_language, movies_folder_path) VALUES (?, ?, ?, ?)').run(newId, 'en', 'en', '');
     const row = database.prepare('SELECT id, name, avatar_path, is_kid FROM profiles WHERE id = ?').get(newId) as ProfileRow;

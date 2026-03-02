@@ -139,7 +139,7 @@ function DisplayTimeSync({
       playStartRef.current = 0;
       onDisplayTimeChange(Math.min(Math.max(0, effectiveCurrentTime), max || effectiveCurrentTime || 0));
     }
-  }, [effectiveCurrentTime, duration, apiDuration, playing, streamStartOffset, onDisplayTimeChange, tick]);
+  }, [effectiveCurrentTime, duration, apiDuration, playing, streamStartOffset, onDisplayTimeChange, tick, max]);
 
   useEffect(() => {
     if (!playing) return;
@@ -200,6 +200,7 @@ interface VideoPlayerModalProps {
 const EPISODE_ID_REGEX = /^episode-.+-S\d+-E\d+$/;
 
 export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang: _preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
+  void _preferredSubtitleLang; // reserved for future use
   const [streamUrl, setStreamUrl] = useState('');
   const [streamType, setStreamType] = useState<'video' | 'hls'>('video');
   /** Which itemId the current streamUrl is for – only show player when this matches itemId so we never reuse old stream for new episode. */
@@ -314,7 +315,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
               setConversionProgress(d.progress ?? 0);
               setConversionCurrentTime(d.currentTime ?? 0);
               setConversionDuration(d.durationSeconds ?? 0);
-            } catch {}
+            } catch { /* ignore parse errors */ }
           };
           es.onerror = () => {
             es.close();
@@ -381,7 +382,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => (data?.seasons ? setSeriesEpisodes(data.seasons) : setSeriesEpisodes([])))
       .catch(() => setSeriesEpisodes([]));
-  }, [episodesPanelOpen, seriesId, seriesTitle, title]);
+  }, [episodesPanelOpen, seriesId, seriesTitle, title, getSeriesTitle]);
 
   const handleError = () => {
     if (!streamUrl) return;

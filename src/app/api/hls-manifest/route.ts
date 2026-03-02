@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   }
 
   ensureHydrated();
-  let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
+  const filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
   if (!filePath) {
     return NextResponse.json({ error: 'Unknown or expired item. Rescan the library.' }, { status: 404 });
   }
