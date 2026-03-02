@@ -1,21 +1,47 @@
 # Nyetflix
 
-A simple, local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—just your files and your browser.
+Local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—your files, your browser.
 
-**New to Node or the project?** → **[RUNNING.md](RUNNING.md)** has a full step-by-step guide (install Node.js, ffmpeg, run the app, set your library).
+---
+
+## Table of contents
+
+- [What you need](#what-you-need)
+- [Install Node.js](#install-nodejs)
+- [Install ffmpeg (recommended)](#install-ffmpeg-recommended)
+- [Run the app](#run-the-app)
+- [Set your library](#set-your-library)
+- [Optional: TMDB (posters & metadata)](#optional-tmdb-posters--metadata)
+- [File organization](#file-organization)
+- [Docker](#docker)
+- [Production & other](#production--other)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
 ## What you need
 
-- **Node.js** (v18 or newer). [Download](https://nodejs.org/) if you don’t have it.
-- **Your media folder** with movies and/or TV shows on your computer (or a mounted drive).
+- **Node.js** v18+ ([nodejs.org](https://nodejs.org))
+- **ffmpeg** (recommended for MKV/streaming)
+- A **folder** with your movies/series
 
 ---
 
-## Quick start
+## Install Node.js
 
-### 1. Install and run
+- **Windows:** Download LTS from [nodejs.org](https://nodejs.org), run installer, leave “Add to PATH” checked. Close and reopen terminal. Check: `node -v`.
+- **Mac:** Download LTS from nodejs.org or run `brew install node`. Check: `node -v`.
+
+---
+
+## Install ffmpeg (recommended)
+
+- **Windows:** `winget install ffmpeg` (or [gyan.dev builds](https://www.gyan.dev/ffmpeg/builds/) → unzip → add `bin` to PATH). Check: `ffmpeg -version`.
+- **Mac:** `brew install ffmpeg`. Check: `ffmpeg -version`.
+
+---
+
+## Run the app
 
 ```bash
 cd nyetflix
@@ -23,224 +49,59 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser.
-
-### 2. Set your library folder
-
-1. Click your **profile** (top right) and open **App Settings**.
-2. Under **Media library folder**, enter the full path to the folder where your movies and series live.
-
-Examples:
-
-- Mac: `/Users/YourName/Movies` or `~/Movies`
-- Windows: `C:\Users\YourName\Videos\Movies`
-- External drive: `/Volumes/MyDrive/Movies`
-
-3. Settings are saved automatically. Close the modal.
-
-### 3. Load your library
-
-- Go to **Home** (or **Films** / **Series**). The app will scan your folder.
-- If nothing appears, check the path in Settings and try again. You can use the **refresh** button (bottom right on Home) to rescan.
+Open **http://localhost:3000**. Leave the terminal open.
 
 ---
 
-## How to organize your files
+## Set your library
 
-### Movies
-
-- Put each movie in **its own subfolder**, or place video files directly in the library folder.
-- One video per movie (the app picks one per folder).
-- Supported formats: **MP4, MKV, AVI, WebM, MOV, M4V**. **MP4** and **WebM** play in all browsers. **MKV** streams as-is (video often plays; on Windows sound usually needs AAC—see below).
-
-**Examples:**
-
-```
-Movies/
-  Inception/
-    Inception (2010).mp4
-  The Matrix/
-    The Matrix.mkv
-```
-
-### TV series
-
-- Put each show in **one folder** (e.g. `You`, `Breaking Bad`).
-- Inside that folder, either:
-  - **Season subfolders:** `Season 1`, `Season 2`, etc., with video files inside, or  
-  - **Flat:** all episode files in the same folder.
-
-**Important:** Episode files must include **season and episode** in the name so the app can match them correctly. Use one of these patterns:
-
-- `S01E01` or `S1E1`
-- `1x01`
-
-**Good examples:**
-
-```
-You/
-  Season 1/
-    You S01E01.mkv
-    You S01E02.mkv
-  Season 2/
-    You S02E01.mkv
-```
-
-or flat:
-
-```
-You/
-  You S01E01.mkv
-  You S01E02.mkv
-  You S02E01.mkv
-```
-
-**Bad:** `Episode 1.mkv`, `You - 01.mkv` (no `SxxExx` → episodes may not match correctly).
-
-### Subtitles
-
-- Same **base name** as the video.
-- Extensions: **.srt** or **.vtt**.
-- Optional language: `Show S01E01.en.srt`, `Show S01E02.el.srt`.
-
-**Examples:**
-
-- `You S01E01.mkv` → `You S01E01.srt` or `You S01E01.en.srt`
-- `Inception.mp4` → `Inception.srt`
+1. In the app: **profile** (top right) → **App Settings**.
+2. **Media library folder:** full path to your movies/series (e.g. Windows: `C:\Users\You\Videos\Movies`, Mac: `~/Movies` or `/Users/you/Movies`).
+3. Go to **Home** (or Films/Series); the app scans. Use the refresh button if nothing shows.
 
 ---
 
-## Optional: TMDB API key (posters & series info)
+## Optional: TMDB (posters & metadata)
 
-Without an API key, the app still works: it uses folder/file names and shows a basic list. With a **free TMDB API key**, you get:
-
-- Posters and backdrop images
-- Better titles and descriptions
-- For **series:** full episode list with thumbnails and descriptions (even for episodes you don’t have)
-
-### How to set it up
-
-1. Go to [themoviedb.org](https://www.themoviedb.org/), create an account, then [Request an API key](https://www.themoviedb.org/settings/api).
-2. Copy the **API Key (v3 auth)**.
-3. In the project folder, copy the example env file and add your key:
-
-```bash
-cp .env.example .env.local
-```
-
-4. Open `.env.local` and set:
-
-```
-TMDB_API_KEY=your_key_here
-```
-
-5. Restart the dev server (`Ctrl+C`, then `npm run dev`).
+Free [TMDB API key](https://www.themoviedb.org/settings/api) gives posters, backdrops, and episode info. Copy `.env.example` to `.env.local`, set `TMDB_API_KEY=your_key`, restart the app (`Ctrl+C` then `npm run dev`).
 
 ---
 
-## MKV with sound on Windows
+## File organization
 
-Browsers on Windows usually can’t play MKV audio (DTS/TrueHD). To get **sound**, convert the file once with **ffmpeg**:  
-`ffmpeg -i "YourMovie.mkv" -c:v copy -c:a aac -b:a 192k "YourMovie.mp4"`  
-Then play the `.mp4` in the app (or replace the file and rescan). Install ffmpeg first (see below).
-
-### Windows
-
-**Option A – winget (Windows 10/11)**  
-Open PowerShell or Command Prompt and run:
-
-```powershell
-winget install ffmpeg
-```
-
-Accept the prompt if it asks to install (e.g. Gyan.FFmpeg). Then **close and reopen** your terminal (and restart `npm run dev` if it’s running).
-
-**Option B – Manual**  
-1. Download [ffmpeg-release-essentials.zip](https://www.gyan.dev/ffmpeg/builds/) from gyan.dev.  
-2. Unzip to a folder (e.g. `C:\ffmpeg`).  
-3. Add the **bin** folder to your PATH: **Settings → System → About → Advanced system settings → Environment Variables**. Under **User variables**, edit **Path**, add **New**, and enter the path to the `bin` folder (e.g. `C:\ffmpeg\ffmpeg-7.x.x-essentials_build\bin`).  
-4. Close all terminals and restart the dev server.
-
-**Check:** In a new terminal run `ffmpeg -version`. If you see version info, you’re set.
-
-### Mac
-
-```bash
-brew install ffmpeg
-```
-
-Then restart the dev server (`Ctrl+C`, then `npm run dev`).
-
-**Check:** Run `ffmpeg -version` in a new terminal.
+- **Movies:** One folder per movie (or files in library root). One video per movie. Formats: MP4, MKV, AVI, WebM, MOV, M4V. MP4/WebM play everywhere; MKV on Windows often needs conversion for sound: `ffmpeg -i "file.mkv" -c:v copy -c:a aac -b:a 192k "file.mp4"`.
+- **Series:** One folder per show; inside use `Season 1`, `Season 2` or flat. Episode names must include **S01E01** or **1x01** (e.g. `Show S01E01.mkv`). Wrong: `Episode 1.mkv`.
+- **Subtitles:** Same base name as video, `.srt` or `.vtt` (e.g. `Show S01E01.srt`).
 
 ---
 
-## App settings (in the app)
-
-- **Language** – UI language (e.g. English, Greek).
-- **Subtitle preference** – Preferred subtitle language when multiple are available.
-- **Media library folder** – Path to your movies/series (see above).
-
----
-
-## Tips
-
-- **Path doesn’t work?** Use the full path (e.g. `/Users/...` on Mac, `C:\...` on Windows). For external drives, make sure the drive is mounted before opening the app.
-- **Series plays wrong episode?** Make sure every episode filename contains something like `S01E03` (season 1, episode 3). Rescan after changing names.
-- **No posters or episode descriptions?** Add a TMDB API key (see above) and rescan.
-- **“This episode is not in your library”** – The app can show all episodes from TMDB; if you don’t have that file, it will tell you when you try to play.
-
----
-
-## Build for production
-
-```bash
-npm run build
-npm start
-```
-
-Then open **http://localhost:3000** (or the port shown). Use the same library path and (if you want) the same `.env.local` with `TMDB_API_KEY`.
-
----
-
-## Run with Docker
-
-You can run Nyetflix in a container with Node and ffmpeg included.
-
-**Build and run with Docker:**
+## Docker
 
 ```bash
 docker build -t nyetflix .
 docker run -p 3000:3000 -v nyetflix-data:/app/data nyetflix
 ```
 
-Open **http://localhost:3000**. App data (DB, settings) is stored in the `nyetflix-data` volume.
-
-**Using Docker Compose:**
-
-```bash
-docker compose up -d
-```
-
-Same as above: app on port 3000, data in a named volume.
-
-**Using your media folder inside Docker:**  
-Mount your library into the container and set that path in the app’s **Media library folder** (App Settings). Example:
-
-```bash
-docker run -p 3000:3000 -v nyetflix-data:/app/data -v /path/on/host/Movies:/media:ro nyetflix
-```
-
-Then in the app set **Media library folder** to `/media`.  
-With Compose, add under `volumes`: `- /path/on/host/Movies:/media:ro` and set the library path to `/media`.
-
-**Optional:** To use a TMDB API key, pass env or use an env file, e.g. `docker run ... -e TMDB_API_KEY=your_key ...` or in `docker-compose.yml`: `env_file: .env.local`.
+Or: `docker compose up -d`. Open http://localhost:3000. To use your media folder: add `-v /path/to/Movies:/media:ro` and set **Media library folder** to `/media` in the app. TMDB: `-e TMDB_API_KEY=your_key` or `env_file: .env.local` in compose.
 
 ---
 
-## Tech
+## Production & other
 
-- **Next.js** (React)
-- **Tailwind CSS**, **MUI icons**
-- **Vidstack** for video playback
-- **TMDB API** (optional) for metadata and images
+- **Production:** `npm run build` then `npm start`. Same library path and `.env.local` if you use TMDB.
+- **Clear app data:** `npm run clear-db` then start again.
+- **Port in use:** `npm run dev -- -p 3001` and open http://localhost:3001.
+
+---
+
+## Troubleshooting
+
+- **`node` / `npm` not found** – Reinstall Node, ensure “Add to PATH”, new terminal.
+- **`npm install` fails** – Run it from inside the project folder; check internet.
+- **No posters / episode info** – Add TMDB key in `.env.local`, restart, rescan.
+- **Library path wrong** – Use full path; for external drives, mount first.
+- **MKV no sound (Windows)** – Install ffmpeg; convert to MP4 with the command in [File organization](#file-organization).
+
+---
+
+**Tech:** Next.js, Tailwind, MUI, Vidstack, TMDB API (optional).
