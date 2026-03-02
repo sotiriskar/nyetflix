@@ -5,7 +5,7 @@ import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import Translate from '@mui/icons-material/Translate';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import { useProfile } from '@/context/ProfileContext';
-import { AVATAR_PATHS } from '@/lib/profiles';
+import { AVATAR_PATHS, getFirstUnusedAvatar } from '@/lib/profiles';
 import type { ProfileId } from '@/lib/profiles';
 import {
   useSettings,
@@ -48,6 +48,12 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
       document.body.style.overflow = '';
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (addProfileOpen) {
+      setNewAvatarPath(getFirstUnusedAvatar(profiles.map((p) => p.avatarPath)));
+    }
+  }, [addProfileOpen, profiles]);
 
   return (
     <div
@@ -140,14 +146,16 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (deletingId != null) return;
-                      if (!confirm(`Remove "${p.name}"? Their list and likes will be deleted.`)) return;
+                      if (deletingId != null || profiles.length <= 1) return;
                       setDeletingId(p.id as ProfileId);
-                      await deleteProfile(p.id as ProfileId);
-                      setDeletingId(null);
+                      try {
+                        await deleteProfile(p.id as ProfileId);
+                      } finally {
+                        setDeletingId(null);
+                      }
                     }}
-                    disabled={deletingId != null}
-                    className="px-3 py-1.5 rounded text-sm text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                    disabled={deletingId != null || profiles.length <= 1}
+                    className="px-3 py-1.5 rounded text-sm text-red-500 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {deletingId === p.id ? 'Removing…' : 'Remove'}
                   </button>

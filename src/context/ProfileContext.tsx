@@ -139,14 +139,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, [profiles.length, refetchProfiles]);
 
   const deleteProfile = useCallback(async (id: ProfileId) => {
-    try {
-      const res = await fetch(`/api/profiles?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) return;
-      await refetchProfiles();
-      // refetchProfiles already syncs currentProfileId to first remaining or null
-    } catch {
-      // ignore
+    const res = await fetch(`/api/profiles?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error ?? 'Failed to delete profile');
     }
+    await refetchProfiles();
   }, [refetchProfiles]);
 
   const canAddProfile = profiles.length < MAX_PROFILES;

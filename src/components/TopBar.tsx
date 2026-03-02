@@ -245,7 +245,12 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
                   key={p.id}
                   type="button"
                   role="menuitem"
-                  onClick={() => setCurrentProfileId(p.id as 1 | 2 | 3 | 4 | 5)}
+                  onClick={() => {
+                    setCurrentProfileId(p.id as 1 | 2 | 3 | 4 | 5);
+                    if (pathname.startsWith('/settings/profile/')) {
+                      router.push(`/settings/profile/${p.id}`);
+                    }
+                  }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
                 >
                   <div className="w-8 h-8 rounded overflow-hidden bg-white/10 shrink-0">

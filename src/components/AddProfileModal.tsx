@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import Close from '@mui/icons-material/Close';
 import { useProfile } from '@/context/ProfileContext';
-import { AVATAR_PATHS } from '@/lib/profiles';
+import { getFirstUnusedAvatar } from '@/lib/profiles';
 
 interface AddProfileModalProps {
   onClose: () => void;
 }
 
 export function AddProfileModal({ onClose }: AddProfileModalProps) {
-  const { createProfile, canAddProfile } = useProfile();
+  const { createProfile, canAddProfile, profiles } = useProfile();
   const [name, setName] = useState('');
   const [isKid, setIsKid] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,9 +30,10 @@ export function AddProfileModal({ onClose }: AddProfileModalProps) {
     setError(null);
     setLoading(true);
     try {
+      const avatarPath = getFirstUnusedAvatar(profiles.map((p) => p.avatarPath));
       const created = await createProfile({
         name: name.trim() || undefined,
-        avatarPath: AVATAR_PATHS[0],
+        avatarPath,
         isKid,
       });
       if (created) onClose();
@@ -75,7 +76,7 @@ export function AddProfileModal({ onClose }: AddProfileModalProps) {
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded overflow-hidden bg-white/10 shrink-0">
-              <img src={AVATAR_PATHS[0]} alt="" className="w-full h-full object-cover" />
+              <img src={getFirstUnusedAvatar(profiles.map((p) => p.avatarPath))} alt="" className="w-full h-full object-cover" />
             </div>
             <input
               type="text"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import Close from '@mui/icons-material/Close';
 import SkipNext from '@mui/icons-material/SkipNext';
 import PlaylistPlay from '@mui/icons-material/PlaylistPlay';
@@ -21,6 +21,7 @@ import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { useProgress } from '@/context/ProgressContext';
 import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
+import type { ProgressEntry } from '@/context/ProgressContext';
 
 const SAVE_INTERVAL_MS = 5000;
 
@@ -145,7 +146,7 @@ function DisplayTimeSync({
     if (!playing) return;
     const bogusAtEnd = max > 0 && effectiveCurrentTime >= max - 0.5 && !hasSeenLowCurrentTime.current;
     if (!bogusAtEnd) return;
-    const id = setInterval(() => setTick((t) => t + 1), 250);
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [playing, effectiveCurrentTime, duration, apiDuration, max]);
 
@@ -166,6 +167,139 @@ function EnsureUnmuted() {
 
   return null;
 }
+
+/** Memoized episodes panel to avoid re-renders from high-frequency display time updates. */
+const EpisodesPanel = memo(function EpisodesPanel({
+  seriesEpisodes,
+  itemId,
+  setEpisodesPanelOpen,
+  onPlayEpisode,
+  getProgress,
+}: {
+  seriesEpisodes: SeriesSeason[] | null;
+  itemId: string | null;
+  setEpisodesPanelOpen: (open: boolean) => void;
+  onPlayEpisode?: (episodeId: string, episodeTitle?: string, subtitleLanguages?: string[], seriesTitle?: string) => void;
+  getProgress: (id: string) => ProgressEntry | undefined;
+}) {
+  const closePanel = () => setEpisodesPanelOpen(false);
+  return (
+    <div
+      className="absolute inset-0 z-30 flex justify-end bg-black/60"
+      role="dialog"
+      aria-label="Episodes list"
+      onClick={(e) => e.target === e.currentTarget && closePanel()}
+    >
+      <div
+        className="w-full max-w-lg bg-[#181818] shadow-xl flex flex-col max-h-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <h2 className="text-lg font-semibold text-white">Episodes</h2>
+          <button
+            type="button"
+            onClick={closePanel}
+            className="p-2 rounded-full text-white hover:bg-white/10"
+            aria-label="Close episodes list"
+          >
+            <Close sx={{ fontSize: 24 }} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {seriesEpisodes === null ? (
+            <p className="text-white/70 p-4">Loading…</p>
+          ) : seriesEpisodes.length === 0 ? (
+            <p className="text-white/70 p-4">No episodes found.</p>
+          ) : (
+            seriesEpisodes.map((season) => (
+              <div key={season.number} className="mb-6">
+                <h3 className="text-sm font-medium text-white/90 px-1 py-3">
+                  Season {season.number}
+                </h3>
+                <ul className="space-y-4">
+                  {(season.episodes ?? []).map((ep: SeriesEpisode) => {
+                    const hasFile = ep.hasFile !== false;
+                    const isCurrent = ep.id === itemId;
+                    return (
+                      <li key={ep.id ?? `${season.number}-${ep.episodeNumber}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (ep.id && hasFile && onPlayEpisode) {
+                              onPlayEpisode(ep.id, ep.title, ep.subtitleLanguages);
+                              closePanel();
+                            }
+                          }}
+                          disabled={!ep.id || !hasFile}
+                          className={`w-full text-left rounded overflow-hidden flex gap-4 p-1 transition-colors ${
+                            isCurrent
+                              ? 'ring-2 ring-red-500 bg-white/10'
+                              : hasFile
+                                ? 'hover:bg-white/10'
+                                : 'opacity-60 cursor-not-allowed'
+                          }`}
+                        >
+                          <div className="w-32 shrink-0 aspect-video bg-white/10 rounded overflow-hidden relative">
+                            {ep.posterUrl ? (
+                              <img
+                                src={ep.posterUrl}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-white/40 text-xs">
+                                E{ep.episodeNumber}
+                              </div>
+                            )}
+                            {ep.id && (() => {
+                              const progress = getProgress(ep.id)?.progress ?? 0;
+                              const pct = Math.min(100, Math.max(0, progress * 100));
+                              return pct > 0 ? (
+                                <div
+                                  className="absolute left-0 right-0 bottom-0 h-1 rounded-b overflow-hidden bg-white/30 pointer-events-none"
+                                  aria-hidden
+                                >
+                                  <div
+                                    className="h-full bg-[#E50914] rounded-b transition-[width] duration-300"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                          <div className="flex-1 min-w-0 py-2 pr-3 flex flex-col justify-center">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-medium text-white/80 shrink-0">
+                                Episode {ep.episodeNumber}
+                              </span>
+                              {ep.durationMinutes != null && (
+                                <span className="text-xs text-white/50">
+                                  {ep.durationMinutes}m
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-semibold text-white truncate mt-1.5">
+                              {ep.title}
+                            </h4>
+                            {ep.description && (
+                              <p className="text-xs text-white/70 line-clamp-2 mt-1.5 leading-relaxed">
+                                {ep.description}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const LANG_LABELS: Record<string, string> = {
   en: 'English', el: 'Greek', es: 'Spanish', fr: 'French',
@@ -221,6 +355,11 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const { getProgress, setProgress } = useProgress();
   const initialProgress = itemId ? (getProgress(itemId)?.progress ?? 0) : 0;
   const conversionEsRef = useRef<EventSource | null>(null);
+  const onPlayEpisodeRef = useRef(onPlayEpisode);
+  onPlayEpisodeRef.current = onPlayEpisode;
+  const stableOnPlayEpisode = useRef((epId: string, epTitle?: string, subs?: string[], seriesTitle?: string) => {
+    onPlayEpisodeRef.current?.(epId, epTitle, subs, seriesTitle);
+  }).current;
   const streamReadyForCurrentItem = !!streamUrl && streamForItemId === itemId;
 
   useEffect(() => {
@@ -571,7 +710,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                     {nextEpisode && (
                       <button
                         type="button"
-                        onClick={() => onPlayEpisode(nextEpisode.nextId, nextEpisode.nextTitle, nextEpisode.subtitleLanguages)}
+                        onClick={() => stableOnPlayEpisode(nextEpisode.nextId, nextEpisode.nextTitle, nextEpisode.subtitleLanguages)}
                         className="vds-button flex h-10 w-10 items-center justify-center rounded-sm text-white hover:bg-white/20 focus:ring-2 focus:ring-white/50"
                         aria-label={`Next: ${nextEpisode.nextTitle}`}
                         title={`Next: ${nextEpisode.nextTitle}`}
@@ -595,122 +734,15 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         </MediaPlayer>
         </div>
       )}
-      {/* Episodes list panel (series only) */}
+      {/* Episodes list panel (series only) - memoized to avoid flicker from display time updates */}
       {episodesPanelOpen && seriesId && (
-        <div
-          className="absolute inset-0 z-30 flex justify-end bg-black/60"
-          role="dialog"
-          aria-label="Episodes list"
-          onClick={(e) => e.target === e.currentTarget && setEpisodesPanelOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-[#181818] shadow-xl flex flex-col max-h-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-lg font-semibold text-white">Episodes</h2>
-              <button
-                type="button"
-                onClick={() => setEpisodesPanelOpen(false)}
-                className="p-2 rounded-full text-white hover:bg-white/10"
-                aria-label="Close episodes list"
-              >
-                <Close sx={{ fontSize: 24 }} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {seriesEpisodes === null ? (
-                <p className="text-white/70 p-4">Loading…</p>
-              ) : seriesEpisodes.length === 0 ? (
-                <p className="text-white/70 p-4">No episodes found.</p>
-              ) : (
-                seriesEpisodes.map((season) => (
-                  <div key={season.number} className="mb-6">
-                    <h3 className="text-sm font-medium text-white/90 px-1 py-3">
-                      Season {season.number}
-                    </h3>
-                    <ul className="space-y-4">
-                      {(season.episodes ?? []).map((ep: SeriesEpisode) => {
-                        const hasFile = ep.hasFile !== false;
-                        const isCurrent = ep.id === itemId;
-                        return (
-                          <li key={ep.id ?? `${season.number}-${ep.episodeNumber}`}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (ep.id && hasFile && onPlayEpisode) {
-                                  onPlayEpisode(ep.id, ep.title, ep.subtitleLanguages);
-                                  setEpisodesPanelOpen(false);
-                                }
-                              }}
-                              disabled={!ep.id || !hasFile}
-                              className={`w-full text-left rounded overflow-hidden flex gap-4 p-1 transition-colors ${
-                                isCurrent
-                                  ? 'ring-2 ring-red-500 bg-white/10'
-                                  : hasFile
-                                    ? 'hover:bg-white/10'
-                                    : 'opacity-60 cursor-not-allowed'
-                              }`}
-                            >
-                              <div className="w-32 shrink-0 aspect-video bg-white/10 rounded overflow-hidden relative">
-                                {ep.posterUrl ? (
-                                  <img
-                                    src={ep.posterUrl}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-white/40 text-xs">
-                                    E{ep.episodeNumber}
-                                  </div>
-                                )}
-                                {ep.id && (() => {
-                                  const progress = getProgress(ep.id)?.progress ?? 0;
-                                  const pct = Math.min(100, Math.max(0, progress * 100));
-                                  return pct > 0 ? (
-                                    <div
-                                      className="absolute left-0 right-0 bottom-0 h-1 rounded-b overflow-hidden bg-white/30 pointer-events-none"
-                                      aria-hidden
-                                    >
-                                      <div
-                                        className="h-full bg-[#E50914] rounded-b transition-[width] duration-300"
-                                        style={{ width: `${pct}%` }}
-                                      />
-                                    </div>
-                                  ) : null;
-                                })()}
-                              </div>
-                              <div className="flex-1 min-w-0 py-2 pr-3 flex flex-col justify-center">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-medium text-white/80 shrink-0">
-                                    Episode {ep.episodeNumber}
-                                  </span>
-                                  {ep.durationMinutes != null && (
-                                    <span className="text-xs text-white/50">
-                                      {ep.durationMinutes}m
-                                    </span>
-                                  )}
-                                </div>
-                                <h4 className="text-sm font-semibold text-white truncate mt-1.5">
-                                  {ep.title}
-                                </h4>
-                                {ep.description && (
-                                  <p className="text-xs text-white/70 line-clamp-2 mt-1.5 leading-relaxed">
-                                    {ep.description}
-                                  </p>
-                                )}
-                              </div>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        <EpisodesPanel
+          seriesEpisodes={seriesEpisodes}
+          itemId={itemId}
+          setEpisodesPanelOpen={setEpisodesPanelOpen}
+          onPlayEpisode={stableOnPlayEpisode}
+          getProgress={getProgress}
+        />
       )}
       <button
         type="button"

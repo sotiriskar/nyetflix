@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { AVATAR_PATHS, isProfileId, MAX_PROFILES } from '@/lib/profiles';
+import { AVATAR_PATHS, getFirstUnusedAvatar, isProfileId, MAX_PROFILES } from '@/lib/profiles';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
     }
     const body = (await request.json()) as { name?: string; avatarPath?: string; isKid?: boolean };
     const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : `Profile ${newId}`;
-    const avatarPath = typeof body.avatarPath === 'string' && body.avatarPath ? body.avatarPath : (AVATAR_PATHS[newId - 1] ?? AVATAR_PATHS[0]);
+    const usedPaths = (database.prepare('SELECT avatar_path FROM profiles').all() as { avatar_path: string }[]).map((r) => r.avatar_path);
+    const avatarPath = typeof body.avatarPath === 'string' && body.avatarPath
+      ? body.avatarPath
+      : getFirstUnusedAvatar(usedPaths);
     const isKid = body.isKid ? 1 : 0;
     database.prepare('INSERT INTO profiles (id, name, avatar_path, is_kid) VALUES (?, ?, ?, ?)').run(newId, name, avatarPath, isKid);
     database.prepare('INSERT INTO settings (profile_id, language, subtitle_language, movies_folder_path) VALUES (?, ?, ?, ?)').run(newId, 'en', 'en', '');
@@ -90,6 +93,10 @@ export async function DELETE(request: NextRequest) {
     const database = getDb();
     const exists = database.prepare('SELECT 1 FROM profiles WHERE id = ?').get(id);
     if (!exists) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    const count = (database.prepare('SELECT COUNT(*) as c FROM profiles').get() as { c: number }).c;
+    if (count <= 1) {
+      return NextResponse.json({ error: 'You must keep at least one profile.' }, { status: 400 });
+    }
     database.prepare('DELETE FROM my_list WHERE profile_id = ?').run(id);
     database.prepare('DELETE FROM liked WHERE profile_id = ?').run(id);
     database.prepare('DELETE FROM settings WHERE profile_id = ?').run(id);

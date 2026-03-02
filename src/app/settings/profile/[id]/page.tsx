@@ -55,7 +55,7 @@ export default function SettingsProfilePage() {
   const router = useRouter();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const profileId = (id >= 1 && id <= 5 ? id : null) as ProfileId | null;
-  const { refetchProfiles } = useProfile();
+  const { refetchProfiles, deleteProfile, profiles } = useProfile();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [language, setLanguage] = useState<AppLanguage>('en');
@@ -66,6 +66,7 @@ export default function SettingsProfilePage() {
   const [isKid, setIsKid] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (profileId == null || !Number.isFinite(profileId)) {
@@ -94,6 +95,15 @@ export default function SettingsProfilePage() {
       if (ok) refetchProfiles();
     });
   }, [profileId, name, avatarPath, isKid, refetchProfiles]);
+
+  const isLastProfile = profiles.length <= 1;
+  const handleDeleteProfile = useCallback(() => {
+    if (profileId == null || deleting || isLastProfile) return;
+    setDeleting(true);
+    deleteProfile(profileId).then(() => {
+      router.push('/settings/profiles');
+    }).finally(() => setDeleting(false));
+  }, [profileId, deleting, isLastProfile, deleteProfile, router]);
 
   const handleLanguageChange = useCallback(
     (lang: AppLanguage) => {
@@ -199,13 +209,23 @@ export default function SettingsProfilePage() {
                 />
                 Kids profile
               </label>
-              <button
-                type="button"
-                onClick={handleSaveProfile}
-                className="mt-4 px-5 py-2.5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-colors"
-              >
-                Save name
-              </button>
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  className="px-5 py-2.5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10 hover:border-white/50 transition-colors"
+                >
+                  Save name
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteProfile}
+                  disabled={deleting || isLastProfile}
+                  className="px-5 py-2.5 rounded-lg border border-red-600/50 text-red-500 text-sm font-medium hover:bg-red-500/10 hover:border-red-500/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? 'Deleting…' : 'Delete Profile'}
+                </button>
+              </div>
             </div>
           </div>
 
