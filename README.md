@@ -69,9 +69,47 @@ Free [TMDB API key](https://www.themoviedb.org/settings/api) gives posters, back
 
 ## File organization
 
-- **Movies:** One folder per movie (or files in library root). One video per movie. Formats: MP4, MKV, AVI, WebM, MOV, M4V. MP4/WebM play everywhere; MKV on Windows often needs conversion for sound: `ffmpeg -i "file.mkv" -c:v copy -c:a aac -b:a 192k "file.mp4"`.
-- **Series:** One folder per show; inside use `Season 1`, `Season 2` or flat. Episode names must include **S01E01** or **1x01** (e.g. `Show S01E01.mkv`). Wrong: `Episode 1.mkv`.
-- **Subtitles:** Same base name as video, `.srt` or `.vtt` (e.g. `Show S01E01.srt`).
+Everything lives in **folders**. One folder per movie, one folder per series. Put the video and same-name subtitles inside that folder.
+
+- **Movies:** One folder per movie; one video (and optional same-name `.srt`/`.vtt`) inside. Formats: MP4, MKV, AVI, WebM, MOV, M4V. MP4/WebM play everywhere; MKV on Windows often needs conversion for sound: `ffmpeg -i "file.mkv" -c:v copy -c:a aac -b:a 192k "file.mp4"`.
+- **Series:** One folder per show; inside use `Season 1`, `Season 2` or flat. Episode names must include **S01E01** or **1x01**. Wrong: `Episode 1.mkv`.
+- **Subtitles:** Same base name as the video, `.srt` or `.vtt`, in the **same folder** as the video.
+
+**Movies example** (library folder contains movie folders; each folder has the video + optional subs):
+
+```
+Movies/
+  Inception/
+    Inception (2010).mp4
+    Inception (2010).en.srt
+  The Matrix/
+    The Matrix.mkv
+    The Matrix.srt
+```
+
+**Series example** (library folder contains show folders; seasons inside; video + same-name subs per file):
+
+```
+You/
+  Season 1/
+    You S01E01.mkv
+    You S01E01.srt
+    You S01E02.mkv
+    You S01E02.en.srt
+  Season 2/
+    You S02E01.mkv
+    You S02E01.srt
+```
+
+Or flat (all episodes in the show folder):
+
+```
+Breaking Bad/
+  Breaking Bad S01E01.mkv
+  Breaking Bad S01E01.srt
+  Breaking Bad S01E02.mkv
+  Breaking Bad S01E02.srt
+```
 
 ---
 
