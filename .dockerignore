@@ -1,0 +1,26 @@
+# Dependencies and build output (rebuilt in image)
+node_modules
+.next
+out
+
+# Git and IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+!README.md
+
+# Env (mount or pass at run time)
+.env
+.env.*
+!.env.example
+
+# Local data (use a volume in Docker)
+data
+
+# OS and misc
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*

@@ -2,6 +2,8 @@
 
 A simple, local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—just your files and your browser.
 
+**New to Node or the project?** → **[RUNNING.md](RUNNING.md)** has a full step-by-step guide (install Node.js, ffmpeg, run the app, set your library).
+
 ---
 
 ## What you need
@@ -198,6 +200,41 @@ npm start
 ```
 
 Then open **http://localhost:3000** (or the port shown). Use the same library path and (if you want) the same `.env.local` with `TMDB_API_KEY`.
+
+---
+
+## Run with Docker
+
+You can run Nyetflix in a container with Node and ffmpeg included.
+
+**Build and run with Docker:**
+
+```bash
+docker build -t nyetflix .
+docker run -p 3000:3000 -v nyetflix-data:/app/data nyetflix
+```
+
+Open **http://localhost:3000**. App data (DB, settings) is stored in the `nyetflix-data` volume.
+
+**Using Docker Compose:**
+
+```bash
+docker compose up -d
+```
+
+Same as above: app on port 3000, data in a named volume.
+
+**Using your media folder inside Docker:**  
+Mount your library into the container and set that path in the app’s **Media library folder** (App Settings). Example:
+
+```bash
+docker run -p 3000:3000 -v nyetflix-data:/app/data -v /path/on/host/Movies:/media:ro nyetflix
+```
+
+Then in the app set **Media library folder** to `/media`.  
+With Compose, add under `volumes`: `- /path/on/host/Movies:/media:ro` and set the library path to `/media`.
+
+**Optional:** To use a TMDB API key, pass env or use an env file, e.g. `docker run ... -e TMDB_API_KEY=your_key ...` or in `docker-compose.yml`: `env_file: .env.local`.
 
 ---
 

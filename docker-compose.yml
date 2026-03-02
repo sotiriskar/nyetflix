@@ -1,0 +1,16 @@
+# Nyetflix – run with: docker compose up -d
+# To let the app see your media, add a volume e.g. - /path/on/host/Movies:/media:ro
+# and in the app set Media library folder to /media (see README).
+services:
+  nyetflix:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - nyetflix-data:/app/data
+    environment:
+      - NODE_ENV=production
+    # env_file: .env.local   # optional: TMDB_API_KEY
+
+volumes:
+  nyetflix-data:
