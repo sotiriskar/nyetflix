@@ -15,6 +15,7 @@
 - [Docker](#docker)
 - [Production & other](#production--other)
 - [Troubleshooting](#troubleshooting)
+- [Screenshots](#screenshots)
 
 ---
 
@@ -140,6 +141,19 @@ Or: `docker compose up -d`. Open http://localhost:3000. To use your media folder
 - **Port in use:** `npm run dev -- -p 3001` and open http://localhost:3001.
 
 ---
+
+### Screenshots
+
+<img width="1891" height="907" alt="Screenshot 2026-03-02 233540" src="https://github.com/user-attachments/assets/d293e43e-ae71-4a7c-b4d4-67f68bdb289a" />
+
+<img width="1910" height="913" alt="Screenshot 2026-03-02 233625" src="https://github.com/user-attachments/assets/2ba5fc95-736c-4ca1-8f4a-b1e59964d97e" />
+
+<img width="1909" height="909" alt="Screenshot 2026-03-02 233710" src="https://github.com/user-attachments/assets/2539ce3d-783b-4b91-a345-a31af15ad803" />
+
+<img width="1911" height="890" alt="Screenshot 2026-03-02 235303" src="https://github.com/user-attachments/assets/571d191a-879d-43af-9109-018a5be46e38" />
+
+<img width="1880" height="905" alt="Screenshot 2026-03-02 235432" src="https://github.com/user-attachments/assets/d7d43326-6723-4fe5-9b6a-bde298e62513" />
+
 
 ### Troubleshooting
 
