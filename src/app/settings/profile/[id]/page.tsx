@@ -191,7 +191,9 @@ export default function SettingsProfilePage() {
                   onChange={(e) => {
                     const checked = e.target.checked;
                     setIsKid(checked);
-                    saveProfile(profileId, { isKid: checked }).then((ok) => ok && refetchProfiles());
+                    saveProfile(profileId, { isKid: checked }).then((ok) => {
+                      if (ok) void refetchProfiles();
+                    });
                   }}
                   className="w-4 h-4 rounded accent-red-600"
                 />
@@ -218,9 +220,16 @@ export default function SettingsProfilePage() {
                     type="button"
                     onClick={() => {
                       setAvatarPath(path);
-                      saveProfile(profileId, { avatarPath: path }).then((ok) => ok && refetchProfiles());
+                      saveProfile(profileId, { avatarPath: path }).then((ok) => {
+                        if (ok) void refetchProfiles();
+                      });
                     }}
-                    className={"w-12 h-12 rounded-lg overflow-hidden border-2 shrink-0 " + (avatarPath === path ? "border-white" : "border-transparent hover:border-white/50")}
+                    className={
+                      'w-12 h-12 rounded-lg overflow-hidden border-2 shrink-0 ' +
+                      (avatarPath === path
+                        ? 'border-white'
+                        : 'border-transparent hover:border-white/50')
+                    }
                   >
                     <img src={path} alt="" className="w-full h-full object-cover" />
                   </button>

@@ -4,7 +4,7 @@
  * Used so we can stream the MP4 on future plays instead of the MKV.
  */
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 

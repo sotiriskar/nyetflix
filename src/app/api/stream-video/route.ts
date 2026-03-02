@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createReadStream, stat, existsSync } from 'fs';
+import { createReadStream, stat } from 'fs';
 import { promisify } from 'util';
 import { Readable } from 'stream';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';

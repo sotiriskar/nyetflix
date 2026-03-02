@@ -15,7 +15,6 @@ export function getFfmpegPath(): string {
       const out = execSync('where ffmpeg', {
         encoding: 'utf-8',
         timeout: 5000,
-        shell: true,
         windowsHide: true,
       });
       const first = out.split(/[\r\n]+/)[0]?.trim();

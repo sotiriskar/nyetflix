@@ -7,10 +7,18 @@ export const runtime = 'nodejs';
 
 export type ProfileRow = { id: number; name: string; avatar_path: string; is_kid: number };
 
+const DEFAULT_PROFILE_NAME = 'User';
+const DEFAULT_AVATAR = AVATAR_PATHS[0];
+
 export async function GET() {
   try {
     const database = getDb();
-    const rows = database.prepare('SELECT id, name, avatar_path, is_kid FROM profiles ORDER BY id').all() as ProfileRow[];
+    let rows = database.prepare('SELECT id, name, avatar_path, is_kid FROM profiles ORDER BY id').all() as ProfileRow[];
+    if (rows.length === 0) {
+      database.prepare('INSERT INTO profiles (id, name, avatar_path, is_kid) VALUES (1, ?, ?, 0)').run(DEFAULT_PROFILE_NAME, DEFAULT_AVATAR);
+      database.prepare('INSERT INTO settings (profile_id, language, subtitle_language, movies_folder_path) VALUES (1, ?, ?, ?)').run('en', 'en', '');
+      rows = database.prepare('SELECT id, name, avatar_path, is_kid FROM profiles ORDER BY id').all() as ProfileRow[];
+    }
     return NextResponse.json(rows.map((r) => ({ id: r.id, name: r.name, avatarPath: r.avatar_path, isKid: r.is_kid === 1 })));
   } catch (e) {
     console.error('profiles GET', e);

@@ -83,12 +83,12 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
         <div className="relative overflow-visible" style={{ zIndex: isCardHovered ? 20 : 0 }}>
           <SwiperRoot
             spaceBetween={12}
-            slidesPerView={2}
+            slidesPerView={5}
             breakpoints={{
-              640: { slidesPerView: 3 },
-              768: { slidesPerView: 4 },
-              1024: { slidesPerView: 4 },
-              1280: { slidesPerView: 5 },
+              640: { slidesPerView: 5 },
+              768: { slidesPerView: 5 },
+              1024: { slidesPerView: 6 },
+              1280: { slidesPerView: 6 },
             }}
             onSwiper={(s) => {
               swiperRef.current = s;
@@ -114,6 +114,10 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
                     item={item}
                     duration={detail?.duration}
                     progress={detail?.progress}
+                    genres={detail?.genres}
+                    mediaType={detail?.mediaType}
+                    seasonsCount={detail?.seasonsCount}
+                    hasSubtitles={detail?.hasSubtitles ?? (detail?.subtitleLanguages?.length ?? 0) > 0}
                     showProgressBar={title === 'Continue Watching'}
                     onClick={() => onItemClick?.(item)}
                     onPlay={onPlayClick}

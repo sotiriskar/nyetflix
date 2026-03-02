@@ -47,6 +47,12 @@ function ProgressSync({
   const hasFixedStartAtZero = useRef(false);
   const lastSaved = useRef(0);
   const latestProgress = useRef(0);
+  const prevItemId = useRef(itemId);
+  if (prevItemId.current !== itemId) {
+    prevItemId.current = itemId;
+    hasSeeked.current = false;
+    hasFixedStartAtZero.current = false;
+  }
 
   // When the stream reports "at end" at load (wrong timestamps), seek to 0 so time starts at 0 and progresses correctly.
   useEffect(() => {
@@ -62,10 +68,15 @@ function ProgressSync({
       hasSeeked.current = true; // Already at seek target from restart
       return;
     }
-    if (effectiveDuration > 0 && initialProgress > 0 && initialProgress < 1 && !hasSeeked.current) {
+    if (effectiveDuration <= 0 || hasSeeked.current) return;
+    // New episode / start from beginning: always seek to 0 so we don't keep previous episode's position
+    if (initialProgress <= 0 || initialProgress >= 1) {
       hasSeeked.current = true;
-      remote.seek(initialProgress * effectiveDuration);
+      remote.seek(0);
+      return;
     }
+    hasSeeked.current = true;
+    remote.seek(initialProgress * effectiveDuration);
   }, [effectiveDuration, initialProgress, streamStartOffset, remote]);
 
   if (fullDuration > 0 && effectiveCurrentTime >= 0) {
@@ -186,26 +197,20 @@ interface VideoPlayerModalProps {
   getSeriesTitle?: (seriesId: string) => string | null | undefined;
 }
 
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 const EPISODE_ID_REGEX = /^episode-.+-S\d+-E\d+$/;
 
-export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
+export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang: _preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
   const [streamUrl, setStreamUrl] = useState('');
   const [streamType, setStreamType] = useState<'video' | 'hls'>('video');
+  /** Which itemId the current streamUrl is for – only show player when this matches itemId so we never reuse old stream for new episode. */
+  const [streamForItemId, setStreamForItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
   const [displayCurrentTime, setDisplayCurrentTime] = useState(0);
   const [conversionProgress, setConversionProgress] = useState<number | null>(null);
-  const [conversionEta, setConversionEta] = useState<number | null>(null);
-  const [conversionCurrentTime, setConversionCurrentTime] = useState(0);
-  const [conversionDuration, setConversionDuration] = useState(0);
+  // Only the setters are used (for UI), so ignore state values.
+  const [, setConversionCurrentTime] = useState(0);
+  const [, setConversionDuration] = useState(0);
   const [conversionError, setConversionError] = useState<string | null>(null);
   const [nextEpisode, setNextEpisode] = useState<NextEpisodeInfo | null>(null);
   const [episodesPanelOpen, setEpisodesPanelOpen] = useState(false);
@@ -215,6 +220,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const { getProgress, setProgress } = useProgress();
   const initialProgress = itemId ? (getProgress(itemId)?.progress ?? 0) : 0;
   const conversionEsRef = useRef<EventSource | null>(null);
+  const streamReadyForCurrentItem = !!streamUrl && streamForItemId === itemId;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -237,6 +243,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         conversionEsRef.current = null;
       }
       setStreamUrl('');
+      setStreamForItemId(null);
       setError(null);
       setDurationSeconds(null);
       setConversionProgress(null);
@@ -255,9 +262,11 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     setConversionProgress(null);
     setConversionError(null);
     setStreamUrl('');
+    setStreamForItemId(null);
     setStreamType('video');
     const origin = window.location.origin;
     const fallbackUrl = `${origin}/api/stream-video?id=${encodeURIComponent(itemId)}`;
+    const requestedItemId = itemId;
     fetch(`${origin}/api/video-src?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
       .then((r) => r.json().catch(() => null))
       .then((data) => {
@@ -265,6 +274,11 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           setError(data.error);
           return;
         }
+        const applyUrl = (url: string, type: 'video' | 'hls') => {
+          setStreamUrl(url);
+          setStreamType(type);
+          setStreamForItemId(requestedItemId);
+        };
         if (data?.needsConversion && data?.convertUrl) {
           setConversionProgress(0);
           const convertUrl = data.convertUrl.startsWith('http') ? data.convertUrl : `${origin}${data.convertUrl.startsWith('/') ? '' : '/'}${data.convertUrl}`;
@@ -277,13 +291,12 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                 es.close();
                 conversionEsRef.current = null;
                 setConversionProgress(null);
-                fetch(`${origin}/api/video-src?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
+                fetch(`${origin}/api/video-src?id=${encodeURIComponent(requestedItemId)}`, { credentials: 'same-origin' })
                   .then((r) => r.json().catch(() => null))
                   .then((src) => {
                     if (src?.url) {
                       const url = src.url.startsWith('http') ? src.url : `${origin}${src.url.startsWith('/') ? '' : '/'}${src.url}`;
-                      setStreamUrl(url);
-                      setStreamType((src.type ?? 'video') === 'hls' ? 'hls' : 'video');
+                      applyUrl(url, (src.type ?? 'video') === 'hls' ? 'hls' : 'video');
                     } else {
                       setConversionError(src?.error ?? 'Could not start playback after conversion.');
                     }
@@ -301,7 +314,6 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
               setConversionProgress(d.progress ?? 0);
               setConversionCurrentTime(d.currentTime ?? 0);
               setConversionDuration(d.durationSeconds ?? 0);
-              setConversionEta(d.etaSeconds ?? null);
             } catch {}
           };
           es.onerror = () => {
@@ -313,16 +325,15 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         }
         if (data?.url) {
           const url = data.url.startsWith('http') ? data.url : `${origin}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
-          setStreamUrl(url);
-          setStreamType((data.type ?? 'video') === 'hls' ? 'hls' : 'video');
+          applyUrl(url, (data.type ?? 'video') === 'hls' ? 'hls' : 'video');
         } else {
-          setStreamUrl(fallbackUrl);
-          setStreamType('video');
+          applyUrl(fallbackUrl, 'video');
         }
       })
       .catch(() => {
         setStreamUrl(fallbackUrl);
         setStreamType('video');
+        setStreamForItemId(requestedItemId);
       });
     fetch(`${origin}/api/video-duration?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
@@ -404,12 +415,10 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       }))
     : [];
 
-  const hasPreferred = !!preferredSubtitleLang && tracks.some((t) => t.lang === preferredSubtitleLang);
-
   // In the control bar: for series always "Show Name • S1 E2" (same whether from Play or Episodes list). Only add short episode name, never the long "Show – S1:E1 Episode 1" format from DetailCard.
   const episodeMatch = itemId?.match(/S(\d+)-E(\d+)/);
   const episodeLabel = episodeMatch ? `S${episodeMatch[1]} E${episodeMatch[2]}` : null;
-  const seriesPart = seriesTitle ?? getSeriesTitle?.(seriesId);
+  const seriesPart = seriesTitle ?? (seriesId ? getSeriesTitle?.(seriesId) ?? null : null);
   const isLongFormTitle = title && (title.includes(' – ') || title.includes(' - S') || (seriesPart && title.startsWith(seriesPart)));
   const shortEpisodeName = title && !isLongFormTitle && title.length < 50 ? title : null;
   const displayTitle =
@@ -495,12 +504,12 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
             Close
           </button>
         </div>
-      ) : !streamUrl ? (
+      ) : !streamReadyForCurrentItem ? (
         <div className="absolute inset-0 flex items-center justify-center text-white/70">Loading…</div>
       ) : (
         <div className="relative w-full h-full">
         <MediaPlayer
-          key={streamUrl}
+          key={itemId}
           src={streamType === 'hls' ? { src: streamUrl, type: 'application/vnd.apple.mpegurl' as const } : streamUrl}
           autoPlay
           playsInline
@@ -534,7 +543,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                 src={t.src}
                 lang={t.lang}
                 label={t.label}
-                default={hasPreferred ? t.lang === preferredSubtitleLang : i === 0}
+                default={i === 0}
               />
             ))}
           </MediaProvider>
@@ -642,7 +651,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                                     : 'opacity-60 cursor-not-allowed'
                               }`}
                             >
-                              <div className="w-32 shrink-0 aspect-video bg-white/10 rounded overflow-hidden">
+                              <div className="w-32 shrink-0 aspect-video bg-white/10 rounded overflow-hidden relative">
                                 {ep.posterUrl ? (
                                   <img
                                     src={ep.posterUrl}
@@ -654,6 +663,21 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                                     E{ep.episodeNumber}
                                   </div>
                                 )}
+                                {ep.id && (() => {
+                                  const progress = getProgress(ep.id)?.progress ?? 0;
+                                  const pct = Math.min(100, Math.max(0, progress * 100));
+                                  return pct > 0 ? (
+                                    <div
+                                      className="absolute left-0 right-0 bottom-0 h-1 rounded-b overflow-hidden bg-white/30 pointer-events-none"
+                                      aria-hidden
+                                    >
+                                      <div
+                                        className="h-full bg-[#E50914] rounded-b transition-[width] duration-300"
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                  ) : null;
+                                })()}
                               </div>
                               <div className="flex-1 min-w-0 py-2 pr-3 flex flex-col justify-center">
                                 <div className="flex items-center gap-2 flex-wrap">

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "echo \"No tests defined\"",
     "clear-db": "node scripts/clear-db.mjs"
   },
   "dependencies": {

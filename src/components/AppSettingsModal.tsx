@@ -34,7 +34,7 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
   const { profiles, canAddProfile, createProfile, deleteProfile, currentProfileId } = useProfile();
   const [addProfileOpen, setAddProfileOpen] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newAvatarPath, setNewAvatarPath] = useState(AVATAR_PATHS[0]);
+  const [newAvatarPath, setNewAvatarPath] = useState<string>(AVATAR_PATHS[0]);
   const [newIsKid, setNewIsKid] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<ProfileId | null>(null);

@@ -145,6 +145,14 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
               ?
             </div>
           )}
+          {/* Transition fade at bottom of image into modal content (same as hero banner) */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-[40%] pointer-events-none z-[1]"
+            style={{
+              background: 'linear-gradient(to bottom, transparent 0%, rgba(24,24,24,0.15) 20%, rgba(24,24,24,0.4) 40%, rgba(24,24,24,0.65) 60%, rgba(24,24,24,0.88) 80%, #181818 100%)',
+            }}
+            aria-hidden
+          />
           {/* Close */}
           <button
             type="button"
@@ -154,37 +162,50 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
           >
             <Close sx={{ fontSize: 24 }} />
           </button>
-          {/* Controls over image */}
-          <div className="absolute bottom-4 left-8 flex items-center gap-3 z-10">
-            <button
-              type="button"
-              onClick={handleMainPlay}
-              className="flex items-center gap-2 h-11 px-5 rounded-md bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors justify-center min-w-[90px]"
-              aria-label="Play"
-            >
-              <PlayArrow sx={{ fontSize: 38 }} />
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={onAddClick}
-              className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors ${
-                isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
-              }`}
-              aria-label={isInList ? 'In My List' : 'Add to My List'}
-            >
-              {isInList ? <Check sx={{ fontSize: 24 }} /> : <Add sx={{ fontSize: 24 }} />}
-            </button>
-            <button
-              type="button"
-              onClick={onLikeClick}
-              className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors ${
-                isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
-              }`}
-              aria-label={isLiked ? 'Liked' : 'Like'}
-            >
-              <ThumbUp sx={{ fontSize: 22 }} />
-            </button>
+          {/* Title + controls over image */}
+          <div className="absolute bottom-8 left-8 flex flex-col gap-4 z-10">
+            {detail.titleLogoUrl ? (
+              <img
+                src={detail.titleLogoUrl}
+                alt={detail.title ?? ''}
+                className="max-h-14 md:max-h-16 w-auto object-contain object-left drop-shadow-lg"
+              />
+            ) : (
+              <h2 className="text-white text-2xl md:text-3xl font-bold drop-shadow-lg">
+                {detail.title}
+              </h2>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleMainPlay}
+                className="flex items-center gap-2 h-11 px-5 rounded-md bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors justify-center min-w-[90px]"
+                aria-label="Play"
+              >
+                <PlayArrow sx={{ fontSize: 38 }} />
+                Play
+              </button>
+              <button
+                type="button"
+                onClick={onAddClick}
+                className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
+                }`}
+                aria-label={isInList ? 'In My List' : 'Add to My List'}
+              >
+                {isInList ? <Check sx={{ fontSize: 24 }} /> : <Add sx={{ fontSize: 24 }} />}
+              </button>
+              <button
+                type="button"
+                onClick={onLikeClick}
+                className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
+                }`}
+                aria-label={isLiked ? 'Liked' : 'Like'}
+              >
+                <ThumbUp sx={{ fontSize: 22 }} />
+              </button>
+            </div>
           </div>
         </div>
 

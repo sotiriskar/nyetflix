@@ -18,4 +18,3 @@ try {
 } finally {
   db.close();
 }
-https://help.netflix.com/

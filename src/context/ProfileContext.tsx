@@ -17,6 +17,8 @@ export interface ProfileContextValue {
   currentProfileId: ProfileId | null;
   setCurrentProfileId: (id: ProfileId | null) => void;
   profiles: Profile[];
+  /** True after the first refetch has completed (used to avoid showing create-profile screen). */
+  profilesLoaded: boolean;
   refetchProfiles: () => Promise<void>;
   updateProfile: (id: ProfileId, data: { name?: string; avatarPath?: string; isKid?: boolean }) => Promise<void>;
   createProfile: (data: { name?: string; avatarPath?: string; isKid?: boolean }) => Promise<Profile | null>;
@@ -28,6 +30,7 @@ const defaultValue: ProfileContextValue = {
   currentProfileId: null,
   setCurrentProfileId: () => {},
   profiles: [],
+  profilesLoaded: false,
   refetchProfiles: async () => {},
   updateProfile: async () => {},
   createProfile: async () => null,
@@ -63,6 +66,7 @@ function setStoredProfileId(id: ProfileId | null) {
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [currentProfileId, setCurrentProfileIdState] = useState<ProfileId | null>(getStoredProfileId);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profilesLoaded, setProfilesLoaded] = useState(false);
 
   const refetchProfiles = useCallback(async () => {
     try {
@@ -86,6 +90,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setProfiles([]);
       setCurrentProfileIdState(null);
       setStoredProfileId(null);
+    } finally {
+      setProfilesLoaded(true);
     }
   }, []);
 
@@ -150,13 +156,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       currentProfileId,
       setCurrentProfileId,
       profiles,
+      profilesLoaded,
       refetchProfiles,
       updateProfile,
       createProfile,
       deleteProfile,
       canAddProfile,
     }),
-    [currentProfileId, setCurrentProfileId, profiles, refetchProfiles, updateProfile, createProfile, deleteProfile, canAddProfile]
+    [currentProfileId, setCurrentProfileId, profiles, profilesLoaded, refetchProfiles, updateProfile, createProfile, deleteProfile, canAddProfile]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

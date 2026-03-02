@@ -1,46 +1,72 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import Add from '@mui/icons-material/Add';
 import Check from '@mui/icons-material/Check';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import ThumbUp from '@mui/icons-material/ThumbUp';
+import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import type { CarouselItem } from '../types/movie';
 
 const HOVER_DELAY_MS = 400;
+
+/** Format duration string: "145m" -> "2h 25m", "45m" -> "45m". */
+function formatDuration(d: string | undefined): string | undefined {
+  if (!d?.trim()) return undefined;
+  const minOnly = d.trim().match(/^(\d+)\s*m(?:in)?$/i);
+  if (minOnly) {
+    const totalM = parseInt(minOnly[1], 10);
+    if (totalM >= 60) return `${Math.floor(totalM / 60)}h ${totalM % 60}m`;
+    return `${totalM}m`;
+  }
+  return d;
+}
 
 interface CarouselHoverCardProps {
   item: CarouselItem;
   duration?: string;
   progress?: number;
-  onClick?: () => void;
-  /** Called when Play is clicked (instead of opening detail). */
-  onPlay?: (item: CarouselItem) => void;
-  /** Called when Add to list is clicked. */
-  onAddClick?: () => void;
-  /** Whether this title is in My List (show checkmark). */
-  isInList?: boolean;
-  /** Called when Like is clicked. */
-  onLikeClick?: () => void;
-  /** Whether this title is liked. */
-  isLiked?: boolean;
-  /** If true, show the thin progress bar at bottom of card (e.g. Continue Watching row only). */
+  genres?: string;
+  mediaType?: 'movie' | 'series';
+  seasonsCount?: number;
+  hasSubtitles?: boolean;
+  /** If true, show the thin progress bar at bottom of card (e.g. Continue Watching row). */
   showProgressBar?: boolean;
+  onClick?: () => void;
+  onPlay?: (item: CarouselItem) => void;
+  onAddClick?: () => void;
+  isInList?: boolean;
+  onLikeClick?: () => void;
+  isLiked?: boolean;
 }
 
 export function CarouselHoverCard({
   item,
-  duration = '145m',
+  duration,
   progress = 0,
+  genres,
+  mediaType,
+  seasonsCount,
+  hasSubtitles = false,
+  showProgressBar = false,
   onClick,
   onPlay,
   onAddClick,
   isInList = false,
   onLikeClick,
   isLiked = false,
-  showProgressBar = false,
 }: CarouselHoverCardProps) {
   const progressPercent = Math.min(1, Math.max(0, progress ?? 0)) * 100;
   const [showTrailer, setShowTrailer] = useState(false);
+
+  const genreList = useMemo(() => {
+    if (!genres?.trim()) return [];
+    return genres.split(',').map((g) => g.trim()).filter(Boolean).slice(0, 3);
+  }, [genres]);
+
+  const durationDisplay = duration ? formatDuration(duration) : undefined;
+  const metaLine = mediaType === 'series' && seasonsCount != null && seasonsCount > 0
+    ? `${seasonsCount} Season${seasonsCount !== 1 ? 's' : ''}`
+    : durationDisplay;
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearHoverTimer = useCallback(() => {
@@ -67,7 +93,7 @@ export function CarouselHoverCard({
 
   return (
     <div
-      className="h-full w-full rounded-lg transition-all duration-200 origin-center group-hover/slide:scale-y-[1.45] group-hover/slide:overflow-hidden group-hover/slide:shadow-xl group-hover/slide:ring-1 group-hover/slide:ring-white/20 group-hover/slide:bg-[#181818] cursor-pointer relative"
+      className="h-full w-full rounded-lg transition-all duration-200 origin-center group-hover/slide:scale-y-[1.5] group-hover/slide:overflow-hidden group-hover/slide:shadow-xl group-hover/slide:ring-1 group-hover/slide:ring-white/20 group-hover/slide:bg-[#181818] cursor-pointer relative"
       onClick={onClick}
       onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
       onMouseEnter={handleMouseEnter}
@@ -128,7 +154,7 @@ export function CarouselHoverCard({
         </div>
       </div>
 
-      {/* Always-visible progress bar at bottom of card (Continue Watching only) */}
+      {/* Progress bar at bottom of card (Continue Watching only) */}
       {showProgressBar && progressPercent > 0 && (
         <div
           className="absolute left-0 right-0 bottom-0 h-1 rounded-b-lg overflow-hidden bg-white/30 pointer-events-none"
@@ -141,70 +167,73 @@ export function CarouselHoverCard({
         </div>
       )}
 
-      {/* Bottom panel – outer clips to rounded-b-lg; inner counter-scaled so icons aren't stretched */}
-      <div className="absolute left-0 right-0 bottom-0 overflow-hidden rounded-b-lg max-h-0 opacity-0 transition-all duration-200 group-hover/slide:max-h-28 group-hover/slide:opacity-100">
+      {/* Bottom panel – controls + metadata (genres, seasons/duration, HD, subtitle) */}
+      <div className="absolute left-0 right-0 bottom-0 overflow-hidden rounded-b-lg max-h-0 opacity-0 transition-all duration-200 group-hover/slide:max-h-32 group-hover/slide:opacity-100">
         <div className="origin-bottom bg-[#181818] px-3 pb-3 pt-2.5 rounded-b-lg group-hover/slide:scale-y-[0.69]">
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            type="button"
-            className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0"
-            aria-label="Play"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlay?.(item);
-            }}
-          >
-            <PlayArrow sx={{ fontSize: 20 }} />
-          </button>
-          <button
-            type="button"
-            className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-              isInList ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'
-            }`}
-            aria-label={isInList ? 'In My List' : 'Add to list'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddClick?.();
-            }}
-          >
-            {isInList ? <Check sx={{ fontSize: 18 }} /> : <Add sx={{ fontSize: 18 }} />}
-          </button>
-          <button
-            type="button"
-            className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-              isLiked ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'
-            }`}
-            aria-label={isLiked ? 'Liked' : 'Like'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onLikeClick?.();
-            }}
-          >
-            <ThumbUp sx={{ fontSize: 16 }} />
-          </button>
-          <button
-            type="button"
-            className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 ml-auto"
-            aria-label="More info"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick?.();
-            }}
-          >
-            <ExpandMore sx={{ fontSize: 22 }} />
-          </button>
-        </div>
-        {/* Progress bar */}
-        <div className="h-1 w-full bg-white/30 rounded-full overflow-hidden mb-1.5">
-          <div
-            className="h-full bg-[#E50914] rounded-full transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <div className="flex items-center justify-between text-xs text-white/80">
-          <span>of {duration}</span>
-          <span>Today</span>
-        </div>
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0"
+              aria-label="Play"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlay?.(item);
+              }}
+            >
+              <PlayArrow sx={{ fontSize: 20 }} />
+            </button>
+            <button
+              type="button"
+              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                isInList ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'
+              }`}
+              aria-label={isInList ? 'In My List' : 'Add to list'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddClick?.();
+              }}
+            >
+              {isInList ? <Check sx={{ fontSize: 18 }} /> : <Add sx={{ fontSize: 18 }} />}
+            </button>
+            <button
+              type="button"
+              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                isLiked ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'
+              }`}
+              aria-label={isLiked ? 'Liked' : 'Like'}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLikeClick?.();
+              }}
+            >
+              <ThumbUp sx={{ fontSize: 16 }} />
+            </button>
+            <button
+              type="button"
+              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 ml-auto"
+              aria-label="More info"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+              }}
+            >
+              <ExpandMore sx={{ fontSize: 22 }} />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/80">
+            {metaLine && <span>{metaLine}</span>}
+            <span className="inline-flex items-center justify-center rounded border border-white/60 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/90">HD</span>
+            {hasSubtitles && (
+              <span className="inline-flex items-center rounded border border-white/60 bg-white/10 p-0.5 text-white/90">
+                <SubtitlesOutlined sx={{ fontSize: 14 }} />
+              </span>
+            )}
+            {genreList.length > 0 && (
+              <span className="w-full truncate">
+                {genreList.join(' • ')}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -20,7 +20,14 @@ const NAV_ITEMS = [
   { label: 'My List', to: '/mylist' },
 ];
 
-export function TopBar() {
+interface TopBarProps {
+  /** Optional: open account/profile settings (used by standalone React App wrapper). */
+  onOpenAccount?: () => void;
+  /** Optional: open app settings (used by standalone React App wrapper). */
+  onOpenAppSettings?: () => void;
+}
+
+export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -268,7 +275,10 @@ export function TopBar() {
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => currentProfileId != null && router.push(`/settings/profile/${currentProfileId}`)}
+                onClick={() => {
+                  if (onOpenAccount) onOpenAccount();
+                  else if (currentProfileId != null) router.push(`/settings/profile/${currentProfileId}`);
+                }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
               >
                 <PersonOutlined sx={{ fontSize: 20, color: 'inherit' }} />
@@ -283,7 +293,15 @@ export function TopBar() {
                 Help Centre
               </button>
               <div className="border-t border-white/10 my-1" />
-              <div className="px-4 py-2.5">
+              <div className="px-4 py-2.5 flex flex-col gap-2">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => onOpenAppSettings?.()}
+                  className="w-full text-center text-sm text-white/90 hover:text-white hover:underline transition-colors"
+                >
+                  App Settings
+                </button>
                 <button
                   type="button"
                   role="menuitem"

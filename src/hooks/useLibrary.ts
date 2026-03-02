@@ -6,6 +6,8 @@ import type { MovieDetail } from '@/types/movie';
 
 const CACHE_KEY_PREFIX = 'nyetflix-library-';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+/** Abort library scan after this time so the UI doesn't load forever. */
+const SCAN_TIMEOUT_MS = 120_000; // 2 minutes
 
 export interface LibraryCarousel {
   title: string;
@@ -91,9 +93,13 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
       setError(null);
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
+
     try {
       const url = `/api/scan-library?path=${encodeURIComponent(path)}${forceRefresh ? '&refresh=1' : ''}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Scan failed: ${res.status}`);
@@ -105,10 +111,14 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
       setDetailsMap(nextDetailsMap);
       writeCache(path, nextCarousels, nextDetailsMap);
     } catch (e) {
+      clearTimeout(timeoutId);
       if (!cached) {
         setCarousels([]);
         setDetailsMap({});
-        setError(e instanceof Error ? e.message : 'Failed to load library');
+        const isAbort = e instanceof Error && e.name === 'AbortError';
+        setError(isAbort
+          ? 'Scan is taking too long. Try a smaller folder, or refresh later.'
+          : (e instanceof Error ? e.message : 'Failed to load library'));
       }
     } finally {
       setLoading(false);

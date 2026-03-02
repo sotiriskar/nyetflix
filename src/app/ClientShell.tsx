@@ -1,6 +1,5 @@
 'use client';
 
-import { CreateProfileScreen } from '@/components/CreateProfileScreen';
 import { TopBar } from '@/components/TopBar';
 import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
@@ -28,9 +27,13 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
 }
 
 function ProfileGate({ children }: { children: React.ReactNode }) {
-  const { profiles } = useProfile();
-  if (profiles.length === 0) {
-    return <CreateProfileScreen />;
+  const { profilesLoaded } = useProfile();
+  if (!profilesLoaded) {
+    return (
+      <div className="min-h-screen bg-[#141414] flex items-center justify-center" aria-busy="true">
+        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden />
+      </div>
+    );
   }
   return <AppWithProviders>{children}</AppWithProviders>;
 }

@@ -35,6 +35,8 @@ export interface MovieDetail {
   subtitleLanguages?: string[];
   /** From IMDb: "movie" or "series" (tvSeries, tvMiniSeries, etc.) */
   mediaType?: 'movie' | 'series';
+  /** For series: number of seasons (e.g. for hover card "6 Seasons") */
+  seasonsCount?: number;
   /** YouTube video ID for trailer (hover card preview) */
   trailerYouTubeId?: string;
 }

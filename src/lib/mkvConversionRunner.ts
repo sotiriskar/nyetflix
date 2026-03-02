@@ -250,7 +250,7 @@ export function runMkvConversion(
 ): Promise<string> {
   if (isConversionInProgress(itemId)) {
     const p = progressMap.get(itemId);
-    if (p?.progress >= 1) {
+    if (p && p.progress >= 1) {
       const converted = join(dirname(mkvPath), basename(mkvPath, '.mkv') + '.mp4');
       return Promise.resolve(converted);
     }
