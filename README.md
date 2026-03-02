@@ -3,7 +3,7 @@
 
 ---
 
-## Table of contents
+### Table of contents
 - [Description](#description)
 - [What you need](#what-you-need)
 - [Install Node.js](#install-nodejs)
@@ -18,11 +18,11 @@
 
 ---
 
-## Description
+### Description
 
 Local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—your files, your browser.
 
-## What you need
+### What you need
 
 - **Node.js** v18+ ([nodejs.org](https://nodejs.org))
 - **ffmpeg** (recommended for MKV/streaming)
@@ -30,21 +30,21 @@ Local Netflix-style app to browse and stream your own movies and TV series. No a
 
 ---
 
-## Install Node.js
+### Install Node.js
 
 - **Windows:** Download LTS from [nodejs.org](https://nodejs.org), run installer, leave “Add to PATH” checked. Close and reopen terminal. Check: `node -v`.
 - **Mac:** Download LTS from nodejs.org or run `brew install node`. Check: `node -v`.
 
 ---
 
-## Install ffmpeg (recommended)
+### Install ffmpeg (recommended)
 
 - **Windows:** `winget install ffmpeg` (or [gyan.dev builds](https://www.gyan.dev/ffmpeg/builds/) → unzip → add `bin` to PATH). Check: `ffmpeg -version`.
 - **Mac:** `brew install ffmpeg`. Check: `ffmpeg -version`.
 
 ---
 
-## Run the app
+### Run the app
 
 ```bash
 cd nyetflix
@@ -56,7 +56,7 @@ Open **http://localhost:3000**. Leave the terminal open.
 
 ---
 
-## Set your library
+### Set your library
 
 1. In the app: **profile** (top right) → **App Settings**.
 2. **Media library folder:** full path to your movies/series (e.g. Windows: `C:\Users\You\Videos\Movies`, Mac: `~/Movies` or `/Users/you/Movies`).
@@ -64,13 +64,13 @@ Open **http://localhost:3000**. Leave the terminal open.
 
 ---
 
-## Optional: TMDB (posters & metadata)
+### Optional: TMDB (posters & metadata)
 
 Free [TMDB API key](https://www.themoviedb.org/settings/api) gives posters, backdrops, and episode info. Copy `.env.example` to `.env.local`, set `TMDB_API_KEY=your_key`, restart the app (`Ctrl+C` then `npm run dev`).
 
 ---
 
-## File organization
+### File organization
 
 Everything lives in **folders**. One folder per movie, one folder per series. Put the video and same-name subtitles inside that folder.
 
@@ -122,7 +122,7 @@ Breaking Bad/
 
 ---
 
-## Docker
+### Docker
 
 ```bash
 docker build -t nyetflix .
@@ -133,7 +133,7 @@ Or: `docker compose up -d`. Open http://localhost:3000. To use your media folder
 
 ---
 
-## Production & other
+### Production & other
 
 - **Production:** `npm run build` then `npm start`. Same library path and `.env.local` if you use TMDB.
 - **Clear app data:** `npm run clear-db` then start again.
@@ -141,7 +141,7 @@ Or: `docker compose up -d`. Open http://localhost:3000. To use your media folder
 
 ---
 
-## Troubleshooting
+### Troubleshooting
 
 - **`node` / `npm` not found** – Reinstall Node, ensure “Add to PATH”, new terminal.
 - **`npm install` fails** – Run it from inside the project folder; check internet.
