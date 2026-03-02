@@ -82,9 +82,11 @@ Movies/
   Inception/
     Inception (2010).mp4
     Inception (2010).en.srt
+    Inception (2010).el.srt
   The Matrix/
     The Matrix.mkv
     The Matrix.srt
+    The Matrix.el.srt
 ```
 
 **Series example** (library folder contains show folders; seasons inside; video + same-name subs per file):
@@ -96,6 +98,8 @@ You/
     You S01E01.srt
     You S01E02.mkv
     You S01E02.en.srt
+    You S01E03.mkv
+    You S01E03.el.srt
   Season 2/
     You S02E01.mkv
     You S02E01.srt
@@ -108,7 +112,9 @@ Breaking Bad/
   Breaking Bad S01E01.mkv
   Breaking Bad S01E01.srt
   Breaking Bad S01E02.mkv
-  Breaking Bad S01E02.srt
+  Breaking Bad S01E02.en.srt
+  Breaking Bad S01E03.mkv
+  Breaking Bad S01E03.el.srt
 ```
 
 ---
