@@ -1,11 +1,10 @@
-# Nyetflix
 
-Local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—your files, your browser.
+<img width="1024" height="247" alt="NyETFLIX-02-03-2026" src="https://github.com/user-attachments/assets/0d1914b6-182c-4b40-ae02-c5318e5bbe1f" />
 
 ---
 
 ## Table of contents
-
+- [Description](#description)
 - [What you need](#what-you-need)
 - [Install Node.js](#install-nodejs)
 - [Install ffmpeg (recommended)](#install-ffmpeg-recommended)
@@ -18,6 +17,10 @@ Local Netflix-style app to browse and stream your own movies and TV series. No a
 - [Troubleshooting](#troubleshooting)
 
 ---
+
+## Description
+
+Local Netflix-style app to browse and stream your own movies and TV series. No accounts, no cloud—your files, your browser.
 
 ## What you need
 
