@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
             seasonNumber: seasonNum,
             episodeNumber: epNum,
             title: e.name?.trim() || `Episode ${epNum}`,
-            durationMinutes: e.runtime != null ? Math.round(e.runtime / 60) : undefined,
+            durationMinutes: e.runtime ?? undefined,
             description: e.overview?.trim() || undefined,
             posterUrl: buildStillUrl(e.still_path) ?? undefined,
             subtitleLanguages: local && Object.keys(local.subtitlePaths).length > 0

@@ -1,8 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Close from '@mui/icons-material/Close';
 import FolderOutlined from '@mui/icons-material/FolderOutlined';
+import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import Translate from '@mui/icons-material/Translate';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
+import { useProfile } from '@/context/ProfileContext';
+import { AVATAR_PATHS } from '@/lib/profiles';
+import type { ProfileId } from '@/lib/profiles';
 import {
   useSettings,
   type AppLanguage,
@@ -27,6 +31,13 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
     setMoviesFolderPath,
     clearMoviesFolderPath,
   } = useSettings();
+  const { profiles, canAddProfile, createProfile, deleteProfile, currentProfileId } = useProfile();
+  const [addProfileOpen, setAddProfileOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newAvatarPath, setNewAvatarPath] = useState(AVATAR_PATHS[0]);
+  const [newIsKid, setNewIsKid] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<ProfileId | null>(null);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -102,6 +113,124 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
                 </option>
               ))}
             </select>
+          </section>
+
+          {/* Profiles: create up to 5 */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <PersonOutlined sx={{ fontSize: 20, color: 'white' }} />
+              <h3 className="text-sm font-medium text-white">Profiles</h3>
+            </div>
+            <p className="text-xs text-white/60 mb-3">
+              You can have up to 5 profiles. Each has its own list, likes, and settings.
+            </p>
+            <div className="space-y-2 mb-4">
+              {profiles.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 py-2 px-3 rounded bg-white/5 border border-white/10"
+                >
+                  <div className="w-10 h-10 rounded overflow-hidden bg-white/10 shrink-0">
+                    <img src={p.avatarPath} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-white flex-1 min-w-0 truncate">{p.name}</span>
+                  {currentProfileId === p.id && (
+                    <span className="text-xs text-white/50 shrink-0">Current</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (deletingId != null) return;
+                      if (!confirm(`Remove "${p.name}"? Their list and likes will be deleted.`)) return;
+                      setDeletingId(p.id as ProfileId);
+                      await deleteProfile(p.id as ProfileId);
+                      setDeletingId(null);
+                    }}
+                    disabled={deletingId != null}
+                    className="px-3 py-1.5 rounded text-sm text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                  >
+                    {deletingId === p.id ? 'Removing…' : 'Remove'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            {canAddProfile && !addProfileOpen && (
+              <button
+                type="button"
+                onClick={() => setAddProfileOpen(true)}
+                className="px-4 py-2.5 rounded text-sm font-medium text-white/90 hover:text-white bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                Add profile
+              </button>
+            )}
+            {canAddProfile && addProfileOpen && (
+              <div className="p-4 rounded bg-white/5 border border-white/10 space-y-4">
+                <div>
+                  <label className="block text-xs text-white/70 mb-2">Avatar</label>
+                  <div className="flex flex-wrap gap-2">
+                    {AVATAR_PATHS.map((path) => (
+                      <button
+                        key={path}
+                        type="button"
+                        onClick={() => setNewAvatarPath(path)}
+                        className={`w-10 h-10 rounded overflow-hidden border-2 transition-colors ${newAvatarPath === path ? 'border-white' : 'border-transparent hover:border-white/50'}`}
+                      >
+                        <img src={path} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-white/70 mb-2">Name</label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Profile name"
+                    className="w-full px-3 py-2 rounded bg-white/5 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
+                  />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-white/90 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={newIsKid}
+                    onChange={(e) => setNewIsKid(e.target.checked)}
+                    className="w-4 h-4 rounded accent-red-600"
+                  />
+                  Kid?
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setAddLoading(true);
+                      await createProfile({ name: newName.trim() || undefined, avatarPath: newAvatarPath, isKid: newIsKid });
+                      setAddLoading(false);
+                      setAddProfileOpen(false);
+                      setNewName('');
+                      setNewAvatarPath(AVATAR_PATHS[0]);
+                      setNewIsKid(false);
+                    }}
+                    disabled={addLoading}
+                    className="px-4 py-2 rounded bg-white text-black text-sm font-medium hover:bg-white/90 disabled:opacity-50"
+                  >
+                    {addLoading ? 'Creating…' : 'Create profile'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddProfileOpen(false);
+                      setNewName('');
+                      setNewAvatarPath(AVATAR_PATHS[0]);
+                      setNewIsKid(false);
+                    }}
+                    className="px-4 py-2 rounded border border-white/50 text-white text-sm font-medium hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Media library folder */}

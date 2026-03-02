@@ -78,6 +78,7 @@ export function MyListPage() {
   const [nowPlayingId, setNowPlayingId] = useState<string | null>(null);
   const [nowPlayingTitle, setNowPlayingTitle] = useState<string | null>(null);
   const [nowPlayingSubtitleLanguages, setNowPlayingSubtitleLanguages] = useState<string[] | undefined>(undefined);
+  const [nowPlayingSeriesTitle, setNowPlayingSeriesTitle] = useState<string | null>(null);
   const [playbackMessage, setPlaybackMessage] = useState<string | null>(null);
 
   const handlePlay = useCallback(
@@ -85,10 +86,12 @@ export function MyListPage() {
       setNowPlayingTitle(null);
       setNowPlayingSubtitleLanguages(undefined);
       setNowPlayingId(item.id);
+      const isSeries = detailsMap[item.id]?.mediaType === 'series';
+      setNowPlayingSeriesTitle(isSeries ? (detailsMap[item.id]?.title ?? null) : null);
       const path = moviesFolderPath?.trim() ?? '';
       if (path) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
     },
-    [moviesFolderPath]
+    [moviesFolderPath, detailsMap]
   );
 
   const getDetail = useMemo(
@@ -254,18 +257,20 @@ export function MyListPage() {
               titleLogoUrl: d.titleLogoUrl,
             });
           }}
-          onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages) => {
+          onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
             setSelectedItem(null);
             setPlaybackMessage(null);
             setNowPlayingTitle(episodeTitle ?? null);
             setNowPlayingSubtitleLanguages(subtitleLanguages);
             setNowPlayingId(episodeId);
+            if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
           }}
           onPlayUnavailable={(msg) => {
             setSelectedItem(null);
             setNowPlayingId(null);
             setNowPlayingTitle(null);
             setNowPlayingSubtitleLanguages(undefined);
+            setNowPlayingSeriesTitle(null);
             setPlaybackMessage(msg);
           }}
           onAddClick={() => detail && toggle(detail.id)}
@@ -281,7 +286,16 @@ export function MyListPage() {
         subtitleLanguages={nowPlayingSubtitleLanguages ?? (nowPlayingId ? getDetail(nowPlayingId)?.subtitleLanguages : undefined)}
         preferredSubtitleLang={subtitleLanguage}
         message={playbackMessage}
-        onClose={() => { setNowPlayingId(null); setNowPlayingTitle(null); setNowPlayingSubtitleLanguages(undefined); setPlaybackMessage(null); }}
+        onClose={() => { setNowPlayingId(null); setNowPlayingTitle(null); setNowPlayingSubtitleLanguages(undefined); setNowPlayingSeriesTitle(null); setPlaybackMessage(null); }}
+        onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
+          setPlaybackMessage(null);
+          setNowPlayingTitle(episodeTitle ?? null);
+          setNowPlayingSubtitleLanguages(subtitleLanguages);
+          setNowPlayingId(episodeId);
+          if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
+        }}
+        seriesTitle={nowPlayingSeriesTitle}
+        getSeriesTitle={(id) => getDetail(id)?.title ?? null}
       />
     </div>
   );

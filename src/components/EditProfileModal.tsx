@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react';
 import Close from '@mui/icons-material/Close';
-import { useSettings } from '../context/SettingsContext';
+import { useProfile } from '@/context/ProfileContext';
+import { AVATAR_PATHS } from '@/lib/profiles';
 
 interface EditProfileModalProps {
   onClose: () => void;
 }
 
 export function EditProfileModal({ onClose }: EditProfileModalProps) {
-  const { profileName, profileIsKid, setProfileName, setProfileIsKid } = useSettings();
-  const [name, setName] = useState(profileName);
-  const [isKid, setIsKid] = useState(profileIsKid);
+  const { currentProfileId, profiles, updateProfile } = useProfile();
+  const currentProfile = profiles.find((p) => p.id === currentProfileId);
+  const [name, setName] = useState(currentProfile?.name ?? '');
+  const [isKid, setIsKid] = useState(currentProfile?.isKid ?? false);
+  const [avatarPath, setAvatarPath] = useState(currentProfile?.avatarPath ?? AVATAR_PATHS[0]);
+
+  useEffect(() => {
+    if (currentProfile) {
+      setName(currentProfile.name);
+      setIsKid(currentProfile.isKid);
+      setAvatarPath(currentProfile.avatarPath);
+    }
+  }, [currentProfile]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -22,14 +33,21 @@ export function EditProfileModal({ onClose }: EditProfileModalProps) {
   }, [onClose]);
 
   const handleSave = () => {
-    setProfileName(name.trim() || 'Profile');
-    setProfileIsKid(isKid);
+    if (currentProfileId == null) return;
+    updateProfile(currentProfileId, {
+      name: name.trim() || 'Profile',
+      isKid,
+      avatarPath,
+    });
     onClose();
   };
 
   const handleCancel = () => {
-    setName(profileName);
-    setIsKid(profileIsKid);
+    if (currentProfile) {
+      setName(currentProfile.name);
+      setIsKid(currentProfile.isKid);
+      setAvatarPath(currentProfile.avatarPath);
+    }
     onClose();
   };
 
@@ -59,35 +77,48 @@ export function EditProfileModal({ onClose }: EditProfileModalProps) {
         </div>
 
         <div className="p-8">
-          {/* Avatar + Name + Kid */}
-          <div className="flex items-start gap-6 mb-10">
-            <div className="w-20 h-20 rounded overflow-hidden bg-[#1e7dd6] shrink-0 flex items-center justify-center">
-              <img src="/static/avatar.png" alt="" className="w-full h-full object-cover" />
+          {/* Avatar picker */}
+          <div className="mb-6">
+            <label className="block text-sm text-white/70 mb-3">Avatar</label>
+            <div className="flex flex-wrap gap-3">
+              {AVATAR_PATHS.map((path) => (
+                <button
+                  key={path}
+                  type="button"
+                  onClick={() => setAvatarPath(path)}
+                  className={`w-14 h-14 rounded overflow-hidden shrink-0 border-2 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                    avatarPath === path ? 'border-white' : 'border-transparent hover:border-white/50'
+                  }`}
+                >
+                  <img src={path} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
             </div>
-            <div className="flex-1 min-w-0 space-y-5">
-              <div>
-                <label htmlFor="profile-name" className="block text-sm text-white/70 mb-2">
-                  Name
-                </label>
-                <input
-                  id="profile-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Profile name"
-                  className="w-full px-4 py-2.5 rounded bg-white/5 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
-                />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer text-white/90 hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={isKid}
-                  onChange={(e) => setIsKid(e.target.checked)}
-                  className="w-4 h-4 rounded accent-red-600"
-                />
-                <span>Kid?</span>
+          </div>
+          {/* Name + Kid */}
+          <div className="flex flex-col gap-5 mb-10">
+            <div>
+              <label htmlFor="profile-name" className="block text-sm text-white/70 mb-2">
+                Name
               </label>
+              <input
+                id="profile-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Profile name"
+                className="w-full px-4 py-2.5 rounded bg-white/5 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+              />
             </div>
+            <label className="flex items-center gap-2 cursor-pointer text-white/90 hover:text-white">
+              <input
+                type="checkbox"
+                checked={isKid}
+                onChange={(e) => setIsKid(e.target.checked)}
+                className="w-4 h-4 rounded accent-red-600"
+              />
+              <span>Kid?</span>
+            </label>
           </div>
 
           {/* Actions */}

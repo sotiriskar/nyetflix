@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Close from '@mui/icons-material/Close';
+import SkipNext from '@mui/icons-material/SkipNext';
+import PlaylistPlay from '@mui/icons-material/PlaylistPlay';
 import {
   MediaPlayer,
   MediaProvider,
@@ -18,6 +20,7 @@ import {
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { useProgress } from '@/context/ProgressContext';
+import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 
 const SAVE_INTERVAL_MS = 5000;
 
@@ -160,6 +163,12 @@ const LANG_LABELS: Record<string, string> = {
   tr: 'Turkish', nl: 'Dutch', pl: 'Polish', sv: 'Swedish',
 };
 
+interface NextEpisodeInfo {
+  nextId: string;
+  nextTitle: string;
+  subtitleLanguages?: string[];
+}
+
 interface VideoPlayerModalProps {
   itemId: string | null;
   title?: string;
@@ -169,6 +178,12 @@ interface VideoPlayerModalProps {
   /** When set, show this message instead of the video (e.g. "This episode is not in your library"). */
   message?: string | null;
   onClose: () => void;
+  /** When playing a series episode, called when user clicks "Next episode" or picks from list. Parent should set nowPlayingId to the next episode. */
+  onPlayEpisode?: (episodeId: string, episodeTitle?: string, subtitleLanguages?: string[], seriesTitle?: string) => void;
+  /** Show/series name (for fetching episode metadata from TMDB in the Episodes panel). Pass when playing from series detail. */
+  seriesTitle?: string | null;
+  /** Optional: resolve series title by series id (e.g. from library detail) when seriesTitle is not set. */
+  getSeriesTitle?: (seriesId: string) => string | null | undefined;
 }
 
 function formatDuration(seconds: number): string {
@@ -179,7 +194,9 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang, message, onClose }: VideoPlayerModalProps) {
+const EPISODE_ID_REGEX = /^episode-.+-S\d+-E\d+$/;
+
+export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
   const [streamUrl, setStreamUrl] = useState('');
   const [streamType, setStreamType] = useState<'video' | 'hls'>('video');
   const [error, setError] = useState<string | null>(null);
@@ -190,20 +207,28 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const [conversionCurrentTime, setConversionCurrentTime] = useState(0);
   const [conversionDuration, setConversionDuration] = useState(0);
   const [conversionError, setConversionError] = useState<string | null>(null);
+  const [nextEpisode, setNextEpisode] = useState<NextEpisodeInfo | null>(null);
+  const [episodesPanelOpen, setEpisodesPanelOpen] = useState(false);
+  const [seriesEpisodes, setSeriesEpisodes] = useState<SeriesSeason[] | null>(null);
   const showModal = !!itemId || !!message;
+  const seriesId = itemId ? (itemId.match(/^episode-(.+)-S\d+-E\d+$/) ?? null)?.[1] ?? null : null;
   const { getProgress, setProgress } = useProgress();
   const initialProgress = itemId ? (getProgress(itemId)?.progress ?? 0) : 0;
   const conversionEsRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (episodesPanelOpen) setEpisodesPanelOpen(false);
+      else onClose();
+    };
     document.addEventListener('keydown', onKeyDown);
     if (showModal) document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = '';
     };
-  }, [showModal, onClose]);
+  }, [showModal, onClose, episodesPanelOpen]);
 
   useEffect(() => {
     if (!itemId || typeof window === 'undefined') {
@@ -216,9 +241,15 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       setDurationSeconds(null);
       setConversionProgress(null);
       setConversionError(null);
+      setNextEpisode(null);
+      setEpisodesPanelOpen(false);
+      setSeriesEpisodes(null);
       return;
     }
     setError(null);
+    setNextEpisode(null);
+    setEpisodesPanelOpen(false);
+    setSeriesEpisodes(null);
     setDurationSeconds(null);
     setDisplayCurrentTime(0);
     setConversionProgress(null);
@@ -305,6 +336,42 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     };
   }, [itemId]);
 
+  // When playing a series episode, fetch next episode so we can show "Next episode" button
+  useEffect(() => {
+    if (!itemId || typeof window === 'undefined' || !EPISODE_ID_REGEX.test(itemId)) {
+      setNextEpisode(null);
+      return;
+    }
+    const origin = window.location.origin;
+    fetch(`${origin}/api/next-episode?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
+      .then((r) => r.json().catch(() => null))
+      .then((data) => {
+        if (data?.nextId) {
+          setNextEpisode({
+            nextId: data.nextId,
+            nextTitle: data.nextTitle ?? 'Next episode',
+            subtitleLanguages: data.subtitleLanguages,
+          });
+        } else {
+          setNextEpisode(null);
+        }
+      })
+      .catch(() => setNextEpisode(null));
+  }, [itemId]);
+
+  // When episodes panel opens, fetch full series episode list
+  useEffect(() => {
+    if (!episodesPanelOpen || !seriesId || typeof window === 'undefined') return;
+    setSeriesEpisodes(null);
+    const origin = window.location.origin;
+    const showTitle = seriesTitle ?? (seriesId && getSeriesTitle?.(seriesId)) ?? title ?? '';
+    const titleParam = showTitle ? `&title=${encodeURIComponent(showTitle)}` : '';
+    fetch(`${origin}/api/series-episodes?id=${encodeURIComponent(seriesId)}${titleParam}`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => (data?.seasons ? setSeriesEpisodes(data.seasons) : setSeriesEpisodes([])))
+      .catch(() => setSeriesEpisodes([]));
+  }, [episodesPanelOpen, seriesId, seriesTitle, title]);
+
   const handleError = () => {
     if (!streamUrl) return;
     fetch(streamUrl, { method: 'GET', headers: { Range: 'bytes=0-0' }, credentials: 'same-origin' })
@@ -338,6 +405,17 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     : [];
 
   const hasPreferred = !!preferredSubtitleLang && tracks.some((t) => t.lang === preferredSubtitleLang);
+
+  // In the control bar: for series always "Show Name • S1 E2" (same whether from Play or Episodes list). Only add short episode name, never the long "Show – S1:E1 Episode 1" format from DetailCard.
+  const episodeMatch = itemId?.match(/S(\d+)-E(\d+)/);
+  const episodeLabel = episodeMatch ? `S${episodeMatch[1]} E${episodeMatch[2]}` : null;
+  const seriesPart = seriesTitle ?? getSeriesTitle?.(seriesId);
+  const isLongFormTitle = title && (title.includes(' – ') || title.includes(' - S') || (seriesPart && title.startsWith(seriesPart)));
+  const shortEpisodeName = title && !isLongFormTitle && title.length < 50 ? title : null;
+  const displayTitle =
+    seriesId && (seriesPart || episodeLabel)
+      ? [seriesPart, episodeLabel, shortEpisodeName].filter(Boolean).join(' • ')
+      : (title ?? '');
 
   if (!showModal) return null;
 
@@ -430,7 +508,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           volume={1}
           duration={durationSeconds ?? undefined}
           className="w-full h-full"
-          title={title}
+          title={displayTitle}
           onError={handleError}
         >
           <MediaProvider>
@@ -477,9 +555,136 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                 ) : (
                   <Time type="duration" />
                 ),
+              afterMuteButton:
+                seriesId && onPlayEpisode ? (
+                  <div className="vds-button-group flex items-center gap-0.5">
+                    {nextEpisode && (
+                      <button
+                        type="button"
+                        onClick={() => onPlayEpisode(nextEpisode.nextId, nextEpisode.nextTitle, nextEpisode.subtitleLanguages)}
+                        className="vds-button flex h-10 w-10 items-center justify-center rounded-sm text-white hover:bg-white/20 focus:ring-2 focus:ring-white/50"
+                        aria-label={`Next: ${nextEpisode.nextTitle}`}
+                        title={`Next: ${nextEpisode.nextTitle}`}
+                      >
+                        <SkipNext sx={{ fontSize: 22 }} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEpisodesPanelOpen(true)}
+                      className="vds-button flex h-10 w-10 items-center justify-center rounded-sm text-white hover:bg-white/20 focus:ring-2 focus:ring-white/50"
+                      aria-label="Episodes list"
+                      title="Episodes"
+                    >
+                      <PlaylistPlay sx={{ fontSize: 22 }} />
+                    </button>
+                  </div>
+                ) : undefined,
             }}
           />
         </MediaPlayer>
+        </div>
+      )}
+      {/* Episodes list panel (series only) */}
+      {episodesPanelOpen && seriesId && (
+        <div
+          className="absolute inset-0 z-30 flex justify-end bg-black/60"
+          role="dialog"
+          aria-label="Episodes list"
+          onClick={(e) => e.target === e.currentTarget && setEpisodesPanelOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-[#181818] shadow-xl flex flex-col max-h-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-lg font-semibold text-white">Episodes</h2>
+              <button
+                type="button"
+                onClick={() => setEpisodesPanelOpen(false)}
+                className="p-2 rounded-full text-white hover:bg-white/10"
+                aria-label="Close episodes list"
+              >
+                <Close sx={{ fontSize: 24 }} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {seriesEpisodes === null ? (
+                <p className="text-white/70 p-4">Loading…</p>
+              ) : seriesEpisodes.length === 0 ? (
+                <p className="text-white/70 p-4">No episodes found.</p>
+              ) : (
+                seriesEpisodes.map((season) => (
+                  <div key={season.number} className="mb-6">
+                    <h3 className="text-sm font-medium text-white/90 px-1 py-3">
+                      Season {season.number}
+                    </h3>
+                    <ul className="space-y-4">
+                      {(season.episodes ?? []).map((ep: SeriesEpisode) => {
+                        const hasFile = ep.hasFile !== false;
+                        const isCurrent = ep.id === itemId;
+                        return (
+                          <li key={ep.id ?? `${season.number}-${ep.episodeNumber}`}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (ep.id && hasFile && onPlayEpisode) {
+                                  onPlayEpisode(ep.id, ep.title, ep.subtitleLanguages);
+                                  setEpisodesPanelOpen(false);
+                                }
+                              }}
+                              disabled={!ep.id || !hasFile}
+                              className={`w-full text-left rounded overflow-hidden flex gap-4 p-1 transition-colors ${
+                                isCurrent
+                                  ? 'ring-2 ring-red-500 bg-white/10'
+                                  : hasFile
+                                    ? 'hover:bg-white/10'
+                                    : 'opacity-60 cursor-not-allowed'
+                              }`}
+                            >
+                              <div className="w-32 shrink-0 aspect-video bg-white/10 rounded overflow-hidden">
+                                {ep.posterUrl ? (
+                                  <img
+                                    src={ep.posterUrl}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-white/40 text-xs">
+                                    E{ep.episodeNumber}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 py-2 pr-3 flex flex-col justify-center">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-medium text-white/80 shrink-0">
+                                    Episode {ep.episodeNumber}
+                                  </span>
+                                  {ep.durationMinutes != null && (
+                                    <span className="text-xs text-white/50">
+                                      {ep.durationMinutes}m
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-sm font-semibold text-white truncate mt-1.5">
+                                  {ep.title}
+                                </h4>
+                                {ep.description && (
+                                  <p className="text-xs text-white/70 line-clamp-2 mt-1.5 leading-relaxed">
+                                    {ep.description}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
       <button

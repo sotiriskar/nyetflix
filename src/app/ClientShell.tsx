@@ -1,33 +1,36 @@
 'use client';
 
-import { useState } from 'react';
-import { AppSettingsModal } from '@/components/AppSettingsModal';
-import { EditProfileModal } from '@/components/EditProfileModal';
+import { CreateProfileScreen } from '@/components/CreateProfileScreen';
 import { TopBar } from '@/components/TopBar';
+import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { ProgressProvider } from '@/context/ProgressContext';
 
-export function ClientShell({ children }: { children: React.ReactNode }) {
-  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
-
+function AppWithProviders({ children }: { children: React.ReactNode }) {
   return (
     <SettingsProvider>
       <ProgressProvider>
-      <div className="min-h-screen bg-[#141414]">
-        <TopBar
-          onOpenAccount={() => setEditProfileOpen(true)}
-          onOpenAppSettings={() => setAppSettingsOpen(true)}
-        />
-        <main>{children}</main>
-      </div>
+        <div className="min-h-screen bg-[#141414]">
+          <TopBar />
+          <main>{children}</main>
+        </div>
       </ProgressProvider>
-      {editProfileOpen && (
-        <EditProfileModal onClose={() => setEditProfileOpen(false)} />
-      )}
-      {appSettingsOpen && (
-        <AppSettingsModal onClose={() => setAppSettingsOpen(false)} />
-      )}
     </SettingsProvider>
   );
+}
+
+export function ClientShell({ children }: { children: React.ReactNode }) {
+  return (
+    <ProfileProvider>
+      <ProfileGate>{children}</ProfileGate>
+    </ProfileProvider>
+  );
+}
+
+function ProfileGate({ children }: { children: React.ReactNode }) {
+  const { profiles } = useProfile();
+  if (profiles.length === 0) {
+    return <CreateProfileScreen />;
+  }
+  return <AppWithProviders>{children}</AppWithProviders>;
 }

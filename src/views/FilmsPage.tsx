@@ -71,6 +71,7 @@ export function FilmsPage() {
   const [nowPlayingId, setNowPlayingId] = useState<string | null>(null);
   const [nowPlayingTitle, setNowPlayingTitle] = useState<string | null>(null);
   const [nowPlayingSubtitleLanguages, setNowPlayingSubtitleLanguages] = useState<string[] | undefined>(undefined);
+  const [nowPlayingSeriesTitle, setNowPlayingSeriesTitle] = useState<string | null>(null);
   const [playbackMessage, setPlaybackMessage] = useState<string | null>(null);
 
   const handlePlay = useCallback(
@@ -78,8 +79,10 @@ export function FilmsPage() {
       setNowPlayingTitle(null);
       setNowPlayingSubtitleLanguages(undefined);
       const prog = getProgress(item.id);
-      const resumeEpisodeId = detailsMap[item.id]?.mediaType === 'series' ? prog?.lastEpisodeId : undefined;
+      const isSeries = detailsMap[item.id]?.mediaType === 'series';
+      const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
       setNowPlayingId(resumeEpisodeId ?? item.id);
+      setNowPlayingSeriesTitle(isSeries ? (detailsMap[item.id]?.title ?? null) : null);
       // Refresh library in background so new files appear; don't block opening the player
       const path = moviesFolderPath?.trim() ?? '';
       if (path) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
@@ -229,18 +232,20 @@ export function FilmsPage() {
             setNowPlayingSubtitleLanguages(undefined);
             void handlePlay({ id: d.id, title: d.title, posterUrl: d.posterUrl, backdropUrl: d.backdropUrl, titleLogoUrl: d.titleLogoUrl });
           }}
-          onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages) => {
+          onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
             setSelectedItem(null);
             setPlaybackMessage(null);
             setNowPlayingTitle(episodeTitle ?? null);
             setNowPlayingSubtitleLanguages(subtitleLanguages);
             setNowPlayingId(episodeId);
+            if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
           }}
           onPlayUnavailable={(msg) => {
             setSelectedItem(null);
             setNowPlayingId(null);
             setNowPlayingTitle(null);
             setNowPlayingSubtitleLanguages(undefined);
+            setNowPlayingSeriesTitle(null);
             setPlaybackMessage(msg);
           }}
           onAddClick={() => toggleMyList(detail.id)}
@@ -255,7 +260,16 @@ export function FilmsPage() {
         subtitleLanguages={nowPlayingSubtitleLanguages ?? (nowPlayingId ? getDetail(nowPlayingId)?.subtitleLanguages : undefined)}
         preferredSubtitleLang={subtitleLanguage}
         message={playbackMessage}
-        onClose={() => { setNowPlayingId(null); setNowPlayingTitle(null); setNowPlayingSubtitleLanguages(undefined); setPlaybackMessage(null); }}
+        onClose={() => { setNowPlayingId(null); setNowPlayingTitle(null); setNowPlayingSubtitleLanguages(undefined); setNowPlayingSeriesTitle(null); setPlaybackMessage(null); }}
+        onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
+          setPlaybackMessage(null);
+          setNowPlayingTitle(episodeTitle ?? null);
+          setNowPlayingSubtitleLanguages(subtitleLanguages);
+          setNowPlayingId(episodeId);
+          if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
+        }}
+        seriesTitle={nowPlayingSeriesTitle}
+        getSeriesTitle={(id) => getDetail(id)?.title ?? null}
       />
     </div>
   );

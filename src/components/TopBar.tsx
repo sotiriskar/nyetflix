@@ -4,11 +4,14 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Close from '@mui/icons-material/Close';
-import ExpandMore from '@mui/icons-material/ExpandMore';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Menu from '@mui/icons-material/Menu';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import Search from '@mui/icons-material/Search';
-import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
+import HelpOutline from '@mui/icons-material/HelpOutline';
+import SwapHoriz from '@mui/icons-material/SwapHoriz';
+import { useProfile } from '@/context/ProfileContext';
 
 const NAV_ITEMS = [
   { label: 'Home', to: '/' },
@@ -17,20 +20,12 @@ const NAV_ITEMS = [
   { label: 'My List', to: '/mylist' },
 ];
 
-const PROFILE_MENU_ITEMS = [
-  { label: 'Account', icon: PersonOutlined },
-  { label: 'App Settings', icon: SettingsOutlined },
-];
-
-export interface TopBarProps {
-  onOpenAccount?: () => void;
-  onOpenAppSettings?: () => void;
-}
-
-export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
+export function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { currentProfileId, setCurrentProfileId, profiles } = useProfile();
+  const currentProfile = profiles.find((p) => p.id === currentProfileId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,6 +33,7 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
   const [scrolled, setScrolled] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileMenuCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (searchOpen && searchInputRef.current) {
@@ -54,66 +50,89 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
   }, [pathname, searchParams]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 0);
+    const onScroll = () => setScrolled(window.scrollY > 20);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
-    if (!profileMenuOpen) return;
-    const onClickOutside = (e: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
-        setProfileMenuOpen(false);
-      }
-    };
-    document.addEventListener('click', onClickOutside);
-    return () => document.removeEventListener('click', onClickOutside);
-  }, [profileMenuOpen]);
+    setScrolled(window.scrollY > 20);
+  }, [pathname]);
+
+  const clearProfileMenuCloseTimeout = () => {
+    if (profileMenuCloseTimeoutRef.current) {
+      clearTimeout(profileMenuCloseTimeoutRef.current);
+      profileMenuCloseTimeoutRef.current = null;
+    }
+  };
+  const scheduleProfileMenuClose = () => {
+    clearProfileMenuCloseTimeout();
+    profileMenuCloseTimeoutRef.current = setTimeout(() => setProfileMenuOpen(false), 150);
+  };
+  const handleProfileMenuEnter = () => {
+    clearProfileMenuCloseTimeout();
+    setProfileMenuOpen(true);
+  };
+  const handleProfileMenuLeave = () => scheduleProfileMenuClose();
+
+  const isSettings = pathname.startsWith('/settings');
+  const solidBlack = isSettings || scrolled;
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-20 transition-all duration-300 ${
-        scrolled ? 'bg-linear-to-b from-black/80 to-transparent' : 'bg-transparent'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isSettings ? 'border-b border-white/10' : ''}`}
+      style={{
+        ...(solidBlack
+          ? { backgroundColor: 'rgba(0,0,0,0.95)' }
+          : {
+              background:
+                'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.04) 100%)',
+            }),
+      }}
     >
-      {/* Logo - left */}
-      <Link href="/" className="shrink-0 flex items-center">
-        <img src="/static/logo.png" alt="NYETFLIX" className="h-11 w-auto object-contain" />
-      </Link>
+      {/* Single row: logo left, profile right (classic Netflix top bar) */}
+      <div className="flex items-center justify-between px-6 md:px-12 h-16">
+        <Link href="/" className="shrink-0 flex items-center">
+          <img src="/static/logo.png" alt="NYETFLIX" className="h-7 md:h-8 w-auto object-contain" />
+        </Link>
 
-      {/* Hamburger - visible only on small screens */}
-      <button
-        type="button"
-        onClick={() => setMobileMenuOpen((o) => !o)}
-        className="md:hidden p-2 -ml-2 text-white/90 hover:text-white transition-colors [&_svg]:w-7 [&_svg]:h-7"
-        aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-        aria-expanded={mobileMenuOpen}
-      >
-        {mobileMenuOpen ? (
-          <Close sx={{ fontSize: 28, color: 'inherit' }} />
-        ) : (
-          <Menu sx={{ fontSize: 28, color: 'inherit' }} />
-        )}
-      </button>
+      {/* Hamburger - visible only on small screens, hide on settings */}
+      {!isSettings && (
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen((o) => !o)}
+          className="md:hidden p-2 -ml-2 text-white/90 hover:text-white transition-colors [&_svg]:w-7 [&_svg]:h-7"
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? (
+            <Close sx={{ fontSize: 28, color: 'inherit' }} />
+          ) : (
+            <Menu sx={{ fontSize: 28, color: 'inherit' }} />
+          )}
+        </button>
+      )}
 
-      {/* Nav - center, desktop only */}
-      <nav className="hidden md:flex items-center gap-6 ml-10">
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.label}
-            href={item.to}
-            className={`text-base transition-colors ${pathname === item.to ? 'text-white font-medium' : 'text-white/90 hover:text-white'}`}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      {/* Nav - center, desktop only, hide on settings */}
+      {!isSettings && (
+        <nav className="hidden md:flex items-center gap-6 ml-10">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.label}
+              href={item.to}
+              className={`text-base transition-colors ${pathname === item.to ? 'text-white font-medium' : 'text-white/90 hover:text-white'}`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {/* Mobile menu dropdown */}
-      {mobileMenuOpen && (
+      {!isSettings && mobileMenuOpen && (
         <nav
-          className="absolute top-20 left-0 right-0 md:hidden flex flex-col gap-1 py-3 px-6 bg-black/95 border-b border-white/10"
+          className="absolute top-16 left-0 right-0 md:hidden flex flex-col gap-1 py-3 px-6 bg-black/95 border-b border-white/10"
           aria-label="Mobile navigation"
         >
           {NAV_ITEMS.map((item) => (
@@ -129,9 +148,10 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
         </nav>
       )}
 
-      {/* Right: search (expandable) + square icon */}
+      {/* Right: search (expandable) + profile; on settings only profile */}
       <div className="flex items-center gap-3 ml-auto">
-        {/* Search: icon or expanded input */}
+        {/* Search: icon or expanded input - hide on settings */}
+        {!isSettings && (
         <div className="flex items-center">
           {searchOpen ? (
             <div className="flex items-center bg-white/10 rounded-md overflow-hidden border border-white/20 transition-opacity duration-200">
@@ -179,49 +199,103 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
             </button>
           )}
         </div>
+        )}
 
-        {/* Profile: avatar + dropdown chevron, opens settings */}
-        <div className="relative shrink-0" ref={profileMenuRef}>
+        {/* Profile: avatar + dropdown (open on hover, Netflix-style menu) */}
+        <div
+          className="relative shrink-0"
+          ref={profileMenuRef}
+          onMouseEnter={handleProfileMenuEnter}
+          onMouseLeave={handleProfileMenuLeave}
+        >
           <button
             type="button"
-            onClick={() => setProfileMenuOpen((o) => !o)}
             className="flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
             aria-label="Profile and settings"
             aria-expanded={profileMenuOpen}
             aria-haspopup="true"
           >
-            <div className="w-10 h-10 shrink-0 rounded overflow-hidden">
-              <img src="/static/avatar.png" alt="Profile" className="w-full h-full object-cover" />
+            <div className="w-8 h-8 md:w-9 md:h-9 shrink-0 rounded overflow-hidden bg-white/10">
+              <img
+                src={currentProfile?.avatarPath ?? '/static/avatar_1.png'}
+                alt={currentProfile?.name ?? 'Profile'}
+                className="w-full h-full object-cover"
+              />
             </div>
-            <ExpandMore
-              sx={{ fontSize: 20, color: 'white' }}
+            <ArrowDropDownIcon
+              sx={{ fontSize: 18, color: 'white' }}
               className={`transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`}
             />
           </button>
           {profileMenuOpen && (
             <div
-              className="absolute right-0 top-full mt-1 min-w-[180px] py-1 rounded bg-[#181818] border border-white/10 shadow-xl z-50"
+              className="absolute right-0 top-full mt-1 min-w-[220px] py-1 rounded bg-black border border-white/10 shadow-xl z-50"
               role="menu"
             >
-              {PROFILE_MENU_ITEMS.map(({ label, icon: Icon }) => (
+              {/* Profiles */}
+              {profiles.map((p) => (
                 <button
-                  key={label}
+                  key={p.id}
                   type="button"
                   role="menuitem"
-                  onClick={() => {
-                    setProfileMenuOpen(false);
-                    if (label === 'Account') onOpenAccount?.();
-                    if (label === 'App Settings') onOpenAppSettings?.();
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors"
+                  onClick={() => setCurrentProfileId(p.id as 1 | 2 | 3 | 4 | 5)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
                 >
-                  <Icon sx={{ fontSize: 20, color: 'inherit' }} />
-                  {label}
+                  <div className="w-8 h-8 rounded overflow-hidden bg-white/10 shrink-0">
+                    <img src={p.avatarPath} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <span>{p.name}</span>
                 </button>
               ))}
+              {/* Manage Profiles, Transfer, Account, Help Centre */}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => router.push('/settings/profiles')}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
+              >
+                <EditOutlined sx={{ fontSize: 20, color: 'inherit' }} />
+                Manage Profiles
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
+              >
+                <SwapHoriz sx={{ fontSize: 20, color: 'inherit' }} />
+                Transfer Profile
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => currentProfileId != null && router.push(`/settings/profile/${currentProfileId}`)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
+              >
+                <PersonOutlined sx={{ fontSize: 20, color: 'inherit' }} />
+                Account
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
+              >
+                <HelpOutline sx={{ fontSize: 20, color: 'inherit' }} />
+                Help Centre
+              </button>
+              <div className="border-t border-white/10 my-1" />
+              <div className="px-4 py-2.5">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full text-center text-sm text-white/90 hover:text-white hover:underline transition-colors"
+                >
+                  Sign out of Netflix
+                </button>
+              </div>
             </div>
           )}
         </div>
+      </div>
       </div>
     </header>
   );

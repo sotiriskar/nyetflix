@@ -1,8 +1,5 @@
-import { useState } from 'react';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import PlayArrow from '@mui/icons-material/PlayArrow';
-import VolumeOff from '@mui/icons-material/VolumeOff';
-import VolumeUp from '@mui/icons-material/VolumeUp';
 import type { CarouselItem } from '../types/movie';
 import type { MovieDetail } from '../types/movie';
 import { getMovieDetail } from '../data/dummyCarousel';
@@ -20,7 +17,6 @@ export interface HeroBannerProps {
 }
 
 export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMovieDetailProp, pageTitle }: HeroBannerProps) {
-  const [muted, setMuted] = useState(true);
   const detail = getMovieDetailProp?.(heroItem.id) ?? getMovieDetail(heroItem.id);
   const description = detail?.description ?? 'No description available.';
   const heroImageUrl = detail?.backdropUrl ?? heroItem.backdropUrl;
@@ -88,37 +84,23 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
             {description}
           </p>
         </div>
-        {/* Full-width row: Play + More Info on left, Sound on right edge */}
-        <div className="flex items-center justify-between gap-4 mt-5 w-full">
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => onPlay?.(heroItem)}
-              className="flex items-center gap-2 px-8 py-3.5 rounded-md bg-white text-black font-semibold hover:bg-white/90 transition-colors min-w-[120px] justify-center"
-            >
-              <PlayArrow sx={{ fontSize: 36 }} />
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={() => onMoreInfo?.(heroItem)}
-              className="flex items-center gap-2 px-8 py-3.5 rounded-md bg-gray-400 text-white font-semibold hover:bg-gray-300 transition-colors min-w-[140px] justify-center"
-            >
-              <InfoOutlined sx={{ fontSize: 36, color: 'white' }} />
-              More Info
-            </button>
-          </div>
+        {/* Play + More Info */}
+        <div className="flex items-center gap-3 mt-5">
           <button
             type="button"
-            onClick={() => setMuted((m) => !m)}
-            className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-white/50 bg-black/40 hover:bg-white/20 hover:border-white/80 transition-colors text-white shrink-0"
-            aria-label={muted ? 'Unmute' : 'Mute'}
+            onClick={() => onPlay?.(heroItem)}
+            className="flex items-center gap-2 px-8 py-3.5 rounded-md bg-white text-black font-semibold hover:bg-white/90 transition-colors min-w-[120px] justify-center"
           >
-            {muted ? (
-              <VolumeOff sx={{ fontSize: 28, color: 'white' }} />
-            ) : (
-              <VolumeUp sx={{ fontSize: 28, color: 'white' }} />
-            )}
+            <PlayArrow sx={{ fontSize: 36 }} />
+            Play
+          </button>
+          <button
+            type="button"
+            onClick={() => onMoreInfo?.(heroItem)}
+            className="flex items-center gap-2 px-8 py-3.5 rounded-md bg-gray-400 text-white font-semibold hover:bg-gray-300 transition-colors min-w-[140px] justify-center"
+          >
+            <InfoOutlined sx={{ fontSize: 36, color: 'white' }} />
+            More Info
           </button>
         </div>
       </div>
