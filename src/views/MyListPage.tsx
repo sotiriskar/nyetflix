@@ -46,7 +46,7 @@ function SectionGrid({
         return (
           <div
             key={item.id}
-            className="group/slide relative z-0 aspect-video w-full overflow-visible hover:z-20"
+            className="group/slide relative z-0 aspect-video w-full overflow-visible hover:z-[30]"
             role="listitem"
           >
             <CarouselHoverCard

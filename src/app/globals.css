@@ -5,5 +5,5 @@ body {
   min-height: 100vh;
   background: #141414;
   color: #fff;
-  font-family: "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-app, "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif);
 }

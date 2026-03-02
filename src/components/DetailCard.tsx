@@ -162,48 +162,47 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
           >
             <Close sx={{ fontSize: 24 }} />
           </button>
-          {/* Title + controls over image */}
-          <div className="absolute bottom-8 left-8 flex flex-col gap-4 z-10">
+          {/* Title + controls over image — bottom-left, kept small */}
+          <div className="absolute bottom-6 left-6 md:left-8 flex flex-col gap-3 z-10">
             {detail.titleLogoUrl ? (
               <img
                 src={detail.titleLogoUrl}
                 alt={detail.title ?? ''}
-                className="max-h-14 md:max-h-16 w-auto object-contain object-left drop-shadow-lg"
+                className="max-h-9 md:max-h-11 w-auto object-contain object-left drop-shadow-lg"
               />
             ) : (
-              <h2 className="text-white text-2xl md:text-3xl font-bold drop-shadow-lg">
+              <h2 className="text-white text-base md:text-lg font-bold drop-shadow-lg">
                 {detail.title}
               </h2>
             )}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleMainPlay}
-                className="flex items-center gap-2 h-11 px-5 rounded-md bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors justify-center min-w-[90px]"
+                className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0"
                 aria-label="Play"
               >
-                <PlayArrow sx={{ fontSize: 38 }} />
-                Play
+                <PlayArrow sx={{ fontSize: 22 }} />
               </button>
               <button
                 type="button"
                 onClick={onAddClick}
-                className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors ${
+                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
                   isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
                 }`}
                 aria-label={isInList ? 'In My List' : 'Add to My List'}
               >
-                {isInList ? <Check sx={{ fontSize: 24 }} /> : <Add sx={{ fontSize: 24 }} />}
+                {isInList ? <Check sx={{ fontSize: 22 }} /> : <Add sx={{ fontSize: 22 }} />}
               </button>
               <button
                 type="button"
                 onClick={onLikeClick}
-                className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors ${
+                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
                   isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
                 }`}
                 aria-label={isLiked ? 'Liked' : 'Like'}
               >
-                <ThumbUp sx={{ fontSize: 22 }} />
+                <ThumbUp sx={{ fontSize: 20 }} />
               </button>
             </div>
           </div>
@@ -211,20 +210,20 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
 
         {/* Bottom: metadata + episodes (single scroll = overlay) */}
         <div className="min-w-0 p-6 md:p-8 pb-20 md:pb-24">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            {detail.year && <span className="text-sm text-white/80">{detail.year}</span>}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
+            {detail.year && <span className="text-base text-white/80">{detail.year}</span>}
             {durationDisplay && (
-              <span className="text-sm text-white/80">{durationDisplay}</span>
+              <span className="text-base text-white/80">{durationDisplay}</span>
             )}
             {isSeries && seasons.length > 0 && (
-              <span className="text-sm text-white/80">{seasons.length} Season{seasons.length !== 1 ? 's' : ''}</span>
+              <span className="text-base text-white/80">{seasons.length} Season{seasons.length !== 1 ? 's' : ''}</span>
             )}
-            <span className="inline-flex items-center justify-center rounded border border-white/60 bg-white/10 px-1.5 py-0.5 text-xs font-semibold text-white/90">
+            <span className="inline-flex items-center justify-center rounded border border-white/50 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-white/80">
               HD
             </span>
             {(detail.hasSubtitles ?? (detail.subtitleLanguages?.length ?? 0) > 0) && (
-              <span className="inline-flex items-center justify-center rounded border border-white/60 bg-white/10 p-0.5 text-white/90">
-                <SubtitlesOutlined sx={{ fontSize: 18 }} />
+              <span className="inline-flex items-center text-white/80">
+                <SubtitlesOutlined sx={{ fontSize: 22 }} />
               </span>
             )}
           </div>
@@ -239,14 +238,14 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                 {detail.description ?? 'No description available.'}
               </p>
             </div>
-            <div className="flex flex-col gap-2 text-sm text-white/70 md:min-w-[200px] md:max-w-[260px]">
+            <div className="flex flex-col gap-2 text-base text-white/70 md:min-w-[200px] md:max-w-[260px]">
               <div>
                 <span className="text-white/50">Cast: </span>
                 {detail.cast ?? '—'}
               </div>
               <div>
                 <span className="text-white/50">Genres: </span>
-                {detail.genres ?? '—'}
+                <span className="text-lg font-medium text-white/90">{detail.genres ?? '—'}</span>
               </div>
             </div>
           </div>

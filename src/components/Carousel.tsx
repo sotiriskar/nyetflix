@@ -51,7 +51,7 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
 
   return (
     <section className="w-full pt-6 pb-4 overflow-x-clip overflow-y-visible">
-      <h2 className="text-xl font-semibold text-white mb-3 px-6 md:px-12">{title}</h2>
+      <h2 className="text-xl md:text-2xl font-semibold text-white mb-3 px-6 md:px-12">{title}</h2>
       {/* Full-bleed so prev/next sit at max left and max right of viewport */}
       <div
         ref={wrapperRef}
@@ -80,7 +80,7 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
           </button>
         )}
         {/* Wrapper gets z-20 on card hover so hover card stacks above nav buttons (z-10); overflow-visible so scaled card isn't clipped */}
-        <div className="relative overflow-visible" style={{ zIndex: isCardHovered ? 20 : 0 }}>
+        <div className="relative overflow-visible" style={{ zIndex: isCardHovered ? 30 : 0 }}>
           <SwiperRoot
             spaceBetween={12}
             slidesPerView={5}
@@ -102,7 +102,7 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
             return (
               <SwiperSlide
                 key={item.id}
-                className="aspect-video! w-full overflow-visible! hover:z-20! group/slide"
+                className="aspect-video! w-full overflow-visible! hover:z-[30]! group/slide"
               >
                 <div
                   className="h-full w-full"

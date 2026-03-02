@@ -1,6 +1,13 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import { ClientShell } from './ClientShell';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-app',
+});
 
 export const metadata: Metadata = {
   title: 'Nyetflix',
@@ -17,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${inter.variable} ${inter.className}`}>
         <ClientShell>{children}</ClientShell>
       </body>
     </html>

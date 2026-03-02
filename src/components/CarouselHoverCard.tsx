@@ -1,13 +1,20 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useLayoutEffect, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Add from '@mui/icons-material/Add';
 import Check from '@mui/icons-material/Check';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import ThumbUp from '@mui/icons-material/ThumbUp';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
+import VolumeOff from '@mui/icons-material/VolumeOff';
+import VolumeUp from '@mui/icons-material/VolumeUp';
 import type { CarouselItem } from '../types/movie';
+import { useTrailerMute } from '@/context/TrailerMuteContext';
 
-const HOVER_DELAY_MS = 400;
+const HOVER_OVERLAY_DELAY_MS = 500;
+const HOVER_TRAILER_DELAY_MS = 400;
+const OVERLAY_WIDTH = 440;
+const OVERLAY_MIN_HEIGHT = 400;
 
 /** Format duration string: "145m" -> "2h 25m", "45m" -> "45m". */
 function formatDuration(d: string | undefined): string | undefined {
@@ -56,7 +63,15 @@ export function CarouselHoverCard({
   isLiked = false,
 }: CarouselHoverCardProps) {
   const progressPercent = Math.min(1, Math.max(0, progress ?? 0)) * 100;
+  const { isMuted, setMuted } = useTrailerMute();
   const [showTrailer, setShowTrailer] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [overlayRect, setOverlayRect] = useState<{ left: number; top: number; cardWidth: number } | null>(null);
+  const [overlayAnimated, setOverlayAnimated] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const genreList = useMemo(() => {
     if (!genres?.trim()) return [];
@@ -67,7 +82,43 @@ export function CarouselHoverCard({
   const metaLine = mediaType === 'series' && seasonsCount != null && seasonsCount > 0
     ? `${seasonsCount} Season${seasonsCount !== 1 ? 's' : ''}`
     : durationDisplay;
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const updateOverlayRect = useCallback(() => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setOverlayRect({
+      left: rect.left + rect.width / 2 - OVERLAY_WIDTH / 2,
+      top: rect.top + rect.height / 2 - OVERLAY_MIN_HEIGHT / 2,
+      cardWidth: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isHovered) {
+      setOverlayRect(null);
+      setOverlayAnimated(false);
+      return;
+    }
+    updateOverlayRect();
+    const onScrollOrResize = () => updateOverlayRect();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [isHovered, updateOverlayRect]);
+
+  useEffect(() => {
+    if (!overlayRect) {
+      setOverlayAnimated(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setOverlayAnimated(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [overlayRect]);
 
   const clearHoverTimer = useCallback(() => {
     if (hoverTimerRef.current) {
@@ -77,165 +128,190 @@ export function CarouselHoverCard({
   }, []);
 
   const handleMouseEnter = useCallback(() => {
+    if (closeCooldownRef.current) return;
     clearHoverTimer();
-    if (!item.trailerYouTubeId) return;
-    hoverTimerRef.current = setTimeout(() => setShowTrailer(true), HOVER_DELAY_MS);
+    hoverTimerRef.current = setTimeout(() => {
+      setIsHovered(true);
+      if (item.trailerYouTubeId) {
+        hoverTimerRef.current = setTimeout(() => setShowTrailer(true), HOVER_TRAILER_DELAY_MS);
+      }
+    }, HOVER_OVERLAY_DELAY_MS);
   }, [item.trailerYouTubeId, clearHoverTimer]);
 
-  const handleMouseLeave = useCallback(() => {
+  const closeOverlay = useCallback(() => {
     clearHoverTimer();
+    setIsHovered(false);
     setShowTrailer(false);
+    if (closeCooldownRef.current) clearTimeout(closeCooldownRef.current);
+    closeCooldownRef.current = setTimeout(() => {
+      closeCooldownRef.current = null;
+    }, 200);
   }, [clearHoverTimer]);
 
+  const handleMouseLeave = useCallback((e: React.MouseEvent) => {
+    const toOverlay = e.relatedTarget && overlayRef.current && overlayRef.current.contains(e.relatedTarget as Node);
+    if (!toOverlay) closeOverlay();
+  }, [closeOverlay]);
+
+  const handleOverlayMouseLeave = useCallback((e: React.MouseEvent) => {
+    const toCard = e.relatedTarget && cardRef.current && cardRef.current.contains(e.relatedTarget as Node);
+    if (!toCard) closeOverlay();
+  }, [closeOverlay]);
+
   const trailerUrl = item.trailerYouTubeId
-    ? `https://www.youtube.com/embed/${item.trailerYouTubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${item.trailerYouTubeId}&rel=0`
+    ? `https://www.youtube.com/embed/${item.trailerYouTubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&loop=1&playlist=${item.trailerYouTubeId}&rel=0`
     : null;
 
-  return (
+  const initialScale = overlayRect ? Math.min(1, overlayRect.cardWidth / OVERLAY_WIDTH) : 1;
+  const zoomInReady = overlayAnimated;
+  const overlayContent = overlayRect && (
     <div
-      className="h-full w-full rounded-lg transition-all duration-200 origin-center group-hover/slide:scale-y-[1.5] group-hover/slide:overflow-hidden group-hover/slide:shadow-xl group-hover/slide:ring-1 group-hover/slide:ring-white/20 group-hover/slide:bg-[#181818] cursor-pointer relative"
-      onClick={onClick}
-      onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      role="button"
-      tabIndex={0}
+      ref={overlayRef}
+      dir="ltr"
+      className={`fixed z-[9999] rounded-lg overflow-hidden bg-[#181818] shadow-2xl ring-1 ring-white/20 origin-center ${zoomInReady ? 'opacity-100' : 'opacity-0'}`}
+      style={{
+        left: Math.max(8, Math.min(overlayRect.left, typeof window !== 'undefined' ? window.innerWidth - OVERLAY_WIDTH - 8 : overlayRect.left)),
+        top: Math.max(8, Math.min(overlayRect.top, typeof window !== 'undefined' ? window.innerHeight - OVERLAY_MIN_HEIGHT - 8 : overlayRect.top)),
+        width: OVERLAY_WIDTH,
+        minHeight: OVERLAY_MIN_HEIGHT,
+        transform: zoomInReady ? 'scale(1)' : `scale(${initialScale})`,
+        transition: 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+      }}
+      onMouseLeave={handleOverlayMouseLeave}
     >
-      {/* Image or trailer – fills entire card; trailer uses cover-style so no black letterboxing */}
-      <div className="absolute inset-0 bg-white/10 rounded-lg ring-1 ring-white/10 group-hover/slide:rounded-b-none group-hover/slide:rounded-t-lg overflow-hidden">
+      <div className="relative aspect-video w-full bg-white/10 overflow-hidden rounded-t-lg">
         {showTrailer && trailerUrl ? (
-          <div className="absolute left-1/2 top-1/2 w-full origin-center -translate-x-1/2 -translate-y-1/2 scale-[1.778] h-0 pb-[56.25%]">
-            <div className="absolute inset-0">
-              <iframe
-                src={trailerUrl}
-                title={`${item.title} trailer`}
-                className="absolute inset-0 h-full w-full pointer-events-none"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+          <div className="absolute inset-0">
+            <iframe
+              src={trailerUrl}
+              title={`${item.title} trailer`}
+              className="absolute inset-0 w-full h-full pointer-events-none object-cover"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
+        ) : (item.backdropUrl ?? item.posterUrl) ? (
+          <img
+            src={item.backdropUrl ?? item.posterUrl}
+            alt=""
+            className="block size-full object-cover object-top"
+          />
         ) : (
-          <>
-            {(item.backdropUrl ?? item.posterUrl) ? (
-              <img
-                src={item.backdropUrl ?? item.posterUrl}
-                alt=""
-                className="block size-full object-cover object-top"
-              />
+          <div className="w-full h-full flex items-center justify-center min-h-[120px]">
+            <span className="text-white/40 text-4xl font-bold select-none" aria-hidden>?</span>
+          </div>
+        )}
+        {/* Title / logo inside video area, bottom-left */}
+        <div className="absolute left-0 right-0 bottom-0 pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-lg">
+          <div className="flex items-end min-h-[1.25rem]">
+            {item.titleLogoUrl ? (
+              <img src={item.titleLogoUrl} alt={item.title} className="max-h-8 w-auto object-contain object-left drop-shadow-md" />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center min-w-0 min-h-0 origin-center group-hover/slide:scale-y-[0.69] group-hover/slide:-translate-y-[14%]">
-                <span className="text-white/40 text-5xl font-bold select-none leading-none" aria-hidden>?</span>
-              </div>
+              <span className="text-white font-semibold text-xs truncate block drop-shadow-md">{item.title}</span>
             )}
-          </>
+          </div>
+        </div>
+        {/* Mute / unmute inside video area, bottom-right */}
+        {showTrailer && trailerUrl && (
+          <button
+            type="button"
+            className="absolute bottom-2 right-5 z-10 w-10 h-10 rounded-full border-2 border-white/80 flex items-center justify-center text-white bg-black/30 hover:bg-black/50 transition-colors shrink-0"
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            onClick={(e) => { e.stopPropagation(); setMuted(!isMuted); }}
+          >
+            {isMuted ? <VolumeOff sx={{ fontSize: 22 }} /> : <VolumeUp sx={{ fontSize: 22 }} />}
+          </button>
         )}
       </div>
-
-      {/* Title – bottom left over image; hide when trailer is playing so it doesn't overlap video */}
-      <div
-        className={`absolute left-0 right-0 bottom-0 pt-12 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-lg pointer-events-none transition-opacity duration-200 ${showTrailer ? 'opacity-0' : ''}`}
-      >
-        <div className="flex items-end min-h-[clamp(1.5rem,6vmin,2.5rem)]">
-          {item.titleLogoUrl ? (
-            <img
-              src={item.titleLogoUrl}
-              alt={item.title}
-              className="max-h-[clamp(2rem,10vmin,4.5rem)] w-auto object-contain object-left"
-            />
-          ) : (
-            <span
-              className="text-white font-semibold truncate drop-shadow-md"
-              style={{ fontSize: 'clamp(0.95rem, 2.8vmin, 1.4rem)' }}
-            >
-              {item.title}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Progress bar at bottom of card (Continue Watching only) */}
-      {showProgressBar && progressPercent > 0 && (
-        <div
-          className="absolute left-0 right-0 bottom-0 h-1 rounded-b-lg overflow-hidden bg-white/30 pointer-events-none"
-          aria-hidden
+      <div className="flex items-center gap-2 px-5 pt-3 pb-3">
+        <button
+          type="button"
+          className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0"
+          aria-label="Play"
+          onClick={(e) => { e.stopPropagation(); onPlay?.(item); }}
         >
-          <div
-            className="h-full bg-[#E50914] rounded-b-lg transition-[width] duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      )}
-
-      {/* Bottom panel – controls + metadata (genres, seasons/duration, HD, subtitle) */}
-      <div className="absolute left-0 right-0 bottom-0 overflow-hidden rounded-b-lg max-h-0 opacity-0 transition-all duration-200 group-hover/slide:max-h-32 group-hover/slide:opacity-100">
-        <div className="origin-bottom bg-[#181818] px-3 pb-3 pt-2.5 rounded-b-lg group-hover/slide:scale-y-[0.69]">
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              type="button"
-              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0"
-              aria-label="Play"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPlay?.(item);
-              }}
-            >
-              <PlayArrow sx={{ fontSize: 20 }} />
-            </button>
-            <button
-              type="button"
-              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-                isInList ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'
-              }`}
-              aria-label={isInList ? 'In My List' : 'Add to list'}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddClick?.();
-              }}
-            >
-              {isInList ? <Check sx={{ fontSize: 18 }} /> : <Add sx={{ fontSize: 18 }} />}
-            </button>
-            <button
-              type="button"
-              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-                isLiked ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'
-              }`}
-              aria-label={isLiked ? 'Liked' : 'Like'}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLikeClick?.();
-              }}
-            >
-              <ThumbUp sx={{ fontSize: 16 }} />
-            </button>
-            <button
-              type="button"
-              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 ml-auto"
-              aria-label="More info"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick?.();
-              }}
-            >
-              <ExpandMore sx={{ fontSize: 22 }} />
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/80">
-            {metaLine && <span>{metaLine}</span>}
-            <span className="inline-flex items-center justify-center rounded border border-white/60 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/90">HD</span>
-            {hasSubtitles && (
-              <span className="inline-flex items-center rounded border border-white/60 bg-white/10 p-0.5 text-white/90">
-                <SubtitlesOutlined sx={{ fontSize: 14 }} />
-              </span>
-            )}
-            {genreList.length > 0 && (
-              <span className="w-full truncate">
-                {genreList.join(' • ')}
-              </span>
-            )}
-          </div>
-        </div>
+          <PlayArrow sx={{ fontSize: 22 }} />
+        </button>
+        <button
+          type="button"
+          className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${isInList ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'}`}
+          aria-label={isInList ? 'In My List' : 'Add to list'}
+          onClick={(e) => { e.stopPropagation(); onAddClick?.(); }}
+        >
+          {isInList ? <Check sx={{ fontSize: 22 }} /> : <Add sx={{ fontSize: 22 }} />}
+        </button>
+        <button
+          type="button"
+          className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${isLiked ? 'border-white bg-white text-black' : 'border-white text-white hover:bg-white/20'}`}
+          aria-label={isLiked ? 'Liked' : 'Like'}
+          onClick={(e) => { e.stopPropagation(); onLikeClick?.(); }}
+        >
+          <ThumbUp sx={{ fontSize: 20 }} />
+        </button>
+        <button
+          type="button"
+          className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 ml-auto"
+          aria-label="More info"
+          onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+        >
+          <ExpandMore sx={{ fontSize: 26 }} />
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-5 pb-5 text-base text-white/80">
+        {metaLine && <span>{metaLine}</span>}
+        <span className="inline-flex items-center rounded border border-white/50 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-white/80">HD</span>
+        {hasSubtitles && (
+          <span className="inline-flex items-center text-white/80">
+            <SubtitlesOutlined sx={{ fontSize: 24 }} />
+          </span>
+        )}
+        {genreList.length > 0 && (
+          <span className="w-full truncate text-lg font-medium text-white/90">{genreList.join(' • ')}</span>
+        )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <div
+        ref={cardRef}
+        className="h-full w-full rounded-lg cursor-pointer relative"
+        onClick={onClick}
+        onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        role="button"
+        tabIndex={0}
+      >
+        <div className="absolute inset-0 rounded-lg overflow-hidden ring-1 ring-white/10 bg-white/10">
+          {/* Trailer plays only in the overlay portal, not on the thumbnail — avoids double video/sound */}
+          {(item.backdropUrl ?? item.posterUrl) ? (
+            <img src={item.backdropUrl ?? item.posterUrl} alt="" className="block size-full object-cover object-top" />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white/40 text-5xl font-bold select-none leading-none" aria-hidden>?</span>
+            </div>
+          )}
+        </div>
+        <div className={`absolute left-0 right-0 bottom-0 pt-10 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-lg pointer-events-none transition-opacity duration-200 ${isHovered ? 'opacity-0' : ''} ${showTrailer ? 'opacity-0' : ''}`}>
+          <div className="flex items-end justify-start min-h-[clamp(1.25rem,5vmin,2rem)]">
+            {item.titleLogoUrl ? (
+              <img src={item.titleLogoUrl} alt={item.title} className="max-h-[clamp(1.5rem,7vmin,3.5rem)] w-auto object-contain object-left" />
+            ) : (
+              <span className="text-white font-semibold truncate drop-shadow-md" style={{ fontSize: 'clamp(0.8rem, 2.4vmin, 1.15rem)' }}>
+                {item.title}
+              </span>
+            )}
+          </div>
+        </div>
+        {showProgressBar && progressPercent > 0 && (
+          <div className="absolute left-0 right-0 bottom-0 h-1 rounded-b-lg overflow-hidden bg-white/30 pointer-events-none z-10" aria-hidden>
+            <div className="h-full bg-[#E50914] rounded-b-lg transition-[width] duration-300" style={{ width: `${progressPercent}%` }} />
+          </div>
+        )}
+      </div>
+      {typeof document !== 'undefined' && overlayContent && createPortal(overlayContent, document.body)}
+    </>
   );
 }

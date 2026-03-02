@@ -4,15 +4,18 @@ import { TopBar } from '@/components/TopBar';
 import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { ProgressProvider } from '@/context/ProgressContext';
+import { TrailerMuteProvider } from '@/context/TrailerMuteContext';
 
 function AppWithProviders({ children }: { children: React.ReactNode }) {
   return (
     <SettingsProvider>
       <ProgressProvider>
-        <div className="min-h-screen bg-[#141414]">
-          <TopBar />
-          <main>{children}</main>
-        </div>
+        <TrailerMuteProvider>
+          <div className="min-h-screen bg-[#141414]">
+            <TopBar />
+            <main>{children}</main>
+          </div>
+        </TrailerMuteProvider>
       </ProgressProvider>
     </SettingsProvider>
   );
