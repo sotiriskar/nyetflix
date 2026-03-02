@@ -12,7 +12,7 @@ import {
 } from '@/lib/imdbapi';
 import { getImagesForTitle } from '@/lib/tmdb';
 import type { CarouselItem, MovieDetail } from '@/types/movie';
-import { registry } from '@/lib/streamRegistry';
+import { registry, persistRegistry } from '@/lib/streamRegistry';
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const scanCache = new Map<
@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
       if (cached.subtitlePathByItemId) {
         Object.entries(cached.subtitlePathByItemId).forEach(([k, v]) => itemIdToSubtitlePath.set(k, v));
       }
+      persistRegistry();
       return NextResponse.json({ carousels: cached.carousels, detailsMap: cached.detailsMap });
     }
   }
@@ -314,6 +315,7 @@ export async function GET(request: NextRequest) {
   Object.entries(pathByItemId).forEach(([k, v]) => itemIdToPath.set(k, v));
   Object.entries(folderPathByItemIdRecord).forEach(([k, v]) => folderPathByItemId.set(k, v));
   Object.entries(subtitlePathByItemId).forEach(([k, v]) => itemIdToSubtitlePath.set(k, v));
+  persistRegistry();
 
   return NextResponse.json({
     carousels,

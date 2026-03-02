@@ -74,21 +74,14 @@ export function SeriesPage() {
   const [playbackMessage, setPlaybackMessage] = useState<string | null>(null);
 
   const handlePlay = useCallback(
-    async (item: CarouselItem) => {
-      const path = moviesFolderPath?.trim() ?? '';
-      if (path) {
-        try {
-          const res = await fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
-          if (!res.ok) return;
-        } catch {
-          return;
-        }
-      }
+    (item: CarouselItem) => {
       setNowPlayingTitle(null);
       setNowPlayingSubtitleLanguages(undefined);
       const prog = getProgress(item.id);
       const resumeEpisodeId = detailsMap[item.id]?.mediaType === 'series' ? prog?.lastEpisodeId : undefined;
       setNowPlayingId(resumeEpisodeId ?? item.id);
+      const path = moviesFolderPath?.trim() ?? '';
+      if (path) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
     },
     [moviesFolderPath, getProgress, detailsMap]
   );

@@ -29,3 +29,7 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+
+# MKV→MP4 conversion cache (itemId → path to .mp4)
+data/converted-mkv.json
+data/stream-registry.json

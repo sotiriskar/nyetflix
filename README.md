@@ -49,7 +49,7 @@ Examples:
 
 - Put each movie in **its own subfolder**, or place video files directly in the library folder.
 - One video per movie (the app picks one per folder).
-- Supported formats: **MP4, MKV, AVI, WebM, MOV, M4V**. For best browser support, prefer **MP4** or **WebM**.
+- Supported formats: **MP4, MKV, AVI, WebM, MOV, M4V**. **MP4** and **WebM** play in all browsers. **MKV** streams as-is (video often plays; on Windows sound usually needs AAC—see below).
 
 **Examples:**
 
@@ -133,6 +133,43 @@ TMDB_API_KEY=your_key_here
 ```
 
 5. Restart the dev server (`Ctrl+C`, then `npm run dev`).
+
+---
+
+## MKV with sound on Windows
+
+Browsers on Windows usually can’t play MKV audio (DTS/TrueHD). To get **sound**, convert the file once with **ffmpeg**:  
+`ffmpeg -i "YourMovie.mkv" -c:v copy -c:a aac -b:a 192k "YourMovie.mp4"`  
+Then play the `.mp4` in the app (or replace the file and rescan). Install ffmpeg first (see below).
+
+### Windows
+
+**Option A – winget (Windows 10/11)**  
+Open PowerShell or Command Prompt and run:
+
+```powershell
+winget install ffmpeg
+```
+
+Accept the prompt if it asks to install (e.g. Gyan.FFmpeg). Then **close and reopen** your terminal (and restart `npm run dev` if it’s running).
+
+**Option B – Manual**  
+1. Download [ffmpeg-release-essentials.zip](https://www.gyan.dev/ffmpeg/builds/) from gyan.dev.  
+2. Unzip to a folder (e.g. `C:\ffmpeg`).  
+3. Add the **bin** folder to your PATH: **Settings → System → About → Advanced system settings → Environment Variables**. Under **User variables**, edit **Path**, add **New**, and enter the path to the `bin` folder (e.g. `C:\ffmpeg\ffmpeg-7.x.x-essentials_build\bin`).  
+4. Close all terminals and restart the dev server.
+
+**Check:** In a new terminal run `ffmpeg -version`. If you see version info, you’re set.
+
+### Mac
+
+```bash
+brew install ffmpeg
+```
+
+Then restart the dev server (`Ctrl+C`, then `npm run dev`).
+
+**Check:** Run `ffmpeg -version` in a new terminal.
 
 ---
 

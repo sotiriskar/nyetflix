@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import type { Dirent } from 'fs';
-import { registry } from '@/lib/streamRegistry';
+import { registry, persistRegistry } from '@/lib/streamRegistry';
 import {
   getTvShowIdByTitle,
   getTvShowSeasonNumbers,
@@ -180,6 +180,7 @@ export async function GET(request: NextRequest) {
   }
 
   const localMap = await buildLocalEpisodeMap(folderPath, id, episodeIdToPath, episodeIdToSubtitlePath);
+  persistRegistry();
 
   if (title) {
     const tv = await getTvShowIdByTitle(title);
