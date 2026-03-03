@@ -187,13 +187,27 @@ function yearFromQuery(query: string): number | null {
   return y >= 1900 && y <= 2100 ? y : null;
 }
 
-/** Match sequel/part number from end of search query (e.g. "Zootopia 2" -> 2, "Zootopia II" -> 2). */
+/** Check if title suggests a sequel (2, II, two, sequel, part 2) using word checks to avoid ReDoS. */
+function titleSuggestsSequel(title: string): boolean {
+  const words = title.split(/\s+/).filter(Boolean);
+  const sequelWords = new Set(['2', 'ii', 'two', 'sequel']);
+  for (const w of words) {
+    const norm = w.toLowerCase().replace(/\s/g, '');
+    if (sequelWords.has(norm) || norm === 'part2') return true;
+    if (norm.startsWith('part') && norm.slice(4).replace(/\s/g, '') === '2') return true;
+  }
+  for (let i = 0; i < words.length - 1; i++) {
+    if (words[i]!.toLowerCase() === 'part' && (words[i + 1] ?? '').trim() === '2') return true;
+  }
+  return false;
+}
+
+/** Match sequel/part number from end of search query (e.g. "Zootopia 2" -> 2, "Zootopia II" -> 2). Uses bounded suffix to avoid ReDoS. */
 function partNumberFromQuery(query: string): number | null {
   const lower = query.trim().toLowerCase();
-  const m = lower.match(/\s+(2|3|4|5|ii|iii|iv|v|part\s*2|part\s*3)$/);
-  if (m) return 2; // treat II, part 2, 2, etc. as "part 2"
-  const m1 = lower.match(/\s+(1|i|one|part\s*1)$/);
-  if (m1) return 1; // prefer original / first
+  const suffix = lower.slice(-20); // bounded input for safe matching
+  if (/\s+(2|3|4|5|ii|iii|iv|v|part\s*2|part\s*3)$/.test(suffix)) return 2;
+  if (/\s+(1|i|one|part\s*1)$/.test(suffix)) return 1;
   return null;
 }
 
@@ -219,7 +233,7 @@ function scoreResultMatch(
   if (q === t) score = 100;
   else {
     const part = partNumberFromQuery(query);
-    const has2 = /\b(2|ii|two|part\s*2|sequel)\b/.test(t);
+    const has2 = titleSuggestsSequel(t);
     if (part === 2 && has2) score = 80;
     else if (part === 2 && !has2) score = 30;
     else if (part === 1 && !has2) score = 80;
