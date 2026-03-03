@@ -144,7 +144,7 @@ Or: `docker compose up -d`. Open http://localhost:3000. To use your media folder
 
 ### Screenshots
 
-<img width="1900" height="900" alt="Screenshot 2026-03-03 013613" src="https://github.com/user-attachments/assets/2c745dc4-9e89-480e-9164-154a490e8308" />
+<img width="1900" height="900" alt="Screenshot 2026-03-03 155316" src="https://github.com/user-attachments/assets/9b0a0c36-8653-47b3-8c32-e4d25bd8d05c" />
 
 <img width="1900" height="900" alt="Screenshot 2026-03-02 233625" src="https://github.com/user-attachments/assets/2ba5fc95-736c-4ca1-8f4a-b1e59964d97e" />
 
