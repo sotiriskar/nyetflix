@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, realpath } from 'fs/promises';
-import { join, resolve } from 'path';
+import { join, resolve, isAbsolute } from 'path';
 import { homedir } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
@@ -69,8 +69,14 @@ export async function GET(request: NextRequest) {
   let validatedBasePath: string;
   try {
     const canonicalRoot = await realpath(home);
-    const canonicalResolved = await realpath(resolve(home, resolvedPath));
-    if (!canonicalResolved.startsWith(canonicalRoot.endsWith('/') ? canonicalRoot : canonicalRoot + '/')) {
+    let canonicalResolved: string;
+    if (isAbsolute(resolvedPath)) {
+      canonicalResolved = await realpath(resolvedPath);
+    } else {
+      canonicalResolved = await realpath(resolve(canonicalRoot, resolvedPath));
+    }
+    const rootWithSep = canonicalRoot.endsWith('/') ? canonicalRoot : canonicalRoot + '/';
+    if (!(canonicalResolved === canonicalRoot || canonicalResolved.startsWith(rootWithSep))) {
       return NextResponse.json(
         { error: 'Requested path is outside of the allowed directory.' },
         { status: 403 }
