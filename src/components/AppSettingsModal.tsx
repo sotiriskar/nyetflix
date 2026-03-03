@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Close from '@mui/icons-material/Close';
 import FolderOutlined from '@mui/icons-material/FolderOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
@@ -11,6 +11,8 @@ import {
   useSettings,
   type AppLanguage,
 } from '../context/SettingsContext';
+import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
+import { removeLibraryHandle } from '@/lib/libraryHandleStorage';
 
 interface AppSettingsModalProps {
   onClose: () => void;
@@ -38,6 +40,14 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
   const [newIsKid, setNewIsKid] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<ProfileId | null>(null);
+  const isHandleMode = moviesFolderPath === LIBRARY_HANDLE_MODE;
+
+  const handleClearLibrary = useCallback(async () => {
+    if (currentProfileId != null && isHandleMode) {
+      await removeLibraryHandle(currentProfileId);
+    }
+    clearMoviesFolderPath();
+  }, [currentProfileId, isHandleMode, clearMoviesFolderPath]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -243,24 +253,21 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
 
           {/* Media library folder */}
           <section>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <FolderOutlined sx={{ fontSize: 20, color: 'white' }} />
               <h3 className="text-sm font-medium text-white">Media library folder</h3>
             </div>
-            <p className="text-xs text-white/60 mb-3">
-              Type or paste the full folder path where your movies are stored. Changes are saved automatically.
-            </p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap items-center">
               <input
                 type="text"
                 value={moviesFolderPath}
                 onChange={(e) => setMoviesFolderPath(e.target.value)}
                 placeholder="e.g. /Users/me/Movies or C:\Movies"
-                className="flex-1 min-w-0 px-3 py-2.5 rounded bg-white/5 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+                className="flex-1 min-w-[200px] px-3 py-2.5 rounded bg-white/5 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
               />
               <button
                 type="button"
-                onClick={clearMoviesFolderPath}
+                onClick={handleClearLibrary}
                 disabled={!moviesFolderPath}
                 className="px-4 py-2.5 rounded text-sm font-medium text-white/90 hover:text-white bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:pointer-events-none transition-colors"
               >

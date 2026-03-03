@@ -10,6 +10,7 @@ import { DetailCard } from '@/components/DetailCard';
 import { LibraryRefreshButton } from '@/components/LibraryRefreshButton';
 import { VideoPlayerModal } from '@/components/VideoPlayerModal';
 import { useLibrary } from '@/hooks/useLibrary';
+import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress } from '@/context/ProgressContext';
 import { useLiked } from '@/hooks/useLiked';
@@ -89,7 +90,7 @@ export function MyListPage() {
       const isSeries = detailsMap[item.id]?.mediaType === 'series';
       setNowPlayingSeriesTitle(isSeries ? (detailsMap[item.id]?.title ?? null) : null);
       const path = moviesFolderPath?.trim() ?? '';
-      if (path) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
+      if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
     },
     [moviesFolderPath, detailsMap]
   );

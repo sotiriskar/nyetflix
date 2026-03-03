@@ -13,6 +13,7 @@ import { Footer } from '@/components/Footer';
 import { HeroBanner } from '@/components/HeroBanner';
 import { VideoPlayerModal } from '@/components/VideoPlayerModal';
 import { useLibrary } from '@/hooks/useLibrary';
+import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
@@ -79,7 +80,7 @@ export function HomePage() {
       setNowPlayingId(resumeEpisodeId ?? item.id);
       setNowPlayingSeriesTitle(isSeries ? (detailsMap[item.id]?.title ?? null) : null);
       const path = moviesFolderPath?.trim() ?? '';
-      if (path) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
+      if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
     },
     [moviesFolderPath, getProgress, detailsMap]
   );

@@ -1,22 +1,31 @@
 'use client';
 
+import { useState } from 'react';
 import { TopBar } from '@/components/TopBar';
+import { AppSettingsModal } from '@/components/AppSettingsModal';
 import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
+import { LibraryHandleProvider } from '@/context/LibraryHandleContext';
 import { ProgressProvider } from '@/context/ProgressContext';
 import { TrailerMuteProvider } from '@/context/TrailerMuteContext';
 
 function AppWithProviders({ children }: { children: React.ReactNode }) {
+  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   return (
     <SettingsProvider>
-      <ProgressProvider>
-        <TrailerMuteProvider>
+      <LibraryHandleProvider>
+        <ProgressProvider>
+          <TrailerMuteProvider>
           <div className="min-h-screen bg-[#141414]">
-            <TopBar />
+            <TopBar onOpenAppSettings={() => setAppSettingsOpen(true)} />
             <main>{children}</main>
           </div>
-        </TrailerMuteProvider>
-      </ProgressProvider>
+          {appSettingsOpen && (
+            <AppSettingsModal onClose={() => setAppSettingsOpen(false)} />
+          )}
+          </TrailerMuteProvider>
+        </ProgressProvider>
+      </LibraryHandleProvider>
     </SettingsProvider>
   );
 }

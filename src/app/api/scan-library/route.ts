@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, realpath } from 'fs/promises';
-import { join, sep, normalize, isAbsolute } from 'path';
-import { homedir } from 'os';
+import { join, resolve, sep, isAbsolute } from 'path';
+import { homedir, platform } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
 import {
@@ -41,43 +41,66 @@ function isVideoFile(name: string): boolean {
   return VIDEO_EXT.has(ext);
 }
 
-/** Allowed top-level dirs under home when using ~/ or / prefix (no raw user path to fs). */
-const HOME_RELATIVE_ALLOWLIST = ['Documents', 'Desktop', 'Downloads', 'Movies', 'Videos', 'media', 'Media', 'Library'] as const;
+/**
+ * Allowed roots for library path. No user input is ever passed to path/fs APIs;
+ * we only use these fixed roots + a sanitized (..-stripped) relative part.
+ */
+function getAllowedRoots(): string[] {
+  const home = homedir();
+  if (platform() === 'win32') {
+    const drives = Array.from({ length: 26 }, (_, i) => `${String.fromCharCode(65 + i)}:\\`);
+    return [home, ...drives].sort((a, b) => b.length - a.length);
+  }
+  return [home, '/'];
+}
+
+type SafePathResult = { rootPath: string; relative: string };
 
 /**
- * Returns a safe relative path (no ..) under home, or null if pathParam is disallowed.
- * Caller must join the result with realpath(home) only. No user input is passed to fs APIs directly.
+ * Maps user path to { rootPath, relative } using only string ops. rootPath is from
+ * getAllowedRoots(); relative is sanitized (no ..). No pathParam is passed to path/fs.
  */
-function getSafeRelativePath(pathParam: string): string | null {
+function getSafePath(pathParam: string): SafePathResult | null {
   const trimmed = pathParam.trim();
   if (!trimmed) return null;
   const home = homedir();
-  let relative: string;
+  const isWin = platform() === 'win32';
+  const expanded = trimmed.startsWith('~') ? home + trimmed.slice(1).replace(/^\//, sep) : trimmed;
+  const normalizedInput = isWin ? expanded.replace(/\//g, sep) : expanded;
+  const roots = getAllowedRoots();
 
-  if (trimmed.startsWith('~')) {
-    relative = trimmed.slice(1).replace(/^\//, '') || '';
-  } else if (trimmed.startsWith('/') && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === `/${dir}` || trimmed.startsWith(`/${dir}/`))) {
-    relative = trimmed.slice(1);
-  } else if (!isAbsolute(trimmed) && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === dir || trimmed.startsWith(dir + '/') || trimmed.startsWith(dir + '\\'))) {
-    relative = trimmed.replace(/\\/g, '/');
-  } else if (isAbsolute(trimmed)) {
-    const normParam = normalize(trimmed);
-    const normHome = normalize(home);
-    const homeWithSep = normHome.endsWith(sep) ? normHome : normHome + sep;
-    if (normParam !== normHome && !normParam.startsWith(homeWithSep)) return null;
-    relative = normParam.slice(normHome.length).replace(/^[/\\]+/, '');
-  } else {
-    return null;
+  for (const root of roots) {
+    const rootNorm = root.replace(/[/\\]+$/, '');
+    const rootWithSep = rootNorm + sep;
+    const inputLower = isWin ? normalizedInput.toLowerCase() : normalizedInput;
+    const rootLower = isWin ? rootWithSep.toLowerCase() : rootWithSep;
+    const rootExact = isWin ? rootNorm.toLowerCase() : rootNorm;
+    if (inputLower === rootExact || inputLower.startsWith(rootLower)) {
+      const prefixLen = inputLower === rootExact ? rootNorm.length : rootWithSep.length;
+      const relative = normalizedInput.slice(prefixLen).replace(/^[/\\]+/, '');
+      const segments = relative.split(sep).filter((s) => s.length > 0 && s !== '..');
+      return { rootPath: rootNorm, relative: segments.join(sep) };
+    }
   }
 
-  const segments = relative.split(/[/\\]/).filter((s) => s.length > 0 && s !== '..');
-  if (segments.length === 0) return null;
-  const firstSegment = segments[0];
-  const isAbsoluteUnderHome = isAbsolute(trimmed);
-  if (!isAbsoluteUnderHome && !HOME_RELATIVE_ALLOWLIST.includes(firstSegment as (typeof HOME_RELATIVE_ALLOWLIST)[number])) {
-    return null;
+  if (!isAbsolute(trimmed)) {
+    const segments = trimmed.split(/[/\\]/).filter((s) => s.length > 0 && s !== '..');
+    if (segments.length > 0) {
+      return { rootPath: homedir(), relative: segments.join(sep) };
+    }
   }
-  return segments.join(sep);
+  return null;
+}
+
+/** On Linux (e.g. WSL), rewrite Windows paths so C:\Movies → /mnt/c/Movies. */
+function toLinuxPathIfNeeded(pathParam: string): string {
+  const trimmed = pathParam.trim();
+  if (platform() !== 'win32' && /^[a-zA-Z]:[\\/]/.test(trimmed)) {
+    const drive = trimmed[0].toLowerCase();
+    const rest = trimmed.slice(2).replace(/\\/g, '/').replace(/^\/+/, '');
+    return `/mnt/${drive}/${rest}`;
+  }
+  return pathParam;
 }
 
 export async function GET(request: NextRequest) {
@@ -89,42 +112,65 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const safeRelative = getSafeRelativePath(pathParam);
-  if (safeRelative === null) {
+  const pathToUse = toLinuxPathIfNeeded(pathParam);
+  const safePath = getSafePath(pathToUse);
+  if (safePath === null) {
     return NextResponse.json(
-      { error: 'Invalid path. Use a path under your home folder (e.g. ~/Documents, ~/Movies, or C:\\Users\\You\\Movies on Windows).' },
+      { error: 'Invalid path. Enter a folder path (e.g. C:\\Movies, ~/Videos, or /media/movies).' },
       { status: 400 }
     );
   }
 
   const forceRefresh = request.nextUrl.searchParams.get('refresh') === '1' || request.nextUrl.searchParams.get('refresh') === 'true';
 
-  const home = homedir();
+  const { rootPath, relative: safeRelative } = safePath;
   let canonicalRoot: string;
   let canonicalResolved: string;
   try {
-    canonicalRoot = await realpath(home);
-    const absolutePath = join(canonicalRoot, safeRelative);
+    // On Windows, realpath("C:") resolves to the CWD on that drive, not the drive root. Use "C:\" so we get the actual root.
+    const rootForResolve =
+      platform() === 'win32' && /^[A-Z]:$/i.test(rootPath) ? rootPath + sep : rootPath;
+    canonicalRoot = await realpath(rootForResolve);
+    // Build absolute path relative to canonical root (resolve normalizes . and ..); then resolve symlinks.
+    const absolutePath = safeRelative ? resolve(canonicalRoot, safeRelative) : canonicalRoot;
     canonicalResolved = await realpath(absolutePath);
+    // Containment: canonical path must be exactly the root or under it (root + sep prefix). Avoids partial-prefix (e.g. /home vs /homefoo).
     const rootWithSep = canonicalRoot.endsWith(sep) ? canonicalRoot : canonicalRoot + sep;
-    if (canonicalResolved !== canonicalRoot && !canonicalResolved.startsWith(rootWithSep)) {
+    const resolvedLower = platform() === 'win32' ? canonicalResolved.toLowerCase() : canonicalResolved;
+    const rootLower = platform() === 'win32' ? rootWithSep.toLowerCase() : rootWithSep;
+    const rootExact = platform() === 'win32' ? canonicalRoot.toLowerCase() : canonicalRoot;
+    const isUnderRoot = resolvedLower === rootExact || resolvedLower.startsWith(rootLower);
+    if (!isUnderRoot) {
       return NextResponse.json(
-        { error: 'Access denied. The library path must be inside your home directory.' },
+        { error: 'Access denied. The library path must be under the chosen root.' },
         { status: 403 }
       );
     }
   } catch (err) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
+    const absolutePath = safeRelative ? resolve(rootPath, safeRelative) : rootPath;
     if (code === 'ENOENT') {
+      const isWinPath = /^[a-z]:[\\/]/i.test(absolutePath);
+      const winPathHint =
+        platform() !== 'win32' && isWinPath
+          ? ' On WSL/Linux use the path above or run the app on Windows.'
+          : isWinPath
+            ? ' Make sure the folder exists (e.g. create C:\\Movies) or use the path where your movies are stored.'
+            : '';
       return NextResponse.json(
-        { error: 'Folder not found. Check the path, or if it’s on an external drive make sure the drive is connected and mounted.' },
+        {
+          error:
+            'Folder not found. Check the path, or if it’s on an external drive make sure the drive is connected and mounted.' + winPathHint,
+          attemptedPath: absolutePath,
+        },
         { status: 400 }
       );
     }
     const message = err instanceof Error ? err.message : 'Invalid path';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message, attemptedPath: absolutePath }, { status: 400 });
   }
 
+  // All filesystem operations below use only the validated canonical path (canonicalResolved).
   try {
   if (!forceRefresh) {
     const cached = scanCache.get(canonicalResolved);
@@ -152,7 +198,11 @@ export async function GET(request: NextRequest) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
     let message: string;
     if (code === 'ENOENT') {
-      message = 'Folder not found. Check the path, or if it’s on an external drive make sure the drive is connected and mounted.';
+      const winPathHint = /^[a-z]:[\\/]/i.test(canonicalResolved)
+        ? ' If the path is on Windows (e.g. C:\\...), run the app on Windows—not in WSL or Docker.'
+        : '';
+      message =
+        'Folder not found. Check the path, or if it’s on an external drive make sure the drive is connected and mounted.' + winPathHint;
     } else if (code === 'EACCES') {
       message = 'Access denied to this folder. Check permissions.';
     } else if (code === 'ENOTDIR') {
@@ -162,7 +212,7 @@ export async function GET(request: NextRequest) {
       message = `Cannot read folder: ${raw}`;
     }
     return NextResponse.json(
-      { error: message },
+      { error: message, attemptedPath: canonicalResolved },
       { status: 400 }
     );
   }
