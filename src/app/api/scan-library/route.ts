@@ -364,7 +364,7 @@ export async function GET(request: NextRequest) {
         };
       }
       try {
-        const tmdb = await getImagesForTitle(title || searchTitle);
+        const tmdb = await getImagesForTitle(searchTitle);
         if (tmdb.posterUrl) detail.posterUrl = tmdb.posterUrl;
         if (tmdb.backdropUrl) detail.backdropUrl = tmdb.backdropUrl;
         if (tmdb.titleLogoUrl) detail.titleLogoUrl = tmdb.titleLogoUrl;

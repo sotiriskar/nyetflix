@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
 import { AppSettingsModal } from '@/components/AppSettingsModal';
-import { ProfileProvider, useProfile } from '@/context/ProfileContext';
+import { WhosWatching } from '@/components/WhosWatching';
+import { ProfileProvider, useProfile, hasValidCachedProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { LibraryHandleProvider } from '@/context/LibraryHandleContext';
 import { ProgressProvider } from '@/context/ProgressContext';
@@ -39,7 +41,9 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
 }
 
 function ProfileGate({ children }: { children: React.ReactNode }) {
-  const { profilesLoaded } = useProfile();
+  const pathname = usePathname();
+  const { profilesLoaded, profiles } = useProfile();
+
   if (!profilesLoaded) {
     return (
       <div className="min-h-screen bg-[#141414] flex items-center justify-center" aria-busy="true">
@@ -47,5 +51,16 @@ function ProfileGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  const isOnSettingsProfiles = pathname?.startsWith('/settings/profile') ?? false;
+  const showWhosWatching =
+    profiles.length > 0 &&
+    !hasValidCachedProfile(profiles.map((p) => p.id)) &&
+    !isOnSettingsProfiles;
+
+  if (showWhosWatching) {
+    return <WhosWatching />;
+  }
+
   return <AppWithProviders>{children}</AppWithProviders>;
 }

@@ -19,6 +19,7 @@ import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress, CONTINUE_WATCHING_MAX_PROGRESS } from '@/context/ProgressContext';
 import { buildWatchUrl } from '@/lib/watchUrl';
+import { buildCarousels } from '@/lib/carouselBuild';
 
 const skeletonSx = { bgcolor: 'rgba(255,255,255,0.11)' };
 
@@ -105,43 +106,27 @@ export function HomePage() {
   const hasLibraryData = hasPath && !error && libraryCarousels.length > 0 && (libraryCarousels[0]?.items?.length ?? 0) > 0;
   const showSkeleton = !hasLibraryData;
 
-  const carousels = useMemo(() => {
-    if (!hasLibraryData || libraryCarousels.length === 0) return [];
+  const { heroItem, carousels } = useMemo(() => {
+    if (!hasLibraryData || libraryCarousels.length === 0) return { heroItem: null as CarouselItem | null, carousels: [] as { title: string; items: CarouselItem[] }[] };
     const allItems = libraryCarousels[0].items;
-    if (allItems.length === 0) return [{ title: 'Your Library', items: [] }];
+    if (allItems.length === 0) return { heroItem: null, carousels: [] };
 
-    const latest = allItems.slice(0, 8);
-    const continueWatching = allItems
-      .filter((item) => {
-        const p = progressByItemId[item.id]?.progress ?? 0;
-        return p > 0 && p < CONTINUE_WATCHING_MAX_PROGRESS;
-      })
-      .sort((a, b) => (progressByItemId[b.id]?.lastWatchedAt ?? 0) - (progressByItemId[a.id]?.lastWatchedAt ?? 0))
-      .slice(0, 8);
-
-    const genreToItems = new Map<string, CarouselItem[]>();
-    for (const item of allItems) {
-      const genresStr = detailsMap[item.id]?.genres;
-      const genres = genresStr ? genresStr.split(',').map((g) => g.trim()).filter(Boolean) : [];
-      for (const g of genres) {
-        if (!genreToItems.has(g)) genreToItems.set(g, []);
-        genreToItems.get(g)!.push(item);
-      }
-    }
-    const sortedGenres = [...genreToItems.entries()]
-      .filter(([, items]) => items.length >= 1)
-      .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, 6);
-
-    const rows: { title: string; items: CarouselItem[] }[] = [
-      { title: 'Latest', items: latest },
-      ...(continueWatching.length > 0 ? [{ title: 'Continue Watching', items: continueWatching }] : []),
-      ...sortedGenres.map(([genre, items]) => ({ title: genre, items })),
-    ];
-    return rows;
-  }, [hasLibraryData, libraryCarousels, detailsMap, progressByItemId]);
-
-  const heroItem = carousels[0]?.items[0];
+    const result = buildCarousels({
+      items: allItems,
+      getGenres: (id) => {
+        const s = detailsMap[id]?.genres;
+        return s ? s.split(',').map((g) => g.trim()).filter(Boolean) : undefined;
+      },
+      getProgress: (id) => progressByItemId[id],
+      isContinueWatching: (p) => p > 0 && p < CONTINUE_WATCHING_MAX_PROGRESS,
+      heroPosition: 'secondLast',
+    });
+    const myListItems = allItems.filter((item) => isInMyList(item.id));
+    const carousels = myListItems.length > 0
+      ? [...result.carousels, { title: 'My List', items: myListItems }]
+      : result.carousels;
+    return { heroItem: result.heroItem, carousels };
+  }, [hasLibraryData, libraryCarousels, detailsMap, progressByItemId, isInMyList]);
 
   return (
     <div className="pb-0">

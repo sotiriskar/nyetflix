@@ -19,6 +19,7 @@ import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress, CONTINUE_WATCHING_MAX_PROGRESS } from '@/context/ProgressContext';
 import { buildWatchUrl } from '@/lib/watchUrl';
+import { buildCarousels } from '@/lib/carouselBuild';
 
 const skeletonSx = { bgcolor: 'rgba(255,255,255,0.11)' };
 
@@ -114,45 +115,33 @@ export function FilmsPage() {
     return libraryCarousels[0].items.filter((item) => isMovie(detailsMap, item.id));
   }, [hasLibraryData, libraryCarousels, detailsMap]);
 
-  const carousels = useMemo(() => {
-    if (movieItems.length === 0) return [];
+  const { heroItem, carousels } = useMemo(() => {
+    if (movieItems.length === 0) return { heroItem: null as CarouselItem | null, carousels: [] as { title: string; items: CarouselItem[] }[] };
+    const allItems = libraryCarousels[0]?.items ?? [];
+    const homeHeroId = allItems.length >= 2 ? allItems[allItems.length - 2].id : undefined;
+    const result = buildCarousels({
+      items: movieItems,
+      getGenres: (id) => {
+        const s = detailsMap[id]?.genres;
+        return s ? s.split(',').map((g) => g.trim()).filter(Boolean) : undefined;
+      },
+      getProgress: (id) => progressByItemId[id],
+      isContinueWatching: (p) => p > 0 && p < CONTINUE_WATCHING_MAX_PROGRESS,
+      heroPosition: 'last',
+      excludeHeroId: homeHeroId,
+    });
+    const myListItems = movieItems.filter((item) => isInMyList(item.id));
+    const carousels = myListItems.length > 0
+      ? [...result.carousels, { title: 'My List', items: myListItems }]
+      : result.carousels;
+    return { heroItem: result.heroItem, carousels };
+  }, [movieItems, libraryCarousels, detailsMap, progressByItemId, isInMyList]);
 
-    const latest = movieItems.slice(0, 8);
-    const continueWatching = movieItems
-      .filter((item) => {
-        const p = progressByItemId[item.id]?.progress ?? 0;
-        return p > 0 && p < CONTINUE_WATCHING_MAX_PROGRESS;
-      })
-      .sort((a, b) => (progressByItemId[b.id]?.lastWatchedAt ?? 0) - (progressByItemId[a.id]?.lastWatchedAt ?? 0))
-      .slice(0, 8);
-
-    const genreToItems = new Map<string, CarouselItem[]>();
-    for (const item of movieItems) {
-      const genresStr = detailsMap[item.id]?.genres;
-      const genres = genresStr ? genresStr.split(',').map((g) => g.trim()).filter(Boolean) : [];
-      for (const g of genres) {
-        if (!genreToItems.has(g)) genreToItems.set(g, []);
-        genreToItems.get(g)!.push(item);
-      }
-    }
-    const sortedGenres = [...genreToItems.entries()]
-      .filter(([, items]) => items.length >= 1)
-      .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, 6);
-
-    return [
-      { title: 'Latest', items: latest },
-      ...(continueWatching.length > 0 ? [{ title: 'Continue Watching', items: continueWatching }] : []),
-      ...sortedGenres.map(([genre, items]) => ({ title: genre, items })),
-    ];
-  }, [movieItems, detailsMap, progressByItemId]);
-
-  const heroItem = carousels[0]?.items[0];
   const showSkeleton = !hasLibraryData;
 
   const displayCarousels = useMemo(() => {
     if (!heroItem) return carousels;
-    return carousels.filter((row) => row.items.filter((item) => item.id !== heroItem.id).length > 0);
+    return carousels.filter((row) => row.items.some((item) => item.id !== heroItem.id));
   }, [carousels, heroItem]);
 
   return (

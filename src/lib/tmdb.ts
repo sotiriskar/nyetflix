@@ -15,6 +15,8 @@ export interface TmdbMultiResult {
   title?: string;
   name?: string;
   media_type?: string;
+  release_date?: string;
+  first_air_date?: string;
 }
 
 export interface TmdbImagesResponse {
@@ -104,6 +106,8 @@ export interface TmdbVideoResult {
   type?: string;
   name?: string;
   size?: number;
+  /** ISO 639-1 language code (e.g. en, de). Prefer en for trailers. */
+  iso_639_1?: string;
 }
 
 export interface TmdbVideosResponse {
@@ -122,24 +126,33 @@ function isWideFriendly(v: TmdbVideoResult): boolean {
 /** Type preference: Trailer > Teaser > Clip (trailers are usually the main wide promo). */
 const TYPE_ORDER: Record<string, number> = { Trailer: 3, Teaser: 2, Clip: 1 };
 
-/** Prefer wide videos: higher TMDB size (720/1080), then type (Trailer > Teaser > Clip), then name hints like "official"/"theatrical". */
+/** Known non-English language codes we want to rank below English/unspecified. */
+const NON_ENGLISH_LANG = /^(ko|kr|ja|jp|zh|cn|es|de|fr|pt|ru|ar|hi|th|vi|it|pl|tr)$/i;
+
+/** Prefer English (by iso_639_1 or name), then unspecified; penalize known other languages. */
 function trailerScore(v: TmdbVideoResult): number {
   const size = v.size ?? 0;
   const name = (v.name ?? '').toLowerCase();
+  const lang = (v.iso_639_1 ?? '').toLowerCase();
   let score = 0;
-  // Size is the strongest signal for landscape (TMDB typically gives 720/1080 for wide).
+  // Language: prefer English (code or "english" in name), then unspecified; penalize other languages.
+  if (lang === 'en' || lang === 'en-us') score += 300;
+  else if (lang === '') score += 120;
+  else if (NON_ENGLISH_LANG.test(lang)) score -= 150;
+  else score += 20;
+  if (/english|en\s*trailer|official\s*trailer|theatrical\s*trailer/i.test(name)) score += 80;
+  if (/korean|korea\s*sub|spanish|japanese|japan\s*sub|chinese|dubbed|subbed\s*in\s*(?!english)/i.test(name)) score -= 100;
+  // Size for landscape (720/1080).
   if (size >= 1080) score += 100;
   else if (size >= 720) score += 80;
   else if (size >= 480) score += 40;
   else if (size > 0) score += 10;
-  // Prefer Trailer > Teaser > Clip when size is missing or equal.
   score += TYPE_ORDER[v.type ?? ''] ?? 0;
-  // Slight bonus for names that usually indicate main/wide promo.
   if (/official|theatrical|main\s*trailer|trailer\s*1\b/i.test(name)) score += 5;
   return score;
 }
 
-/** Fetch best YouTube key for hover preview: prefers wide (excludes mobile/vertical by name, prefers higher size). Uses Trailer, Teaser, or Clip. */
+/** Fetch best YouTube key for hover preview: get all videos then pick English (or best) by scoring. */
 async function fetchTrailerKey(
   apiKey: string,
   tmdbId: number,
@@ -164,7 +177,68 @@ async function fetchTrailerKey(
   return best.key ?? null;
 }
 
-/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, and (for TV) seasons count. */
+const YEAR_IN_QUERY = /\(\s*(\d{4})\s*\)|\.(\d{4})\.|\s(\d{4})\s*$/;
+
+/** Extract 4-digit year from query (e.g. "Zootopia (2016)" -> 2016). */
+function yearFromQuery(query: string): number | null {
+  const m = query.trim().match(YEAR_IN_QUERY);
+  if (!m) return null;
+  const y = parseInt(m[1] ?? m[2] ?? m[3] ?? '', 10);
+  return y >= 1900 && y <= 2100 ? y : null;
+}
+
+/** Match sequel/part number from end of search query (e.g. "Zootopia 2" -> 2, "Zootopia II" -> 2). */
+function partNumberFromQuery(query: string): number | null {
+  const lower = query.trim().toLowerCase();
+  const m = lower.match(/\s+(2|3|4|5|ii|iii|iv|v|part\s*2|part\s*3)$/);
+  if (m) return 2; // treat II, part 2, 2, etc. as "part 2"
+  const m1 = lower.match(/\s+(1|i|one|part\s*1)$/);
+  if (m1) return 1; // prefer original / first
+  return null;
+}
+
+/** Year from TMDB result (release_date or first_air_date, e.g. "2016-03-04" -> 2016). */
+function yearFromResult(r: TmdbMultiResult): number | null {
+  const raw = r.release_date ?? r.first_air_date ?? '';
+  if (!raw || typeof raw !== 'string') return null;
+  const y = parseInt(raw.slice(0, 4), 10);
+  return y >= 1900 && y <= 2100 ? y : null;
+}
+
+/** Score how well a TMDB result matches the search query (higher = better). */
+function scoreResultMatch(
+  query: string,
+  resultTitle: string,
+  resultYear: number | null,
+  queryYear: number | null
+): number {
+  const q = query.trim().toLowerCase();
+  const t = (resultTitle || '').trim().toLowerCase();
+  let score = 0;
+  if (!t) return 0;
+  if (q === t) score = 100;
+  else {
+    const part = partNumberFromQuery(query);
+    const has2 = /\b(2|ii|two|part\s*2|sequel)\b/.test(t);
+    if (part === 2 && has2) score = 80;
+    else if (part === 2 && !has2) score = 30;
+    else if (part === 1 && !has2) score = 80;
+    else if (part === 1 && has2) score = 10;
+    else {
+      const qWords = q.replace(YEAR_IN_QUERY, ' ').split(/\s+/).filter(Boolean);
+      const allIn = qWords.length > 0 && qWords.every((w) => /^\d{4}$/.test(w) || t.includes(w));
+      if (!allIn) return 0;
+      if (part == null && !has2) score = 55;
+      else if (part == null && has2) score = 45;
+      else score = 50;
+    }
+  }
+  if (queryYear != null && resultYear != null && queryYear === resultYear) score += 25;
+  else if (queryYear != null && resultYear != null && Math.abs((queryYear ?? 0) - (resultYear ?? 0)) > 2) score -= 40;
+  return score;
+}
+
+/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, and (for TV) seasons count. Pass raw folder/video name (e.g. "Zootopia (2016)" or "Zootopia 2 (2025)") so year and part number are used to pick the right result. */
 export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null, englishTitle: null };
   const apiKey = process.env.TMDB_API_KEY;
@@ -173,13 +247,25 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   const query = title.trim();
   if (!query) return out;
 
+  const queryYear = yearFromQuery(query);
   const url = `${TMDB_BASE}/search/multi?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&language=en-US`;
   const res = await fetch(url);
   if (!res.ok) return out;
 
   const data = (await res.json()) as TmdbSearchMultiResponse;
   const results = data.results ?? [];
-  const first = results.find((r) => r.poster_path || r.backdrop_path) ?? results[0];
+  const withImage = results.filter((r) => r.poster_path || r.backdrop_path);
+  const candidates = withImage.length > 0 ? withImage : results;
+  const first =
+    candidates.length > 0
+      ? candidates.reduce((best, r) => {
+          const rTitle = r.title ?? r.name ?? '';
+          const bestTitle = best.title ?? best.name ?? '';
+          const scoreR = scoreResultMatch(query, rTitle, yearFromResult(r), queryYear);
+          const scoreBest = scoreResultMatch(query, bestTitle, yearFromResult(best), queryYear);
+          return scoreR > scoreBest ? r : best;
+        }, candidates[0]!)
+      : results[0];
   if (!first) return out;
 
   out.englishTitle = (first.title ?? first.name ?? null) || null;

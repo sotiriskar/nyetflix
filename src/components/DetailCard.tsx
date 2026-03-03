@@ -162,47 +162,48 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
           >
             <Close sx={{ fontSize: 24 }} />
           </button>
-          {/* Title + controls over image — bottom-left, kept small */}
-          <div className="absolute bottom-6 left-6 md:left-8 flex flex-col gap-3 z-10">
+          {/* Title + controls over image — bottom-left */}
+          <div className="absolute bottom-12 left-6 md:left-8 flex flex-col gap-4 z-10">
             {detail.titleLogoUrl ? (
               <img
                 src={detail.titleLogoUrl}
                 alt={detail.title ?? ''}
-                className="max-h-9 md:max-h-11 w-auto object-contain object-left drop-shadow-lg"
+                className="max-h-24 md:max-h-24 w-auto object-contain object-left drop-shadow-lg"
               />
             ) : (
-              <h2 className="text-white text-base md:text-lg font-bold drop-shadow-lg">
+              <h2 className="text-white text-lg md:text-xl font-bold drop-shadow-lg">
                 {detail.title}
               </h2>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 type="button"
                 onClick={handleMainPlay}
-                className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0"
+                className="flex items-center justify-center gap-3 rounded-md px-8 py-3 bg-white text-black text-lg font-semibold hover:bg-white/90 transition-colors shrink-0"
                 aria-label="Play"
               >
-                <PlayArrow sx={{ fontSize: 22 }} />
+                <PlayArrow sx={{ fontSize: 34 }} />
+                <span>Play</span>
               </button>
               <button
                 type="button"
                 onClick={onAddClick}
-                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
                   isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
                 }`}
                 aria-label={isInList ? 'In My List' : 'Add to My List'}
               >
-                {isInList ? <Check sx={{ fontSize: 22 }} /> : <Add sx={{ fontSize: 22 }} />}
+                {isInList ? <Check sx={{ fontSize: 26 }} /> : <Add sx={{ fontSize: 26 }} />}
               </button>
               <button
                 type="button"
                 onClick={onLikeClick}
-                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
                   isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
                 }`}
                 aria-label={isLiked ? 'Liked' : 'Like'}
               >
-                <ThumbUp sx={{ fontSize: 20 }} />
+                <ThumbUp sx={{ fontSize: 24 }} />
               </button>
             </div>
           </div>
@@ -232,7 +233,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
               <span className="inline-block border border-white/70 rounded px-1.5 py-0.5 text-white/90">{detail.contentRating}</span>
             </p>
           )}
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-15">
             <div className="flex-1 min-w-0">
               <p className="text-white/90 text-sm leading-relaxed">
                 {detail.description ?? 'No description available.'}
@@ -240,12 +241,12 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
             </div>
             <div className="flex flex-col gap-2 text-base text-white/70 md:min-w-[200px] md:max-w-[260px]">
               <div>
-                <span className="text-white/50">Cast: </span>
-                {detail.cast ?? '—'}
+                <span className="text-sm text-white/35">Cast: </span>
+                <span className="text-sm font-medium text-white/90">{detail.cast ?? '—'}</span>
               </div>
               <div>
-                <span className="text-white/50">Genres: </span>
-                <span className="text-lg font-medium text-white/90">{detail.genres ?? '—'}</span>
+                <span className="text-sm text-white/35">Genres: </span>
+                <span className="text-sm font-medium text-white/90">{detail.genres ?? '—'}</span>
               </div>
             </div>
           </div>

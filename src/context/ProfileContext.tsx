@@ -5,6 +5,9 @@ import type { ProfileId } from '@/lib/profiles';
 import { MAX_PROFILES } from '@/lib/profiles';
 
 const STORAGE_KEY = 'nyetflix-current-profile-id';
+const STORAGE_KEY_CHOSEN_AT = 'nyetflix-profile-chosen-at';
+/** Cache "who's watching" choice for 24 hours. */
+const CHOSEN_AT_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface Profile {
   id: number;
@@ -16,6 +19,10 @@ export interface Profile {
 export interface ProfileContextValue {
   currentProfileId: ProfileId | null;
   setCurrentProfileId: (id: ProfileId | null) => void;
+  /** Call when user picks a profile on "Who's watching?" – sets profile and caches for ~24h. */
+  confirmProfileChoice: (id: ProfileId) => void;
+  /** Clear profile and cache so Who's watching? is shown again. */
+  signOut: () => void;
   profiles: Profile[];
   /** True after the first refetch has completed (used to avoid showing create-profile screen). */
   profilesLoaded: boolean;
@@ -29,6 +36,8 @@ export interface ProfileContextValue {
 const defaultValue: ProfileContextValue = {
   currentProfileId: null,
   setCurrentProfileId: () => {},
+  confirmProfileChoice: () => {},
+  signOut: () => {},
   profiles: [],
   profilesLoaded: false,
   refetchProfiles: async () => {},
@@ -61,6 +70,46 @@ function setStoredProfileId(id: ProfileId | null) {
   } catch {
     // ignore
   }
+}
+
+function getStoredChosenAt(): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const v = localStorage.getItem(STORAGE_KEY_CHOSEN_AT);
+    if (v == null || v === '') return null;
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) return null;
+    return n;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredChosenAt(ts: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY_CHOSEN_AT, String(ts));
+  } catch {
+    // ignore
+  }
+}
+
+function clearStoredChosenAt() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORAGE_KEY_CHOSEN_AT);
+  } catch {
+    // ignore
+  }
+}
+
+/** True if a profile was chosen on "Who's watching?" within the last 24h and that profile still exists. */
+export function hasValidCachedProfile(profileIds: number[]): boolean {
+  const id = getStoredProfileId();
+  if (id == null || !profileIds.includes(id)) return false;
+  const at = getStoredChosenAt();
+  if (at == null) return false;
+  return Date.now() - at < CHOSEN_AT_TTL_MS;
 }
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
@@ -104,6 +153,18 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setStoredProfileId(id);
   }, []);
 
+  const confirmProfileChoice = useCallback((id: ProfileId) => {
+    setCurrentProfileIdState(id);
+    setStoredProfileId(id);
+    setStoredChosenAt(Date.now());
+  }, []);
+
+  const signOut = useCallback(() => {
+    setCurrentProfileIdState(null);
+    setStoredProfileId(null);
+    clearStoredChosenAt();
+  }, []);
+
   const updateProfile = useCallback(async (id: ProfileId, data: { name?: string; avatarPath?: string; isKid?: boolean }) => {
     try {
       const res = await fetch('/api/profiles', {
@@ -131,6 +192,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (profiles.length === 0) {
         setCurrentProfileIdState(created.id as ProfileId);
         setStoredProfileId(created.id as ProfileId);
+        setStoredChosenAt(Date.now());
       }
       return created;
     } catch {
@@ -153,6 +215,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     () => ({
       currentProfileId,
       setCurrentProfileId,
+      confirmProfileChoice,
+      signOut,
       profiles,
       profilesLoaded,
       refetchProfiles,
@@ -161,7 +225,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       deleteProfile,
       canAddProfile,
     }),
-    [currentProfileId, setCurrentProfileId, profiles, profilesLoaded, refetchProfiles, updateProfile, createProfile, deleteProfile, canAddProfile]
+    [currentProfileId, setCurrentProfileId, confirmProfileChoice, signOut, profiles, profilesLoaded, refetchProfiles, updateProfile, createProfile, deleteProfile, canAddProfile]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

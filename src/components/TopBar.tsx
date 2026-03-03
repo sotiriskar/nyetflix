@@ -30,7 +30,7 @@ export function TopBar({ onOpenAccount }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentProfileId, setCurrentProfileId, profiles } = useProfile();
+  const { currentProfileId, setCurrentProfileId, profiles, signOut } = useProfile();
   const currentProfile = profiles.find((p) => p.id === currentProfileId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -333,9 +333,13 @@ export function TopBar({ onOpenAccount }: TopBarProps) {
                 <button
                   type="button"
                   role="menuitem"
+                  onClick={() => {
+                    signOut();
+                    router.replace('/browse');
+                  }}
                   className="w-full text-center text-sm text-white/90 hover:text-white hover:underline transition-colors"
                 >
-                  Sign out of Netflix
+                  Sign out
                 </button>
               </div>
             </div>

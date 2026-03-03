@@ -255,7 +255,7 @@ export function CarouselHoverCard({
           type="button"
           className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 ml-auto"
           aria-label="More info"
-          onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+          onClick={(e) => { e.stopPropagation(); closeOverlay(); onClick?.(); }}
         >
           <ExpandMore sx={{ fontSize: 26 }} />
         </button>
@@ -280,8 +280,8 @@ export function CarouselHoverCard({
       <div
         ref={cardRef}
         className="h-full w-full rounded-md cursor-pointer relative"
-        onClick={onClick}
-        onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
+        onClick={() => { closeOverlay(); onClick?.(); }}
+        onKeyDown={(e) => e.key === 'Enter' && (closeOverlay(), onClick?.())}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         role="button"
