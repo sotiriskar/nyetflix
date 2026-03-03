@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, realpath } from 'fs/promises';
-import { join, resolve, sep } from 'path';
+import { join, sep } from 'path';
 import { homedir } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
@@ -41,18 +41,32 @@ function isVideoFile(name: string): boolean {
   return VIDEO_EXT.has(ext);
 }
 
-/** Resolve path: expand ~ and /Documents/... (etc.) to homedir. Other paths (e.g. /Volumes/MyDrive) are left as-is for external drives. */
-function resolveFolderPath(raw: string): string {
-  const trimmed = raw.trim();
+/** Allowed top-level dirs under home (no user-controlled path used in fs without this allowlist). */
+const HOME_RELATIVE_ALLOWLIST = ['Documents', 'Desktop', 'Downloads', 'Movies'] as const;
+
+/**
+ * Returns a safe relative path (no .., allowlisted prefix only) or null if pathParam is disallowed.
+ * Caller must join the result with a validated root only. No user input is passed to fs APIs directly.
+ */
+function getSafeRelativePath(pathParam: string): string | null {
+  const trimmed = pathParam.trim();
+  if (!trimmed) return null;
+  let relative: string;
   if (trimmed.startsWith('~')) {
-    return join(homedir(), trimmed.slice(1).replace(/^\//, '') || '');
+    relative = trimmed.slice(1).replace(/^\//, '') || '';
+  } else if (trimmed.startsWith('/') && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === `/${dir}` || trimmed.startsWith(`/${dir}/`))) {
+    relative = trimmed.slice(1);
+  } else if (!trimmed.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(trimmed) && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === dir || trimmed.startsWith(dir + '/') || trimmed.startsWith(dir + '\\'))) {
+    relative = trimmed.replace(/\\/g, '/');
+  } else {
+    return null;
   }
-  const home = homedir();
-  const homeLike = ['Documents', 'Desktop', 'Downloads', 'Movies'];
-  if (trimmed.startsWith('/') && homeLike.some((dir) => trimmed === `/${dir}` || trimmed.startsWith(`/${dir}/`))) {
-    return join(home, trimmed.slice(1)); // "/Documents/movies" -> home + "Documents/movies"
+  const segments = relative.split(/[/\\]/).filter((s) => s.length > 0 && s !== '..');
+  const firstSegment = segments[0];
+  if (!firstSegment || !HOME_RELATIVE_ALLOWLIST.includes(firstSegment as (typeof HOME_RELATIVE_ALLOWLIST)[number])) {
+    return null;
   }
-  return trimmed;
+  return segments.join(sep);
 }
 
 export async function GET(request: NextRequest) {
@@ -64,7 +78,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const resolvedPath = resolveFolderPath(pathParam);
+  const safeRelative = getSafeRelativePath(pathParam);
+  if (safeRelative === null) {
+    return NextResponse.json(
+      { error: 'Invalid path. Use a path under your home (e.g. ~/Documents, ~/Movies) or Documents, Desktop, Downloads, Movies.' },
+      { status: 400 }
+    );
+  }
+
   const forceRefresh = request.nextUrl.searchParams.get('refresh') === '1' || request.nextUrl.searchParams.get('refresh') === 'true';
 
   const home = homedir();
@@ -72,8 +93,8 @@ export async function GET(request: NextRequest) {
   let canonicalResolved: string;
   try {
     canonicalRoot = await realpath(home);
-    const absoluteResolved = resolve(home, resolvedPath);
-    canonicalResolved = await realpath(absoluteResolved);
+    const absolutePath = join(canonicalRoot, safeRelative);
+    canonicalResolved = await realpath(absolutePath);
     const rootWithSep = canonicalRoot.endsWith(sep) ? canonicalRoot : canonicalRoot + sep;
     if (canonicalResolved !== canonicalRoot && !canonicalResolved.startsWith(rootWithSep)) {
       return NextResponse.json(
