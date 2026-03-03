@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, realpath } from 'fs/promises';
-import { join, sep } from 'path';
+import { join, sep, normalize, isAbsolute } from 'path';
 import { homedir } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
@@ -41,29 +41,40 @@ function isVideoFile(name: string): boolean {
   return VIDEO_EXT.has(ext);
 }
 
-/** Allowed top-level dirs under home (no user-controlled path used in fs without this allowlist). */
-const HOME_RELATIVE_ALLOWLIST = ['Documents', 'Desktop', 'Downloads', 'Movies'] as const;
+/** Allowed top-level dirs under home when using ~/ or / prefix (no raw user path to fs). */
+const HOME_RELATIVE_ALLOWLIST = ['Documents', 'Desktop', 'Downloads', 'Movies', 'Videos', 'media', 'Media', 'Library'] as const;
 
 /**
- * Returns a safe relative path (no .., allowlisted prefix only) or null if pathParam is disallowed.
- * Caller must join the result with a validated root only. No user input is passed to fs APIs directly.
+ * Returns a safe relative path (no ..) under home, or null if pathParam is disallowed.
+ * Caller must join the result with realpath(home) only. No user input is passed to fs APIs directly.
  */
 function getSafeRelativePath(pathParam: string): string | null {
   const trimmed = pathParam.trim();
   if (!trimmed) return null;
+  const home = homedir();
   let relative: string;
+
   if (trimmed.startsWith('~')) {
     relative = trimmed.slice(1).replace(/^\//, '') || '';
   } else if (trimmed.startsWith('/') && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === `/${dir}` || trimmed.startsWith(`/${dir}/`))) {
     relative = trimmed.slice(1);
-  } else if (!trimmed.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(trimmed) && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === dir || trimmed.startsWith(dir + '/') || trimmed.startsWith(dir + '\\'))) {
+  } else if (!isAbsolute(trimmed) && HOME_RELATIVE_ALLOWLIST.some((dir) => trimmed === dir || trimmed.startsWith(dir + '/') || trimmed.startsWith(dir + '\\'))) {
     relative = trimmed.replace(/\\/g, '/');
+  } else if (isAbsolute(trimmed)) {
+    const normParam = normalize(trimmed);
+    const normHome = normalize(home);
+    const homeWithSep = normHome.endsWith(sep) ? normHome : normHome + sep;
+    if (normParam !== normHome && !normParam.startsWith(homeWithSep)) return null;
+    relative = normParam.slice(normHome.length).replace(/^[/\\]+/, '');
   } else {
     return null;
   }
+
   const segments = relative.split(/[/\\]/).filter((s) => s.length > 0 && s !== '..');
+  if (segments.length === 0) return null;
   const firstSegment = segments[0];
-  if (!firstSegment || !HOME_RELATIVE_ALLOWLIST.includes(firstSegment as (typeof HOME_RELATIVE_ALLOWLIST)[number])) {
+  const isAbsoluteUnderHome = isAbsolute(trimmed);
+  if (!isAbsoluteUnderHome && !HOME_RELATIVE_ALLOWLIST.includes(firstSegment as (typeof HOME_RELATIVE_ALLOWLIST)[number])) {
     return null;
   }
   return segments.join(sep);
@@ -81,7 +92,7 @@ export async function GET(request: NextRequest) {
   const safeRelative = getSafeRelativePath(pathParam);
   if (safeRelative === null) {
     return NextResponse.json(
-      { error: 'Invalid path. Use a path under your home (e.g. ~/Documents, ~/Movies) or Documents, Desktop, Downloads, Movies.' },
+      { error: 'Invalid path. Use a path under your home folder (e.g. ~/Documents, ~/Movies, or C:\\Users\\You\\Movies on Windows).' },
       { status: 400 }
     );
   }
