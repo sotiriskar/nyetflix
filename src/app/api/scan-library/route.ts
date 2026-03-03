@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir } from 'fs/promises';
-import { join } from 'path';
+import { readdir, realpath } from 'fs/promises';
+import { join, resolve } from 'path';
 import { homedir } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
@@ -65,11 +65,30 @@ export async function GET(request: NextRequest) {
   }
 
   const resolvedPath = resolveFolderPath(pathParam);
+  const home = homedir();
+  let validatedBasePath: string;
+  try {
+    const canonicalRoot = await realpath(home);
+    const canonicalResolved = await realpath(resolve(home, resolvedPath));
+    if (!canonicalResolved.startsWith(canonicalRoot.endsWith('/') ? canonicalRoot : canonicalRoot + '/')) {
+      return NextResponse.json(
+        { error: 'Requested path is outside of the allowed directory.' },
+        { status: 403 }
+      );
+    }
+    validatedBasePath = canonicalResolved;
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid or inaccessible path.' },
+      { status: 400 }
+    );
+  }
+
   const forceRefresh = request.nextUrl.searchParams.get('refresh') === '1' || request.nextUrl.searchParams.get('refresh') === 'true';
 
   try {
   if (!forceRefresh) {
-    const cached = scanCache.get(resolvedPath);
+    const cached = scanCache.get(validatedBasePath);
     const hasPathMap = cached?.pathByItemId && Object.keys(cached.pathByItemId).length > 0;
     if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS && hasPathMap) {
       itemIdToPath.clear();
@@ -153,7 +172,7 @@ export async function GET(request: NextRequest) {
   // 1) Subfolders: each folder that contains at least one video = one movie (pick one video per folder)
   const subdirs = entries.filter((e) => e.isDirectory());
   for (const dir of subdirs) {
-    const folderPath = join(resolvedPath, dir.name);
+    const folderPath = join(validatedBasePath, dir.name);
     let subEntries: Dirent[];
     try {
       subEntries = await readdir(folderPath, { withFileTypes: true });
