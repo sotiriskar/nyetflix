@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir } from 'fs/promises';
-import { join } from 'path';
+import { readdir, realpath } from 'fs/promises';
+import { join, resolve, sep } from 'path';
 import { homedir } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
@@ -67,9 +67,35 @@ export async function GET(request: NextRequest) {
   const resolvedPath = resolveFolderPath(pathParam);
   const forceRefresh = request.nextUrl.searchParams.get('refresh') === '1' || request.nextUrl.searchParams.get('refresh') === 'true';
 
+  const home = homedir();
+  let canonicalRoot: string;
+  let canonicalResolved: string;
+  try {
+    canonicalRoot = await realpath(home);
+    const absoluteResolved = resolve(home, resolvedPath);
+    canonicalResolved = await realpath(absoluteResolved);
+    const rootWithSep = canonicalRoot.endsWith(sep) ? canonicalRoot : canonicalRoot + sep;
+    if (canonicalResolved !== canonicalRoot && !canonicalResolved.startsWith(rootWithSep)) {
+      return NextResponse.json(
+        { error: 'Access denied. The library path must be inside your home directory.' },
+        { status: 403 }
+      );
+    }
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
+    if (code === 'ENOENT') {
+      return NextResponse.json(
+        { error: 'Folder not found. Check the path, or if it’s on an external drive make sure the drive is connected and mounted.' },
+        { status: 400 }
+      );
+    }
+    const message = err instanceof Error ? err.message : 'Invalid path';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
   try {
   if (!forceRefresh) {
-    const cached = scanCache.get(resolvedPath);
+    const cached = scanCache.get(canonicalResolved);
     const hasPathMap = cached?.pathByItemId && Object.keys(cached.pathByItemId).length > 0;
     if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS && hasPathMap) {
       itemIdToPath.clear();
@@ -89,7 +115,7 @@ export async function GET(request: NextRequest) {
 
   let entries: Dirent[];
   try {
-    entries = await readdir(resolvedPath, { withFileTypes: true });
+    entries = await readdir(canonicalResolved, { withFileTypes: true });
   } catch (err) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
     let message: string;
@@ -153,7 +179,7 @@ export async function GET(request: NextRequest) {
   // 1) Subfolders: each folder that contains at least one video = one movie (pick one video per folder)
   const subdirs = entries.filter((e) => e.isDirectory());
   for (const dir of subdirs) {
-    const folderPath = join(resolvedPath, dir.name);
+    const folderPath = join(canonicalResolved, dir.name);
     let subEntries: Dirent[];
     try {
       subEntries = await readdir(folderPath, { withFileTypes: true });
@@ -189,9 +215,9 @@ export async function GET(request: NextRequest) {
   const rootFileNames = new Set(rootFiles.map((f) => f.name));
   for (const f of rootVideoFiles) {
     candidates.push({
-      videoPath: join(resolvedPath, f.name),
+      videoPath: join(canonicalResolved, f.name),
       videoName: f.name,
-      folderPath: resolvedPath,
+      folderPath: canonicalResolved,
       fileNamesInFolder: rootFileNames,
       source: 'root',
     });
@@ -301,7 +327,7 @@ export async function GET(request: NextRequest) {
     { title: 'Your Library', items },
   ];
 
-  scanCache.set(resolvedPath, {
+  scanCache.set(canonicalResolved, {
     carousels,
     detailsMap,
     pathByItemId,
