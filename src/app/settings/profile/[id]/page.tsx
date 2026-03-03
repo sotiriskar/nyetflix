@@ -9,6 +9,7 @@ import FolderOutlined from '@mui/icons-material/FolderOutlined';
 import Translate from '@mui/icons-material/Translate';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import { useProfile } from '@/context/ProfileContext';
+import { useSettings } from '@/context/SettingsContext';
 import { AVATAR_PATHS } from '@/lib/profiles';
 import type { AppLanguage } from '@/context/SettingsContext';
 import type { Profile } from '@/context/ProfileContext';
@@ -121,13 +122,18 @@ export default function SettingsProfilePage() {
     [profileId]
   );
 
+  const { setMoviesFolderPath: setContextPath } = useSettings();
   const handleMoviesPathChange = useCallback(
     (path: string) => {
       setMoviesFolderPath(path);
-      if (profileId != null) saveSettings(profileId, { moviesFolderPath: path });
+      setContextPath(path);
     },
-    [profileId]
+    [setContextPath]
   );
+
+  const handleClearLibrary = useCallback(() => {
+    handleMoviesPathChange('');
+  }, [handleMoviesPathChange]);
 
   if (!loaded) {
     return (
@@ -304,10 +310,7 @@ export default function SettingsProfilePage() {
           <div className="flex items-start gap-4 py-4 px-4">
             <div className="flex items-center gap-3 shrink-0">
               <FolderOutlined sx={{ fontSize: 24, color: 'rgba(255,255,255,0.6)' }} />
-              <div>
-                <p className="font-medium text-white">Media library folder</p>
-                <p className="text-sm text-white/60">Folder path where your movies are stored.</p>
-              </div>
+              <p className="font-medium text-white">Media library folder</p>
             </div>
             <div className="flex-1 min-w-0 flex gap-2">
               <input
@@ -316,11 +319,11 @@ export default function SettingsProfilePage() {
                 onChange={(e) => setMoviesFolderPath(e.target.value)}
                 onBlur={(e) => handleMoviesPathChange(e.target.value)}
                 placeholder="e.g. C:\Movies"
-                className="flex-1 min-w-0 px-3 py-2 rounded border border-white/20 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="flex-1 min-w-[200px] px-3 py-2 rounded border border-white/20 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
               />
               <button
                 type="button"
-                onClick={() => handleMoviesPathChange('')}
+                onClick={handleClearLibrary}
                 disabled={!moviesFolderPath}
                 className="px-4 py-2 rounded border border-white/20 text-white/90 text-sm hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none transition-colors"
               >

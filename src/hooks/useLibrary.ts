@@ -3,6 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CarouselItem } from '@/types/movie';
 import type { MovieDetail } from '@/types/movie';
+import { useProfile } from '@/context/ProfileContext';
+import { useSettings } from '@/context/SettingsContext';
+import { useLibraryHandle } from '@/context/LibraryHandleContext';
+import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
+import { getLibraryHandle } from '@/lib/libraryHandleStorage';
+import { scanFolderHandle } from '@/lib/scanFolderHandle';
 
 const CACHE_KEY_PREFIX = 'nyetflix-library-';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -59,26 +65,94 @@ function getInitialCache(path: string): { carousels: LibraryCarousel[]; detailsM
 }
 
 export function useLibrary(folderPath: string | undefined): UseLibraryResult {
+  const { currentProfileId } = useProfile();
+  const { setMoviesFolderPath } = useSettings();
+  const { setItemIdToRelativePath } = useLibraryHandle();
+  const path = folderPath?.trim() ?? '';
+  const isHandleMode = path === LIBRARY_HANDLE_MODE;
+
   const [carousels, setCarousels] = useState<LibraryCarousel[]>(() => {
-    const p = folderPath?.trim() ?? '';
-    return getInitialCache(p)?.carousels ?? [];
+    return getInitialCache(path)?.carousels ?? [];
   });
   const [detailsMap, setDetailsMap] = useState<Record<string, MovieDetail>>(() => {
-    const p = folderPath?.trim() ?? '';
-    return getInitialCache(p)?.detailsMap ?? {};
+    return getInitialCache(path)?.detailsMap ?? {};
   });
   const [loading, setLoading] = useState(() => {
-    const p = folderPath?.trim() ?? '';
-    return p ? !getInitialCache(p) : false;
+    return path ? !getInitialCache(path) : false;
   });
   const [error, setError] = useState<string | null>(null);
 
   const fetchLibrary = useCallback(async (forceRefresh = false) => {
-    const path = folderPath?.trim() ?? '';
     if (!path) {
       setCarousels([]);
       setDetailsMap({});
       setError(null);
+      return;
+    }
+
+    if (isHandleMode) {
+      if (currentProfileId == null) {
+        setCarousels([]);
+        setDetailsMap({});
+        setError(null);
+        return;
+      }
+      const cached = !forceRefresh ? readCache(path) : null;
+      if (cached) {
+        setCarousels(cached.carousels);
+        setDetailsMap(cached.detailsMap);
+        setLoading(false);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const handle = await getLibraryHandle(currentProfileId);
+        if (!handle) {
+          setCarousels([]);
+          setDetailsMap({});
+          setError('Folder access lost. Choose the folder again in Settings.');
+          return;
+        }
+        const candidates = await scanFolderHandle(handle);
+        if (candidates.length === 0) {
+          setCarousels([]);
+          setDetailsMap({});
+          writeCache(path, [], {});
+          setItemIdToRelativePath(new Map());
+          return;
+        }
+        const res = await fetch('/api/library-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidates }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `Metadata failed: ${res.status}`);
+        }
+        const data = await res.json();
+        const nextCarousels = data.carousels ?? [];
+        const nextDetailsMap = data.detailsMap ?? {};
+        const itemIdToRelativePathMap = new Map<string, string>(
+          Object.entries(data.itemIdToRelativePath ?? {})
+        );
+        setCarousels(nextCarousels);
+        setDetailsMap(nextDetailsMap);
+        setItemIdToRelativePath(itemIdToRelativePathMap);
+        writeCache(path, nextCarousels, nextDetailsMap);
+      } catch (e) {
+        const wasCached = !forceRefresh ? !!readCache(path) : false;
+        if (!wasCached) {
+          setCarousels([]);
+          setDetailsMap({});
+          setError(e instanceof Error ? e.message : 'Failed to load library');
+        }
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -93,23 +167,44 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
       setError(null);
     }
 
+    let pathToUse = path;
+    if (forceRefresh && currentProfileId != null) {
+      try {
+        const settingsRes = await fetch('/api/settings', {
+          headers: { 'X-Profile-Id': String(currentProfileId) },
+        });
+        if (settingsRes.ok) {
+          const settings = (await settingsRes.json()) as { moviesFolderPath?: string };
+          const saved = (settings.moviesFolderPath ?? '').trim();
+          if (saved) {
+            pathToUse = saved;
+            if (saved !== path) setMoviesFolderPath(saved);
+          }
+        }
+      } catch {
+        // use path from context if fetch fails
+      }
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
 
     try {
-      const url = `/api/scan-library?path=${encodeURIComponent(path)}${forceRefresh ? '&refresh=1' : ''}`;
+      const url = `/api/scan-library?path=${encodeURIComponent(pathToUse)}${forceRefresh ? '&refresh=1' : ''}`;
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Scan failed: ${res.status}`);
+        const msg = data.error || `Scan failed: ${res.status}`;
+        const attempted = data.attemptedPath as string | undefined;
+        throw new Error(attempted ? `${msg} (Path used: ${attempted})` : msg);
       }
       const data = await res.json();
       const nextCarousels = data.carousels ?? [];
       const nextDetailsMap = data.detailsMap ?? {};
       setCarousels(nextCarousels);
       setDetailsMap(nextDetailsMap);
-      writeCache(path, nextCarousels, nextDetailsMap);
+      writeCache(pathToUse, nextCarousels, nextDetailsMap);
     } catch (e) {
       clearTimeout(timeoutId);
       if (!cached) {
@@ -123,7 +218,7 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
     } finally {
       setLoading(false);
     }
-  }, [folderPath]);
+  }, [path, isHandleMode, currentProfileId, setItemIdToRelativePath, setMoviesFolderPath]);
 
   useEffect(() => {
     fetchLibrary(false);

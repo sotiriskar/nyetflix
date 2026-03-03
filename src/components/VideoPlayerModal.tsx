@@ -20,6 +20,9 @@ import {
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { useProgress } from '@/context/ProgressContext';
+import { useSettings } from '@/context/SettingsContext';
+import { useLibraryHandle } from '@/context/LibraryHandleContext';
+import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 import type { ProgressEntry } from '@/context/ProgressContext';
 
@@ -353,6 +356,9 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const showModal = !!itemId || !!message;
   const seriesId = itemId ? (itemId.match(/^episode-(.+)-S\d+-E\d+$/) ?? null)?.[1] ?? null : null;
   const { getProgress, setProgress } = useProgress();
+  const { moviesFolderPath } = useSettings();
+  const { getPlaybackUrl } = useLibraryHandle();
+  const isHandleMode = moviesFolderPath === LIBRARY_HANDLE_MODE;
   const initialProgress = itemId ? (getProgress(itemId)?.progress ?? 0) : 0;
   const conversionEsRef = useRef<EventSource | null>(null);
   const onPlayEpisodeRef = useRef(onPlayEpisode);
@@ -407,6 +413,24 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     const origin = window.location.origin;
     const fallbackUrl = `${origin}/api/stream-video?id=${encodeURIComponent(itemId)}`;
     const requestedItemId = itemId;
+
+    if (isHandleMode) {
+      getPlaybackUrl(itemId)
+        .then((url) => {
+          if (url && requestedItemId === itemId) {
+            setStreamUrl(url);
+            setStreamType('video');
+            setStreamForItemId(requestedItemId);
+          } else if (!url && requestedItemId === itemId) {
+            setError('This file is not available. Rescan the library.');
+          }
+        })
+        .catch(() => {
+          if (requestedItemId === itemId) setError('Could not load video from chosen folder.');
+        });
+      return;
+    }
+
     fetch(`${origin}/api/video-src?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
       .then((r) => r.json().catch(() => null))
       .then((data) => {
@@ -485,7 +509,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         conversionEsRef.current = null;
       }
     };
-  }, [itemId]);
+  }, [itemId, isHandleMode, getPlaybackUrl]);
 
   // When playing a series episode, fetch next episode so we can show "Next episode" button
   useEffect(() => {
@@ -547,13 +571,14 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const tracks = (itemId && subtitleLanguages?.length && origin)
-    ? subtitleLanguages.map((lang) => ({
-        lang,
-        src: `${origin}/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
-        label: LANG_LABELS[lang] ?? lang,
-      }))
-    : [];
+  const tracks =
+    itemId && subtitleLanguages?.length && origin && !isHandleMode
+      ? subtitleLanguages.map((lang) => ({
+          lang,
+          src: `${origin}/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
+          label: LANG_LABELS[lang] ?? lang,
+        }))
+      : [];
 
   // In the control bar: for series always "Show Name • S1 E2" (same whether from Play or Episodes list). Only add short episode name, never the long "Show – S1:E1 Episode 1" format from DetailCard.
   const episodeMatch = itemId?.match(/S(\d+)-E(\d+)/);
