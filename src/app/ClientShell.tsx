@@ -17,7 +17,7 @@ function AppWithProviders({ children }: { children: React.ReactNode }) {
         <ProgressProvider>
           <TrailerMuteProvider>
           <div className="min-h-screen bg-[#141414]">
-            <TopBar onOpenAppSettings={() => setAppSettingsOpen(true)} />
+            <TopBar />
             <main>{children}</main>
           </div>
           {appSettingsOpen && (

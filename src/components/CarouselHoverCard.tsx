@@ -13,7 +13,7 @@ import { useTrailerMute } from '@/context/TrailerMuteContext';
 
 const HOVER_OVERLAY_DELAY_MS = 500;
 const HOVER_TRAILER_DELAY_MS = 400;
-const OVERLAY_WIDTH = 440;
+const OVERLAY_WIDTH = 445;
 const OVERLAY_MIN_HEIGHT = 400;
 
 /** Format duration string: "145m" -> "2h 25m", "45m" -> "45m". */
@@ -79,9 +79,12 @@ export function CarouselHoverCard({
   }, [genres]);
 
   const durationDisplay = duration ? formatDuration(duration) : undefined;
-  const metaLine = mediaType === 'series' && seasonsCount != null && seasonsCount > 0
-    ? `${seasonsCount} Season${seasonsCount !== 1 ? 's' : ''}`
-    : durationDisplay;
+  const metaLine =
+    mediaType === 'series'
+      ? seasonsCount != null && seasonsCount > 0
+        ? `${seasonsCount} Season${seasonsCount !== 1 ? 's' : ''}`
+        : undefined
+      : durationDisplay;
 
   const updateOverlayRect = useCallback(() => {
     if (!cardRef.current) return;
@@ -168,7 +171,7 @@ export function CarouselHoverCard({
     <div
       ref={overlayRef}
       dir="ltr"
-      className={`fixed z-[9999] rounded-lg overflow-hidden bg-[#181818] shadow-2xl ring-1 ring-white/20 origin-center ${zoomInReady ? 'opacity-100' : 'opacity-0'}`}
+      className={`fixed z-[9999] rounded-md overflow-hidden bg-[#181818] shadow-2xl ring-1 ring-white/20 origin-center ${zoomInReady ? 'opacity-100' : 'opacity-0'}`}
       style={{
         left: Math.max(8, Math.min(overlayRect.left, typeof window !== 'undefined' ? window.innerWidth - OVERLAY_WIDTH - 8 : overlayRect.left)),
         top: Math.max(8, Math.min(overlayRect.top, typeof window !== 'undefined' ? window.innerHeight - OVERLAY_MIN_HEIGHT - 8 : overlayRect.top)),
@@ -179,7 +182,7 @@ export function CarouselHoverCard({
       }}
       onMouseLeave={handleOverlayMouseLeave}
     >
-      <div className="relative aspect-video w-full bg-white/10 overflow-hidden rounded-t-lg">
+      <div className="relative aspect-video w-full bg-white/10 overflow-hidden rounded-t-md">
         {showTrailer && trailerUrl ? (
           <div className="absolute inset-0">
             <iframe
@@ -202,7 +205,7 @@ export function CarouselHoverCard({
           </div>
         )}
         {/* Title / logo inside video area, bottom-left */}
-        <div className="absolute left-0 right-0 bottom-0 pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-lg">
+        <div className="absolute left-0 right-0 bottom-0 pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-md">
           <div className="flex items-end min-h-[1.25rem]">
             {item.titleLogoUrl ? (
               <img src={item.titleLogoUrl} alt={item.title} className="max-h-8 w-auto object-contain object-left drop-shadow-md" />
@@ -276,7 +279,7 @@ export function CarouselHoverCard({
     <>
       <div
         ref={cardRef}
-        className="h-full w-full rounded-lg cursor-pointer relative"
+        className="h-full w-full rounded-md cursor-pointer relative"
         onClick={onClick}
         onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
         onMouseEnter={handleMouseEnter}
@@ -284,7 +287,7 @@ export function CarouselHoverCard({
         role="button"
         tabIndex={0}
       >
-        <div className="absolute inset-0 rounded-lg overflow-hidden ring-1 ring-white/10 bg-white/10">
+        <div className="absolute inset-0 rounded-md overflow-hidden ring-1 ring-white/10 bg-white/10">
           {/* Trailer plays only in the overlay portal, not on the thumbnail — avoids double video/sound */}
           {(item.backdropUrl ?? item.posterUrl) ? (
             <img src={item.backdropUrl ?? item.posterUrl} alt="" className="block size-full object-cover object-top" />
@@ -294,7 +297,7 @@ export function CarouselHoverCard({
             </div>
           )}
         </div>
-        <div className={`absolute left-0 right-0 bottom-0 pt-10 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-lg pointer-events-none transition-opacity duration-200 ${isHovered ? 'opacity-0' : ''} ${showTrailer ? 'opacity-0' : ''}`}>
+        <div className={`absolute left-0 right-0 bottom-0 pt-10 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-md pointer-events-none transition-opacity duration-200 ${isHovered ? 'opacity-0' : ''} ${showTrailer ? 'opacity-0' : ''}`}>
           <div className="flex items-end justify-start min-h-[clamp(1.25rem,5vmin,2rem)]">
             {item.titleLogoUrl ? (
               <img src={item.titleLogoUrl} alt={item.title} className="max-h-[clamp(1.5rem,7vmin,3.5rem)] w-auto object-contain object-left" />
@@ -306,8 +309,8 @@ export function CarouselHoverCard({
           </div>
         </div>
         {showProgressBar && progressPercent > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 h-1 rounded-b-lg overflow-hidden bg-white/30 pointer-events-none z-10" aria-hidden>
-            <div className="h-full bg-[#E50914] rounded-b-lg transition-[width] duration-300" style={{ width: `${progressPercent}%` }} />
+          <div className="absolute left-0 right-0 bottom-0 h-1 rounded-b-md overflow-hidden bg-white/30 pointer-events-none z-10" aria-hidden>
+            <div className="h-full bg-[#E50914] rounded-b-md transition-[width] duration-300" style={{ width: `${progressPercent}%` }} />
           </div>
         )}
       </div>

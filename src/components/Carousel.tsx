@@ -51,42 +51,40 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
 
   return (
     <section className="w-full pt-6 pb-4 overflow-x-clip overflow-y-visible">
-      <h2 className="text-xl md:text-2xl font-semibold text-white mb-3 px-6 md:px-12">{title}</h2>
-      {/* Full-bleed so prev/next sit at max left and max right of viewport */}
+      <h2 className="text-xl md:text-2xl font-semibold text-white mb-3 px-20">{title}</h2>
+      {/* Wider side margins; prev/next sit at edges of the carousel area */}
       <div
         ref={wrapperRef}
-        className="relative w-[calc(100vw-24px)] max-w-none left-1/2 -translate-x-1/2"
+        className="relative w-[calc(100vw-160px)] max-w-none left-1/2 -translate-x-1/2"
       >
         {hasEnoughToScroll && !isBeginning && (
           <button
             type="button"
             onClick={() => swiperRef.current?.slidePrev()}
-            className="absolute left-0 top-0 bottom-0 z-10 w-12 bg-black/30 text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-lg group/btn"
-            style={{ borderTopLeftRadius: 8, borderBottomLeftRadius: 8 }}
+            className="absolute -left-20 top-0 bottom-0 z-[40] w-18 bg-black/30 text-white flex items-center justify-center hover:bg-black/50 transition-all shadow-lg group/btn rounded-r-md"
             aria-label="Previous"
           >
-            <ChevronLeft sx={{ fontSize: 32 }} className="transition-transform group-hover/btn:scale-125" />
+            <ChevronLeft sx={{ fontSize: 50 }} className="transition-transform duration-200 group-hover/btn:scale-120" />
           </button>
         )}
         {hasEnoughToScroll && !isEnd && (
           <button
             type="button"
             onClick={() => swiperRef.current?.slideNext()}
-            className="absolute right-0 top-0 bottom-0 z-10 w-12 bg-black/30 text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-lg group/btn"
-            style={{ borderTopRightRadius: 8, borderBottomRightRadius: 8 }}
+            className="absolute -right-20 top-0 bottom-0 z-[40] w-18 bg-black/30 text-white flex items-center justify-center hover:bg-black/50 transition-all shadow-lg group/btn rounded-l-md"
             aria-label="Next"
           >
-            <ChevronRight sx={{ fontSize: 32 }} className="transition-transform group-hover/btn:scale-125" />
+            <ChevronRight sx={{ fontSize: 50 }} className="transition-transform duration-200 group-hover/btn:scale-120" />
           </button>
         )}
-        {/* Wrapper gets z-20 on card hover so hover card stacks above nav buttons (z-10); overflow-visible so scaled card isn't clipped */}
+        {/* Wrapper gets z-30 on card hover so hover card stacks above slides; nav buttons use z-40 so they stay visible and clickable */}
         <div className="relative overflow-visible" style={{ zIndex: isCardHovered ? 30 : 0 }}>
           <SwiperRoot
-            spaceBetween={12}
+            spaceBetween={8}
             slidesPerView={5}
             breakpoints={{
-              640: { slidesPerView: 5 },
-              768: { slidesPerView: 5 },
+              640: { slidesPerView: 6 },
+              768: { slidesPerView: 6 },
               1024: { slidesPerView: 6 },
               1280: { slidesPerView: 6 },
             }}

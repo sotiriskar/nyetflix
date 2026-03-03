@@ -4,6 +4,9 @@ import { useProfile } from '@/context/ProfileContext';
 
 const STORAGE_KEY_PREFIX = 'nyetflix-watch-progress';
 
+/** Past this progress (0–1), treat as "watched" for Continue Watching (e.g. end credits). */
+export const CONTINUE_WATCHING_MAX_PROGRESS = 0.9;
+
 export interface ProgressEntry {
   progress: number;
   lastWatchedAt: number;

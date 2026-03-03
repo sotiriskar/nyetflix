@@ -49,6 +49,8 @@ export interface TmdbImages {
   trailerYouTubeId: string | null;
   /** English title/name from TMDB (for carousel display when we want English). */
   englishTitle: string | null;
+  /** For TV: number of seasons (for hover card "X Seasons"). */
+  seasonsCount?: number;
 }
 
 /** Fetch credits (cast) and details (genres) for a movie or TV show. */
@@ -162,7 +164,7 @@ async function fetchTrailerKey(
   return best.key ?? null;
 }
 
-/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, and English title from the first result. */
+/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, and (for TV) seasons count. */
 export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null, englishTitle: null };
   const apiKey = process.env.TMDB_API_KEY;
@@ -185,15 +187,22 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   out.backdropUrl = buildImageUrl(first.backdrop_path, BACKDROP_SIZE);
   if (first.id != null && first.media_type) {
     try {
-      const [logo, creditsAndGenres, trailerKey] = await Promise.all([
+      const extras: Promise<unknown>[] = [
         fetchTitleLogo(apiKey, first.id, first.media_type),
         fetchCreditsAndGenres(apiKey, first.id, first.media_type),
         fetchTrailerKey(apiKey, first.id, first.media_type),
-      ]);
-      out.titleLogoUrl = logo;
-      out.cast = creditsAndGenres.cast;
-      out.genres = creditsAndGenres.genres;
-      out.trailerYouTubeId = trailerKey;
+      ];
+      if (first.media_type === 'tv') {
+        extras.push(getTvShowSeasonNumbers(first.id));
+      }
+      const [logo, creditsAndGenres, trailerKey, seasonNumbers] = await Promise.all(extras);
+      out.titleLogoUrl = logo as string | null;
+      out.cast = (creditsAndGenres as { cast: string | null; genres: string | null }).cast;
+      out.genres = (creditsAndGenres as { cast: string | null; genres: string | null }).genres;
+      out.trailerYouTubeId = trailerKey as string | null;
+      if (Array.isArray(seasonNumbers) && seasonNumbers.length > 0) {
+        out.seasonsCount = seasonNumbers.length;
+      }
     } catch {
       // ignore
     }

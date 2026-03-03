@@ -10,24 +10,23 @@ import EditOutlined from '@mui/icons-material/EditOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import Search from '@mui/icons-material/Search';
 import HelpOutline from '@mui/icons-material/HelpOutline';
+import NotificationsNone from '@mui/icons-material/NotificationsNone';
 import SwapHoriz from '@mui/icons-material/SwapHoriz';
 import { useProfile } from '@/context/ProfileContext';
 
 const NAV_ITEMS = [
-  { label: 'Home', to: '/' },
+  { label: 'Home', to: '/browse' },
   { label: 'Series', to: '/series' },
   { label: 'Films', to: '/films' },
-  { label: 'My List', to: '/mylist' },
+  { label: 'My List', to: '/browse/my-list' },
 ];
 
 interface TopBarProps {
   /** Optional: open account/profile settings (used by standalone React App wrapper). */
   onOpenAccount?: () => void;
-  /** Optional: open app settings (used by standalone React App wrapper). */
-  onOpenAppSettings?: () => void;
 }
 
-export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
+export function TopBar({ onOpenAccount }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +36,7 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -155,17 +155,20 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
         </nav>
       )}
 
-      {/* Right: search (expandable) + profile; on settings only profile */}
-      <div className="flex items-center gap-3 ml-auto">
+      {/* Right: search, notification, profile – consistent gap between each */}
+      <div className="flex items-center gap-2 ml-auto">
         {/* Search: icon or expanded input - hide on settings */}
         {!isSettings && (
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           {searchOpen ? (
-            <div className="flex items-center bg-white/10 rounded-md overflow-hidden border border-white/20 transition-opacity duration-200">
+            <div className="flex items-center gap-2 bg-black rounded border border-white/20 overflow-hidden transition-opacity duration-200">
+              <span className="pl-3 text-white/70" aria-hidden>
+                <Search sx={{ fontSize: 22, color: 'inherit' }} />
+              </span>
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search movies..."
+                placeholder="Titles, people, genres"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onBlur={() => {
@@ -184,12 +187,12 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
                     }
                   }
                 }}
-                className="w-40 sm:w-56 md:w-64 bg-transparent px-3 py-2 text-sm text-white placeholder-white/50 outline-none"
+                className="flex-1 min-w-0 w-40 sm:w-48 md:w-56 bg-transparent py-2.5 pr-2 text-sm text-white placeholder-white/50 outline-none"
               />
               <button
                 type="button"
                 onClick={() => setSearchOpen(false)}
-                className="p-2 text-white/70 hover:text-white"
+                className="p-2 text-white/70 hover:text-white shrink-0"
                 aria-label="Close search"
               >
                 <Close sx={{ fontSize: 20, color: 'inherit' }} />
@@ -199,25 +202,53 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="p-2 text-white/90 hover:text-white transition-colors"
+              className="p-2.5 text-white/90 hover:text-white transition-colors"
               aria-label="Open search"
             >
-              <Search sx={{ fontSize: 26, color: 'inherit' }} />
+              <Search sx={{ fontSize: 24, color: 'inherit' }} />
             </button>
           )}
         </div>
         )}
 
+        {/* Notifications bell – hover to show "No recent notifications" */}
+        {!isSettings && (
+          <div
+            className="relative shrink-0"
+            onMouseEnter={() => setNotificationsOpen(true)}
+            onMouseLeave={() => setNotificationsOpen(false)}
+          >
+            <button
+              type="button"
+              className="p-2.5 text-white/90 hover:text-white transition-colors"
+              aria-label="Notifications"
+              aria-expanded={notificationsOpen}
+            >
+              <NotificationsNone sx={{ fontSize: 24, color: 'inherit' }} />
+            </button>
+            {notificationsOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 z-50"
+                role="tooltip"
+              >
+                <div className="bg-black border border-white/10 rounded shadow-xl min-w-[220px] py-4 px-4">
+                  <p className="text-white/70 text-sm text-center">No recent notifications</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Profile: avatar + dropdown (open on hover, Netflix-style menu) */}
         <div
-          className="relative shrink-0"
+          className="relative shrink-0 flex items-center"
           ref={profileMenuRef}
           onMouseEnter={handleProfileMenuEnter}
           onMouseLeave={handleProfileMenuLeave}
         >
           <button
             type="button"
-            className="flex items-center gap-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+            className="flex items-center gap-1.5 p-1 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
             aria-label="Profile and settings"
             aria-expanded={profileMenuOpen}
             aria-haspopup="true"
@@ -298,15 +329,7 @@ export function TopBar({ onOpenAccount, onOpenAppSettings }: TopBarProps) {
                 Help Centre
               </button>
               <div className="border-t border-white/10 my-1" />
-              <div className="px-4 py-2.5 flex flex-col gap-2">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => onOpenAppSettings?.()}
-                  className="w-full text-center text-sm text-white/90 hover:text-white hover:underline transition-colors"
-                >
-                  App Settings
-                </button>
+              <div className="px-4 py-2.5">
                 <button
                   type="button"
                   role="menuitem"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import Snackbar from '@mui/material/Snackbar';
@@ -11,19 +12,19 @@ import { DetailCard } from '@/components/DetailCard';
 import { Footer } from '@/components/Footer';
 import { HeroBanner } from '@/components/HeroBanner';
 import { LibraryRefreshButton } from '@/components/LibraryRefreshButton';
-import { VideoPlayerModal } from '@/components/VideoPlayerModal';
 import { useLibrary } from '@/hooks/useLibrary';
 import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
-import { useProgress } from '@/context/ProgressContext';
+import { useProgress, CONTINUE_WATCHING_MAX_PROGRESS } from '@/context/ProgressContext';
+import { buildWatchUrl } from '@/lib/watchUrl';
 
 const skeletonSx = { bgcolor: 'rgba(255,255,255,0.11)' };
 
 function HeroSkeleton() {
   return (
-    <section className="relative w-full min-h-[65vh] flex items-end bg-[#1a1a1a]">
+    <section className="relative w-full min-h-[98vh] flex items-end bg-[#1a1a1a]">
       <Skeleton variant="rectangular" height="100%" width="100%" sx={{ position: 'absolute', inset: 0, ...skeletonSx }} />
       <div className="relative z-10 w-full px-6 md:px-12 pb-8 md:pb-12 pt-32">
         <div className="max-w-4xl flex flex-col gap-5">
@@ -63,31 +64,26 @@ function isSeries(detailsMap: Record<string, MovieDetail>, id: string): boolean 
 }
 
 export function SeriesPage() {
-  const { moviesFolderPath, subtitleLanguage } = useSettings();
+  const router = useRouter();
+  const { moviesFolderPath } = useSettings();
   const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh } = useLibrary(moviesFolderPath);
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
   const { progressByItemId, getProgress } = useProgress();
   const [selectedItem, setSelectedItem] = useState<CarouselItem | null>(null);
-  const [nowPlayingId, setNowPlayingId] = useState<string | null>(null);
-  const [nowPlayingTitle, setNowPlayingTitle] = useState<string | null>(null);
-  const [nowPlayingSubtitleLanguages, setNowPlayingSubtitleLanguages] = useState<string[] | undefined>(undefined);
-  const [nowPlayingSeriesTitle, setNowPlayingSeriesTitle] = useState<string | null>(null);
-  const [playbackMessage, setPlaybackMessage] = useState<string | null>(null);
 
   const handlePlay = useCallback(
     (item: CarouselItem) => {
-      setNowPlayingTitle(null);
-      setNowPlayingSubtitleLanguages(undefined);
       const prog = getProgress(item.id);
       const isSeries = detailsMap[item.id]?.mediaType === 'series';
       const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
-      setNowPlayingId(resumeEpisodeId ?? item.id);
-      setNowPlayingSeriesTitle(isSeries ? (detailsMap[item.id]?.title ?? null) : null);
+      const id = resumeEpisodeId ?? item.id;
+      const seriesTitle = isSeries ? (detailsMap[item.id]?.title ?? undefined) : undefined;
       const path = moviesFolderPath?.trim() ?? '';
       if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
+      router.push(buildWatchUrl(id, { seriesTitle }));
     },
-    [moviesFolderPath, getProgress, detailsMap]
+    [moviesFolderPath, getProgress, detailsMap, router]
   );
 
   const getDetail = useMemo(
@@ -123,7 +119,10 @@ export function SeriesPage() {
 
     const latest = seriesItems.slice(0, 8);
     const continueWatching = seriesItems
-      .filter((item) => (progressByItemId[item.id]?.progress ?? 0) > 0 && (progressByItemId[item.id]?.progress ?? 0) < 1)
+      .filter((item) => {
+        const p = progressByItemId[item.id]?.progress ?? 0;
+        return p > 0 && p < CONTINUE_WATCHING_MAX_PROGRESS;
+      })
       .sort((a, b) => (progressByItemId[b.id]?.lastWatchedAt ?? 0) - (progressByItemId[a.id]?.lastWatchedAt ?? 0))
       .slice(0, 8);
 
@@ -187,8 +186,31 @@ export function SeriesPage() {
             getMovieDetail={getDetail}
             pageTitle="Series"
           />
-          <div className="bg-[#141414]">
-            {displayCarousels.map((row) => (
+          <div className="relative z-10 -mt-24 pt-0">
+            {displayCarousels[0] && (
+              <Carousel
+                key={displayCarousels[0].title}
+                title={displayCarousels[0].title}
+                items={displayCarousels[0].items.filter((item) => item.id !== heroItem.id)}
+                onItemClick={setSelectedItem}
+                onPlayClick={handlePlay}
+                getMovieDetail={getDetail}
+                onAddClick={(item) => toggleMyList(item.id)}
+                getIsInList={isInMyList}
+                onLikeClick={(item) => toggleLiked(item.id)}
+                getIsLiked={isLiked}
+              />
+            )}
+            <div
+              className="absolute left-0 right-0 top-full h-[28vh] min-h-[120px] pointer-events-none w-full"
+              style={{
+                background: 'linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(20,20,20,0.25) 50%, rgba(20,20,20,0.55) 72%, rgba(20,20,20,0.85) 90%, #141414 100%)',
+              }}
+              aria-hidden
+            />
+          </div>
+          <div className="relative z-10 bg-[#141414] pt-6">
+            {displayCarousels.slice(1).map((row) => (
               <Carousel
                 key={row.title}
                 title={row.title}
@@ -228,49 +250,23 @@ export function SeriesPage() {
           onClose={() => setSelectedItem(null)}
           onPlay={(d) => {
             setSelectedItem(null);
-            setNowPlayingTitle(null);
-            setNowPlayingSubtitleLanguages(undefined);
             void handlePlay({ id: d.id, title: d.title, posterUrl: d.posterUrl, backdropUrl: d.backdropUrl, titleLogoUrl: d.titleLogoUrl });
           }}
           onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
             setSelectedItem(null);
-            setPlaybackMessage(null);
-            setNowPlayingTitle(episodeTitle ?? null);
-            setNowPlayingSubtitleLanguages(subtitleLanguages);
-            setNowPlayingId(episodeId);
-            if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
+            router.push(buildWatchUrl(episodeId, {
+              title: episodeTitle ?? undefined,
+              seriesTitle: seriesTitle ?? undefined,
+              subs: subtitleLanguages,
+            }));
           }}
-          onPlayUnavailable={(msg) => {
-            setSelectedItem(null);
-            setNowPlayingId(null);
-            setNowPlayingTitle(null);
-            setNowPlayingSubtitleLanguages(undefined);
-            setNowPlayingSeriesTitle(null);
-            setPlaybackMessage(msg);
-          }}
+          onPlayUnavailable={() => setSelectedItem(null)}
           onAddClick={() => toggleMyList(detail.id)}
           isInList={isInMyList(detail.id)}
           onLikeClick={() => toggleLiked(detail.id)}
           isLiked={isLiked(detail.id)}
         />
       )}
-      <VideoPlayerModal
-        itemId={nowPlayingId}
-        title={nowPlayingTitle ?? (nowPlayingId ? getDetail(nowPlayingId)?.title : undefined)}
-        subtitleLanguages={nowPlayingSubtitleLanguages ?? (nowPlayingId ? getDetail(nowPlayingId)?.subtitleLanguages : undefined)}
-        preferredSubtitleLang={subtitleLanguage}
-        message={playbackMessage}
-        onClose={() => { setNowPlayingId(null); setNowPlayingTitle(null); setNowPlayingSubtitleLanguages(undefined); setNowPlayingSeriesTitle(null); setPlaybackMessage(null); }}
-        onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
-          setPlaybackMessage(null);
-          setNowPlayingTitle(episodeTitle ?? null);
-          setNowPlayingSubtitleLanguages(subtitleLanguages);
-          setNowPlayingId(episodeId);
-          if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
-        }}
-        seriesTitle={nowPlayingSeriesTitle}
-        getSeriesTitle={(id) => getDetail(id)?.title ?? null}
-      />
     </div>
   );
 }

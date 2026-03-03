@@ -1,46 +1,43 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { CarouselItem } from '@/types/movie';
 import type { MovieDetail } from '@/types/movie';
 import { CarouselHoverCard } from '@/components/CarouselHoverCard';
 import { DetailCard } from '@/components/DetailCard';
 import { LibraryRefreshButton } from '@/components/LibraryRefreshButton';
-import { VideoPlayerModal } from '@/components/VideoPlayerModal';
 import { useLibrary } from '@/hooks/useLibrary';
 import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress } from '@/context/ProgressContext';
+import { buildWatchUrl } from '@/lib/watchUrl';
 
 export function SearchPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const q = (searchParams.get('q') ?? '').trim();
-  const { moviesFolderPath, subtitleLanguage } = useSettings();
+  const { moviesFolderPath } = useSettings();
   const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibrary(moviesFolderPath);
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
-  const { progressByItemId } = useProgress();
+  const { progressByItemId, getProgress } = useProgress();
   const [selectedItem, setSelectedItem] = useState<CarouselItem | null>(null);
-  const [nowPlayingId, setNowPlayingId] = useState<string | null>(null);
-  const [nowPlayingTitle, setNowPlayingTitle] = useState<string | null>(null);
-  const [nowPlayingSubtitleLanguages, setNowPlayingSubtitleLanguages] = useState<string[] | undefined>(undefined);
-  const [nowPlayingSeriesTitle, setNowPlayingSeriesTitle] = useState<string | null>(null);
-  const [playbackMessage, setPlaybackMessage] = useState<string | null>(null);
 
   const handlePlay = useCallback(
     (item: CarouselItem) => {
-      setNowPlayingTitle(null);
-      setNowPlayingSubtitleLanguages(undefined);
-      setNowPlayingId(item.id);
+      const prog = getProgress(item.id);
       const isSeries = detailsMap[item.id]?.mediaType === 'series';
-      setNowPlayingSeriesTitle(isSeries ? (detailsMap[item.id]?.title ?? null) : null);
+      const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
+      const id = resumeEpisodeId ?? item.id;
+      const seriesTitle = isSeries ? (detailsMap[item.id]?.title ?? undefined) : undefined;
       const path = moviesFolderPath?.trim() ?? '';
       if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
+      router.push(buildWatchUrl(id, { seriesTitle }));
     },
-    [moviesFolderPath, detailsMap]
+    [moviesFolderPath, detailsMap, getProgress, router]
   );
 
   const getDetail = useMemo(
@@ -145,8 +142,6 @@ export function SearchPage() {
           onClose={() => setSelectedItem(null)}
           onPlay={(d) => {
             setSelectedItem(null);
-            setNowPlayingTitle(null);
-            setNowPlayingSubtitleLanguages(undefined);
             void handlePlay({
               id: d.id,
               title: d.title,
@@ -157,44 +152,19 @@ export function SearchPage() {
           }}
           onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
             setSelectedItem(null);
-            setPlaybackMessage(null);
-            setNowPlayingTitle(episodeTitle ?? null);
-            setNowPlayingSubtitleLanguages(subtitleLanguages);
-            setNowPlayingId(episodeId);
-            if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
+            router.push(buildWatchUrl(episodeId, {
+              title: episodeTitle ?? undefined,
+              seriesTitle: seriesTitle ?? undefined,
+              subs: subtitleLanguages,
+            }));
           }}
-          onPlayUnavailable={(msg) => {
-            setSelectedItem(null);
-            setNowPlayingId(null);
-            setNowPlayingTitle(null);
-            setNowPlayingSubtitleLanguages(undefined);
-            setNowPlayingSeriesTitle(null);
-            setPlaybackMessage(msg);
-          }}
+          onPlayUnavailable={() => setSelectedItem(null)}
           onAddClick={() => toggleMyList(detail.id)}
           isInList={isInMyList(detail.id)}
           onLikeClick={() => toggleLiked(detail.id)}
           isLiked={isLiked(detail.id)}
         />
       )}
-
-      <VideoPlayerModal
-        itemId={nowPlayingId}
-        title={nowPlayingTitle ?? (nowPlayingId ? getDetail(nowPlayingId)?.title : undefined)}
-        subtitleLanguages={nowPlayingSubtitleLanguages ?? (nowPlayingId ? getDetail(nowPlayingId)?.subtitleLanguages : undefined)}
-        preferredSubtitleLang={subtitleLanguage}
-        message={playbackMessage}
-        onClose={() => { setNowPlayingId(null); setNowPlayingTitle(null); setNowPlayingSubtitleLanguages(undefined); setNowPlayingSeriesTitle(null); setPlaybackMessage(null); }}
-        onPlayEpisode={(episodeId, episodeTitle, subtitleLanguages, seriesTitle) => {
-          setPlaybackMessage(null);
-          setNowPlayingTitle(episodeTitle ?? null);
-          setNowPlayingSubtitleLanguages(subtitleLanguages);
-          setNowPlayingId(episodeId);
-          if (seriesTitle != null) setNowPlayingSeriesTitle(seriesTitle);
-        }}
-        seriesTitle={nowPlayingSeriesTitle}
-        getSeriesTitle={(id) => getDetail(id)?.title ?? null}
-      />
     </div>
   );
 }

@@ -129,7 +129,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
       aria-label={`Details for ${detail.title}`}
     >
       <div
-        className="relative flex flex-col w-full max-w-4xl min-w-0 rounded-lg bg-[#181818] shadow-2xl overflow-hidden"
+        className="relative flex flex-col w-full max-w-4xl min-w-0 rounded-md bg-[#181818] shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top: image / backdrop */}

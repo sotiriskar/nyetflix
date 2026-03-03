@@ -1,5 +1,5 @@
-import { MyListPage } from '@/views/MyListPage';
+import { redirect } from 'next/navigation';
 
-export default function MyListRoute() {
-  return <MyListPage />;
+export default function MyListRedirect() {
+  redirect('/browse/my-list');
 }

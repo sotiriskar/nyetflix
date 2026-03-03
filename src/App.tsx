@@ -13,10 +13,7 @@ function App() {
   return (
     <SettingsProvider>
       <div className="min-h-screen bg-[#141414]">
-        <TopBar
-          onOpenAccount={() => setEditProfileOpen(true)}
-          onOpenAppSettings={() => setAppSettingsOpen(true)}
-        />
+        <TopBar onOpenAccount={() => setEditProfileOpen(true)} />
         <main>
           <Routes>
             <Route path="/" element={<HomePage />} />

@@ -23,7 +23,7 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
   const titleLogoUrl = detail?.titleLogoUrl ?? heroItem.titleLogoUrl;
 
   return (
-    <section className="relative w-full min-h-[65vh] flex items-end bg-[#1a1a1a]">
+    <section className="relative z-0 w-full min-h-[98vh] flex items-end bg-[#1a1a1a]">
       <div
         className="absolute inset-0 bg-linear-to-t from-black via-black/60 to-black/30"
         aria-hidden
@@ -48,11 +48,11 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
         />
       )}
 
-      {/* Transition fade: stage-by-stage opacity into carousel area */}
+      {/* Gradient at bottom of hero only; first carousel has higher z-index so it stacks above this */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-[40vh] z-[1] pointer-events-none"
+        className="absolute bottom-0 left-0 right-0 h-[50vh] z-[1] pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(20,20,20,0.15) 20%, rgba(20,20,20,0.4) 40%, rgba(20,20,20,0.65) 60%, rgba(20,20,20,0.88) 80%, #141414 100%)',
+          background: 'linear-gradient(to bottom, transparent 0%, transparent 35%, rgba(20,20,20,0.2) 55%, rgba(20,20,20,0.5) 72%, rgba(20,20,20,0.82) 88%, #141414 100%)',
         }}
         aria-hidden
       />
@@ -66,14 +66,14 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
         </div>
       )}
 
-      {/* Content – stays at bottom of hero */}
-      <div className="relative z-10 w-full px-6 md:px-12 pb-8 md:pb-12 pt-32">
+      {/* Content – positioned above bottom so it sits a bit up */}
+      <div className="relative z-10 w-full px-6 md:px-12 pb-8 md:pb-12 pt-32 mb-36 md:mb-44">
         <div className="max-w-4xl flex flex-col gap-5">
           {titleLogoUrl ? (
             <img
               src={titleLogoUrl}
               alt={heroItem.title}
-              className="max-h-24 md:max-h-28 lg:max-h-32 w-auto object-contain object-left drop-shadow-lg"
+              className="max-w-2xl max-h-16 md:max-h-20 lg:max-h-24 w-auto object-contain object-left drop-shadow-lg"
             />
           ) : (
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">

@@ -18,7 +18,7 @@ export default function SettingsProfilesPage() {
       <div className="flex items-center gap-3 pb-4 mb-6 border-b border-white/10">
         <button
           type="button"
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/browse')}
           className="flex items-center justify-center w-9 h-9 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors shrink-0"
           aria-label="Back"
         >
