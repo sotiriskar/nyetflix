@@ -10,6 +10,7 @@ import { SettingsProvider } from '@/context/SettingsContext';
 import { LibraryHandleProvider } from '@/context/LibraryHandleContext';
 import { ProgressProvider } from '@/context/ProgressContext';
 import { TrailerMuteProvider } from '@/context/TrailerMuteContext';
+import { TrailerResumeProvider } from '@/context/TrailerResumeContext';
 
 function AppWithProviders({ children }: { children: React.ReactNode }) {
   const [appSettingsOpen, setAppSettingsOpen] = useState(false);
@@ -18,6 +19,7 @@ function AppWithProviders({ children }: { children: React.ReactNode }) {
       <LibraryHandleProvider>
         <ProgressProvider>
           <TrailerMuteProvider>
+          <TrailerResumeProvider>
           <div className="min-h-screen bg-[#141414]">
             <TopBar />
             <main>{children}</main>
@@ -25,6 +27,7 @@ function AppWithProviders({ children }: { children: React.ReactNode }) {
           {appSettingsOpen && (
             <AppSettingsModal onClose={() => setAppSettingsOpen(false)} />
           )}
+          </TrailerResumeProvider>
           </TrailerMuteProvider>
         </ProgressProvider>
       </LibraryHandleProvider>

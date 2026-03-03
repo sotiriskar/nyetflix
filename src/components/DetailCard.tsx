@@ -4,11 +4,18 @@ import Check from '@mui/icons-material/Check';
 import Close from '@mui/icons-material/Close';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import ThumbUp from '@mui/icons-material/ThumbUp';
+import VolumeOff from '@mui/icons-material/VolumeOff';
+import VolumeUp from '@mui/icons-material/VolumeUp';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import type { MovieDetail, SeriesSeason } from '../types/movie';
 import { useProgress } from '@/context/ProgressContext';
+import { useTrailerMute } from '@/context/TrailerMuteContext';
+import { useTrailerResume } from '@/context/TrailerResumeContext';
+
+const DETAIL_TRAILER_PLAYER_ID = 'detail-modal-trailer';
+const YT_PLAYER_ENDED = 0;
 
 interface DetailCardProps {
   detail: MovieDetail;
@@ -29,8 +36,17 @@ interface DetailCardProps {
   isLiked?: boolean;
 }
 
+interface YTPlayer {
+  mute: () => void;
+  unMute: () => void;
+  destroy: () => void;
+  seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
+}
+
 export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false }: DetailCardProps) {
   const { getProgress } = useProgress();
+  const { isMuted, setMuted } = useTrailerMute();
+  const { getAndClearResume } = useTrailerResume();
   const [seasons, setSeasons] = useState<SeriesSeason[]>([]);
   const [selectedSeasonNum, setSelectedSeasonNum] = useState<number>(1);
   const [seasonDropdownOpen, setSeasonDropdownOpen] = useState(false);
@@ -38,7 +54,15 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const seasonDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [trailerEnded, setTrailerEnded] = useState(false);
+  const ytPlayerRef = useRef<YTPlayer | null>(null);
+  const ytApiReadyRef = useRef(false);
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
+
   const isSeries = detail.mediaType === 'series';
+  const trailerId = detail.trailerYouTubeId ?? undefined;
+  const showTrailer = Boolean(trailerId && !trailerEnded);
 
   const fetchEpisodes = useCallback(() => {
     if (!isSeries || !detail.id) return;
@@ -61,6 +85,89 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
   useEffect(() => {
     if (isSeries && detail.id) fetchEpisodes();
   }, [isSeries, detail.id, fetchEpisodes]);
+
+  useEffect(() => {
+    setTrailerEnded(false);
+    return () => {
+      if (ytPlayerRef.current) {
+        ytPlayerRef.current.destroy();
+        ytPlayerRef.current = null;
+      }
+    };
+  }, [detail.id, trailerId]);
+
+  useEffect(() => {
+    if (!trailerId || typeof document === 'undefined') return;
+    const initYt = () => {
+      const w = window as Window & { YT?: { Player: new (el: string | HTMLElement, opts: Record<string, unknown>) => YTPlayer } };
+      if (!w.YT?.Player) return;
+      const el = document.getElementById(DETAIL_TRAILER_PLAYER_ID);
+      if (!el) return;
+      if (ytPlayerRef.current) {
+        ytPlayerRef.current.destroy();
+        ytPlayerRef.current = null;
+      }
+      const Player = w.YT.Player;
+      const player = new Player(el, {
+        videoId: trailerId,
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          loop: 0,
+          rel: 0,
+          modestbranding: 1,
+          disablekb: 1,
+          fs: 0,
+        },
+        events: {
+          onStateChange: (e: { data: number }) => {
+            if (e.data === YT_PLAYER_ENDED) setTrailerEnded(true);
+          },
+          onReady: () => {
+            const p = ytPlayerRef.current as (YTPlayer & { unMute?: () => void; seekTo?: (s: number) => void }) | null;
+            if (p?.unMute && !isMutedRef.current) p.unMute();
+            const resume = getAndClearResume();
+            if (resume && resume.videoId === trailerId && resume.currentTime > 0 && p?.seekTo) {
+              p.seekTo(resume.currentTime);
+            }
+          },
+        },
+      }) as YTPlayer & { getPlayerState?: () => number };
+      ytPlayerRef.current = player;
+    };
+    if (ytApiReadyRef.current) {
+      initYt();
+      return;
+    }
+    const win = window as Window & { YT?: { Player: new (el: string | HTMLElement, opts: Record<string, unknown>) => YTPlayer } };
+    if (win.YT?.Player) {
+      ytApiReadyRef.current = true;
+      initYt();
+      return;
+    }
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScript = document.getElementsByTagName('script')[0];
+    firstScript?.parentNode?.insertBefore(tag, firstScript);
+    (window as Window & { onYouTubeIframeAPIReady?: () => void }).onYouTubeIframeAPIReady = () => {
+      ytApiReadyRef.current = true;
+      initYt();
+    };
+    return () => {
+      if (ytPlayerRef.current) {
+        ytPlayerRef.current.destroy();
+        ytPlayerRef.current = null;
+      }
+    };
+  }, [trailerId, getAndClearResume]);
+
+  useEffect(() => {
+    const p = ytPlayerRef.current as (YTPlayer & { mute?: () => void; unMute?: () => void }) | null;
+    if (!p?.mute || !p?.unMute) return;
+    if (isMuted) p.mute();
+    else p.unMute();
+  }, [isMuted]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -132,9 +239,18 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
         className="relative flex flex-col w-full max-w-4xl min-w-0 rounded-md bg-[#181818] shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top: image / backdrop */}
-        <div className="relative flex-shrink-0 aspect-video w-full bg-white/5">
-          {imageUrl ? (
+        {/* Top: trailer (when available and not ended) or image / backdrop */}
+        <div className="relative flex-shrink-0 aspect-video w-full bg-white/5 border-0 outline-none" style={{ border: 'none', outline: 'none' }}>
+          {showTrailer ? (
+            <div className="absolute inset-0 w-full h-full overflow-hidden">
+              <div
+                id={DETAIL_TRAILER_PLAYER_ID}
+                className="absolute inset-0 w-full h-full origin-center"
+                style={{ transform: 'scale(1.5)' }}
+              />
+              <div className="absolute inset-0 w-full h-full z-[2] pointer-events-auto" aria-hidden />
+            </div>
+          ) : imageUrl ? (
             <img
               src={imageUrl}
               alt=""
@@ -145,10 +261,12 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
               ?
             </div>
           )}
-          {/* Transition fade at bottom of image into modal content (same as hero banner) */}
+          {/* Transition fade at bottom – extend 4px past container to hide seam under content */}
           <div
-            className="absolute bottom-0 left-0 right-0 h-[40%] pointer-events-none z-[1]"
+            className="absolute left-0 right-0 pointer-events-none z-[1]"
             style={{
+              bottom: -4,
+              height: 'calc(40% + 4px)',
               background: 'linear-gradient(to bottom, transparent 0%, rgba(24,24,24,0.15) 20%, rgba(24,24,24,0.4) 40%, rgba(24,24,24,0.65) 60%, rgba(24,24,24,0.88) 80%, #181818 100%)',
             }}
             aria-hidden
@@ -162,55 +280,65 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
           >
             <Close sx={{ fontSize: 24 }} />
           </button>
-          {/* Title + controls over image — bottom-left */}
-          <div className="absolute bottom-12 left-6 md:left-8 flex flex-col gap-4 z-10">
-            {detail.titleLogoUrl ? (
-              <img
-                src={detail.titleLogoUrl}
-                alt={detail.title ?? ''}
-                className="max-h-24 md:max-h-24 w-auto object-contain object-left drop-shadow-lg"
-              />
-            ) : (
-              <h2 className="text-white text-lg md:text-xl font-bold drop-shadow-lg">
-                {detail.title}
-              </h2>
-            )}
-            <div className="flex items-center gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={handleMainPlay}
-                className="flex items-center justify-center gap-3 rounded-md px-8 py-3 bg-white text-black text-lg font-semibold hover:bg-white/90 transition-colors shrink-0"
-                aria-label="Play"
-              >
-                <PlayArrow sx={{ fontSize: 34 }} />
-                <span>Play</span>
-              </button>
-              <button
-                type="button"
-                onClick={onAddClick}
-                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-                  isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
-                }`}
-                aria-label={isInList ? 'In My List' : 'Add to My List'}
-              >
-                {isInList ? <Check sx={{ fontSize: 26 }} /> : <Add sx={{ fontSize: 26 }} />}
-              </button>
-              <button
-                type="button"
-                onClick={onLikeClick}
-                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-                  isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
-                }`}
-                aria-label={isLiked ? 'Liked' : 'Like'}
-              >
-                <ThumbUp sx={{ fontSize: 24 }} />
-              </button>
+          {/* Title + controls bottom-left; mute bottom-right (same margin), row a bit higher */}
+          <div className="absolute bottom-14 left-6 right-6 md:left-8 md:right-8 flex justify-between items-end gap-4 z-10">
+            <div className="flex flex-col gap-4 min-w-0">
+              {detail.titleLogoUrl ? (
+                <img
+                  src={detail.titleLogoUrl}
+                  alt={detail.title ?? ''}
+                  className="max-h-20 md:max-h-20 w-auto object-contain object-left drop-shadow-lg"
+                />
+              ) : (
+                <h2 className="text-white text-lg md:text-xl font-bold drop-shadow-lg">
+                  {detail.title}
+                </h2>
+              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleMainPlay}
+                  className="flex items-center justify-center gap-3 rounded-md px-8 py-3 bg-white text-black text-lg font-semibold hover:bg-white/90 transition-colors shrink-0"
+                  aria-label="Play"
+                >
+                  <PlayArrow sx={{ fontSize: 34 }} />
+                  <span>Play</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onAddClick}
+                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                    isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
+                  }`}
+                  aria-label={isInList ? 'In My List' : 'Add to My List'}
+                >
+                  {isInList ? <Check sx={{ fontSize: 26 }} /> : <Add sx={{ fontSize: 26 }} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={onLikeClick}
+                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                    isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
+                  }`}
+                  aria-label={isLiked ? 'Liked' : 'Like'}
+                >
+                  <ThumbUp sx={{ fontSize: 24 }} />
+                </button>
+              </div>
             </div>
+            <button
+              type="button"
+              className="w-12 h-12 rounded-full border-2 border-white/70 text-white flex items-center justify-center hover:bg-white/20 transition-colors shrink-0 self-end"
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              onClick={(e) => { e.stopPropagation(); setMuted(!isMuted); }}
+            >
+              {isMuted ? <VolumeOff sx={{ fontSize: 24 }} /> : <VolumeUp sx={{ fontSize: 24 }} />}
+            </button>
           </div>
         </div>
 
-        {/* Bottom: metadata + episodes (single scroll = overlay) */}
-        <div className="min-w-0 p-6 md:p-8 pb-20 md:pb-24">
+        {/* Bottom: metadata + episodes – overlap video area to hide boundary line */}
+        <div className="relative z-[2] -mt-6 pt-6 min-w-0 p-6 md:p-8 pb-20 md:pb-24 bg-[#181818]">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
             {detail.year && <span className="text-base text-white/80">{detail.year}</span>}
             {durationDisplay && (

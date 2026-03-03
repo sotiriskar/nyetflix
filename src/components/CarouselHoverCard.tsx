@@ -10,6 +10,9 @@ import VolumeOff from '@mui/icons-material/VolumeOff';
 import VolumeUp from '@mui/icons-material/VolumeUp';
 import type { CarouselItem } from '../types/movie';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
+import { useTrailerResume } from '@/context/TrailerResumeContext';
+
+const HOVER_OVERLAY_PLAYER_ID = 'hover-overlay-trailer';
 
 const HOVER_OVERLAY_DELAY_MS = 500;
 const HOVER_TRAILER_DELAY_MS = 400;
@@ -72,6 +75,10 @@ export function CarouselHoverCard({
   const overlayRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { setResume } = useTrailerResume();
+  const hoverYtPlayerRef = useRef<{ getCurrentTime: () => number; mute: () => void; unMute: () => void; destroy: () => void } | null>(null);
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
 
   const genreList = useMemo(() => {
     if (!genres?.trim()) return [];
@@ -161,9 +168,84 @@ export function CarouselHoverCard({
     if (!toCard) closeOverlay();
   }, [closeOverlay]);
 
-  const trailerUrl = item.trailerYouTubeId
-    ? `https://www.youtube.com/embed/${item.trailerYouTubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&loop=1&playlist=${item.trailerYouTubeId}&rel=0`
-    : null;
+  useEffect(() => {
+    if (!overlayRect || !showTrailer || !item.trailerYouTubeId || typeof document === 'undefined') return;
+    const initYt = () => {
+      const w = window as Window & { YT?: { Player: new (el: string | HTMLElement, opts: Record<string, unknown>) => { getCurrentTime: () => number; destroy: () => void } } };
+      if (!w.YT?.Player) return;
+      const el = document.getElementById(HOVER_OVERLAY_PLAYER_ID);
+      if (!el) return;
+      if (hoverYtPlayerRef.current) {
+        hoverYtPlayerRef.current.destroy();
+        hoverYtPlayerRef.current = null;
+      }
+      const Player = w.YT.Player;
+      const player = new Player(el, {
+        videoId: item.trailerYouTubeId,
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          loop: 1,
+          rel: 0,
+          playlist: item.trailerYouTubeId,
+          disablekb: 1,
+          fs: 0,
+        },
+        events: {
+          onReady: () => {
+            setTimeout(() => {
+              if (hoverYtPlayerRef.current?.unMute && !isMutedRef.current) {
+                hoverYtPlayerRef.current.unMute();
+              }
+            }, 100);
+          },
+        },
+      }) as { getCurrentTime: () => number; mute: () => void; unMute: () => void; destroy: () => void };
+      hoverYtPlayerRef.current = player;
+    };
+    if ((window as Window & { YT?: { Player: unknown } }).YT?.Player) {
+      initYt();
+      return () => {
+        if (hoverYtPlayerRef.current) {
+          hoverYtPlayerRef.current.destroy();
+          hoverYtPlayerRef.current = null;
+        }
+      };
+    }
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScript = document.getElementsByTagName('script')[0];
+    firstScript?.parentNode?.insertBefore(tag, firstScript);
+    (window as Window & { onYouTubeIframeAPIReady?: () => void }).onYouTubeIframeAPIReady = () => {
+      initYt();
+    };
+    return () => {
+      if (hoverYtPlayerRef.current) {
+        hoverYtPlayerRef.current.destroy();
+        hoverYtPlayerRef.current = null;
+      }
+    };
+  }, [overlayRect, showTrailer, item.trailerYouTubeId]);
+
+  useEffect(() => {
+    const p = hoverYtPlayerRef.current;
+    if (!p?.mute || !p?.unMute) return;
+    if (isMuted) {
+      p.mute();
+    } else {
+      p.unMute();
+      const t = setTimeout(() => { hoverYtPlayerRef.current?.unMute?.(); }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [isMuted]);
+
+  const openModal = useCallback(() => {
+    const t = hoverYtPlayerRef.current?.getCurrentTime?.();
+    if (typeof t === 'number' && t > 0 && item.trailerYouTubeId) setResume(item.trailerYouTubeId, t);
+    closeOverlay();
+    onClick?.();
+  }, [closeOverlay, onClick, item.trailerYouTubeId, setResume]);
 
   const initialScale = overlayRect ? Math.min(1, overlayRect.cardWidth / OVERLAY_WIDTH) : 1;
   const zoomInReady = overlayAnimated;
@@ -183,14 +265,12 @@ export function CarouselHoverCard({
       onMouseLeave={handleOverlayMouseLeave}
     >
       <div className="relative aspect-video w-full bg-white/10 overflow-hidden rounded-t-md">
-        {showTrailer && trailerUrl ? (
-          <div className="absolute inset-0">
-            <iframe
-              src={trailerUrl}
-              title={`${item.title} trailer`}
-              className="absolute inset-0 w-full h-full pointer-events-none object-cover"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
+        {showTrailer && item.trailerYouTubeId ? (
+          <div className="absolute inset-0 overflow-hidden">
+            <div
+              id={HOVER_OVERLAY_PLAYER_ID}
+              className="absolute inset-0 w-full h-full pointer-events-none origin-center"
+              style={{ transform: 'scale(1.5)' }}
             />
           </div>
         ) : (item.backdropUrl ?? item.posterUrl) ? (
@@ -205,7 +285,7 @@ export function CarouselHoverCard({
           </div>
         )}
         {/* Title / logo inside video area, bottom-left */}
-        <div className="absolute left-0 right-0 bottom-0 pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-md">
+        <div className="absolute left-0 right-0 bottom-[-1px] pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-md">
           <div className="flex items-end min-h-[1.25rem]">
             {item.titleLogoUrl ? (
               <img src={item.titleLogoUrl} alt={item.title} className="max-h-8 w-auto object-contain object-left drop-shadow-md" />
@@ -215,7 +295,7 @@ export function CarouselHoverCard({
           </div>
         </div>
         {/* Mute / unmute inside video area, bottom-right */}
-        {showTrailer && trailerUrl && (
+        {showTrailer && item.trailerYouTubeId && (
           <button
             type="button"
             className="absolute bottom-2 right-5 z-10 w-10 h-10 rounded-full border-2 border-white/80 flex items-center justify-center text-white bg-black/30 hover:bg-black/50 transition-colors shrink-0"
@@ -255,7 +335,7 @@ export function CarouselHoverCard({
           type="button"
           className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white hover:bg-white/20 transition-colors shrink-0 ml-auto"
           aria-label="More info"
-          onClick={(e) => { e.stopPropagation(); closeOverlay(); onClick?.(); }}
+          onClick={(e) => { e.stopPropagation(); openModal(); }}
         >
           <ExpandMore sx={{ fontSize: 26 }} />
         </button>
@@ -280,8 +360,8 @@ export function CarouselHoverCard({
       <div
         ref={cardRef}
         className="h-full w-full rounded-md cursor-pointer relative"
-        onClick={() => { closeOverlay(); onClick?.(); }}
-        onKeyDown={(e) => e.key === 'Enter' && (closeOverlay(), onClick?.())}
+        onClick={() => openModal()}
+        onKeyDown={(e) => e.key === 'Enter' && openModal()}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         role="button"
