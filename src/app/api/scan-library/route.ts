@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
     if (isAbsolute(resolvedPath)) {
       canonicalResolved = await realpath(resolvedPath);
     } else {
-      canonicalResolved = await realpath(resolve(canonicalRoot, resolvedPath));
+      const basePath = canonicalRoot.endsWith('/') ? canonicalRoot : canonicalRoot + '/';
+      canonicalResolved = await realpath(basePath + resolvedPath);
     }
     const rootWithSep = canonicalRoot.endsWith('/') ? canonicalRoot : canonicalRoot + '/';
     if (!(canonicalResolved === canonicalRoot || canonicalResolved.startsWith(rootWithSep))) {
