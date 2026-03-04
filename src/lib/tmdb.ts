@@ -35,6 +35,7 @@ function buildImageUrl(path: string | null | undefined, size: string): string | 
 
 export interface TmdbCreditsResponse {
   cast?: Array<{ name?: string }>;
+  crew?: Array<{ job?: string; name?: string }>;
 }
 
 export interface TmdbDetailsResponse {
@@ -48,6 +49,8 @@ export interface TmdbImages {
   backdropUrl: string | null;
   titleLogoUrl: string | null;
   cast: string | null;
+  director: string | null;
+  writer: string | null;
   genres: string | null;
   /** YouTube video ID for a trailer/teaser (for hover card preview). */
   trailerYouTubeId: string | null;
@@ -166,18 +169,20 @@ async function fetchContentRating(
   }
 }
 
-/** Fetch credits (cast), details (genres, overview, tagline) for a movie or TV show. */
+/** Fetch credits (cast, director, writer), details (genres, overview, tagline) for a movie or TV show. */
 async function fetchCreditsAndGenres(
   apiKey: string,
   tmdbId: number,
   mediaType: string
-): Promise<{ cast: string | null; genres: string | null; overview: string | null; tagline: string | null }> {
+): Promise<{ cast: string | null; director: string | null; writer: string | null; genres: string | null; overview: string | null; tagline: string | null }> {
   const type = mediaType === 'tv' ? 'tv' : 'movie';
   const [creditsRes, detailsRes] = await Promise.all([
     fetch(`${TMDB_BASE}/${type}/${tmdbId}/credits?api_key=${encodeURIComponent(apiKey)}`),
     fetch(`${TMDB_BASE}/${type}/${tmdbId}?api_key=${encodeURIComponent(apiKey)}`),
   ]);
   let cast: string | null = null;
+  let director: string | null = null;
+  let writer: string | null = null;
   let genres: string | null = null;
   let overview: string | null = null;
   let tagline: string | null = null;
@@ -185,6 +190,11 @@ async function fetchCreditsAndGenres(
     const data = (await creditsRes.json()) as TmdbCreditsResponse;
     const names = data.cast?.slice(0, 6).map((c) => c.name).filter(Boolean) ?? [];
     if (names.length) cast = names.join(', ');
+    const crew = data.crew ?? [];
+    const directors = crew.filter((c) => c.job === 'Director').map((c) => c.name).filter(Boolean);
+    if (directors.length) director = [...new Set(directors)].slice(0, 3).join(', ');
+    const writers = crew.filter((c) => /^(Writer|Screenplay|Story|Original Story)$/i.test(c.job ?? '')).map((c) => c.name).filter(Boolean);
+    if (writers.length) writer = [...new Set(writers)].slice(0, 3).join(', ');
   }
   if (detailsRes.ok) {
     const data = (await detailsRes.json()) as TmdbDetailsResponse;
@@ -195,7 +205,7 @@ async function fetchCreditsAndGenres(
     const tl = data.tagline;
     if (typeof tl === 'string' && tl.trim()) tagline = tl.trim();
   }
-  return { cast, genres, overview, tagline };
+  return { cast, director, writer, genres, overview, tagline };
 }
 
 /** Fetch logo (title treatment) for a movie or TV show. Prefers English logo when available. */
@@ -394,7 +404,7 @@ function scoreResultMatch(
 
 /** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, overview, tagline, contentRating (ALL/7+/13+/16+/18+), and (for TV) seasons count. Pass raw folder/video name (e.g. "Zootopia (2016)" or "Zootopia 2 (2025)") so year and part number are used to pick the right result. */
 export async function getImagesForTitle(title: string): Promise<TmdbImages> {
-  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null, englishTitle: null, overview: null, tagline: null, contentRating: null };
+  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, director: null, writer: null, genres: null, trailerYouTubeId: null, englishTitle: null, overview: null, tagline: null, contentRating: null };
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey?.trim()) return out;
 
@@ -434,9 +444,11 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
         fetchContentRating(apiKey, first.id, first.media_type),
         first.media_type === 'tv' ? getTvShowSeasonNumbers(first.id) : Promise.resolve([] as number[]),
       ]);
-      const cg = creditsAndGenres as { cast: string | null; genres: string | null; overview: string | null; tagline: string | null };
+      const cg = creditsAndGenres as { cast: string | null; director: string | null; writer: string | null; genres: string | null; overview: string | null; tagline: string | null };
       out.titleLogoUrl = logo as string | null;
       out.cast = cg.cast;
+      out.director = cg.director;
+      out.writer = cg.writer;
       out.genres = cg.genres;
       out.overview = cg.overview ?? null;
       out.tagline = cg.tagline ?? null;

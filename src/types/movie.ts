@@ -23,6 +23,10 @@ export interface MovieDetail {
   contentRating?: string;
   tagline?: string;
   cast?: string;
+  /** Director name(s) from TMDB (e.g. "About" section). */
+  director?: string;
+  /** Writer name(s) from TMDB (e.g. "About" section). */
+  writer?: string;
   genres?: string;
   tags?: string; // e.g. "Steamy, Suspenseful"
   /** Runtime e.g. "145m" for hover card */

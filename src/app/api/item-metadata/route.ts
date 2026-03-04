@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
     if (tmdb.backdropUrl) patch.backdropUrl = tmdb.backdropUrl;
     if (tmdb.titleLogoUrl) patch.titleLogoUrl = tmdb.titleLogoUrl;
     if (tmdb.cast) patch.cast = patch.cast ?? tmdb.cast;
+    if (tmdb.director) patch.director = tmdb.director;
+    if (tmdb.writer) patch.writer = tmdb.writer;
     if (tmdb.genres) patch.genres = patch.genres ?? tmdb.genres;
     if (tmdb.trailerYouTubeId) patch.trailerYouTubeId = tmdb.trailerYouTubeId;
     if (tmdb.englishTitle?.trim()) patch.title = tmdb.englishTitle.trim();

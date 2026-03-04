@@ -11,7 +11,7 @@ import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import type { CarouselItem, MovieDetail, SeriesSeason } from '../types/movie';
-import { getContentRatingDescriptors } from '@/lib/contentRating';
+import { getContentRatingDescriptors, getContentRatingRecommendation } from '@/lib/contentRating';
 import { truncateToWords } from '@/lib/description';
 import { useProgress } from '@/context/ProgressContext';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
@@ -351,7 +351,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
         </div>
 
         {/* Bottom: metadata + episodes – overlap video area to hide boundary line */}
-        <div className="relative z-[2] -mt-6 pt-6 min-w-0 p-6 md:p-8 pb-20 md:pb-24 bg-[#181818]">
+        <div className="relative z-[2] -mt-6 pt-6 min-w-0 mx-4 p-6 md:p-8 pb-8 md:pb-10 bg-[#181818]">
           <Box
             sx={{
               display: 'flex',
@@ -621,8 +621,54 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
               </Box>
             </div>
           )}
+        {/* Horizontal rule between episodes and about */}
+        <hr className="mt-25 border-t-2 border-white/20" aria-hidden />
 
-          <hr className="mt-10 border-t border-white/10" aria-hidden />
+          {/* About <title> */}
+          <section className="mt-5 pt-8">
+            <h3 className="text-2xl font-semibold text-white mb-4">About {detail.title ?? 'this title'}</h3>
+            <div className="flex flex-col gap-3 text-sm">
+              {detail.director && (
+                <div>
+                  <span className="font-base text-white/50">Director: </span>
+                  <span className="font-medium text-white/95">{detail.director}</span>
+                </div>
+              )}
+              {detail.cast && (
+                <div>
+                  <span className="font-base text-white/50">Cast: </span>
+                  <span className="font-medium text-white/95">{detail.cast}</span>
+                </div>
+              )}
+              {detail.writer && (
+                <div>
+                  <span className="font-base text-white/50">Writer: </span>
+                  <span className="font-medium text-white/95">{detail.writer}</span>
+                </div>
+              )}
+              {detail.genres && (
+                <div>
+                  <span className="font-base text-white/50">Genres: </span>
+                  <span className="font-medium text-white/95">{detail.genres}</span>
+                </div>
+              )}
+              {detail.contentRating && (
+                <div>
+                  <span className="font-base text-white/50">Age rating: </span>
+                  <span className="inline-block border border-white/60 rounded px-1.5 py-0.5 text-white/95 font-medium align-middle mr-1.5">{detail.contentRating}</span>
+                  {getContentRatingDescriptors(detail.contentRating) && (
+                    <span className="text-white/90">{getContentRatingDescriptors(detail.contentRating)}</span>
+                  )}
+                  {getContentRatingRecommendation(detail.contentRating) && (
+                    <span className="text-white/70"> {getContentRatingRecommendation(detail.contentRating)}</span>
+                  )}
+                </div>
+              )}
+              {!detail.director && !detail.cast && !detail.writer && !detail.genres && !detail.contentRating && (
+                <p className="font-base text-white/50">No additional details available.</p>
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </div>

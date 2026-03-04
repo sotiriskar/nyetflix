@@ -369,6 +369,8 @@ export async function GET(request: NextRequest) {
         if (tmdb.backdropUrl) detail.backdropUrl = tmdb.backdropUrl;
         if (tmdb.titleLogoUrl) detail.titleLogoUrl = tmdb.titleLogoUrl;
         if (tmdb.cast) detail.cast = tmdb.cast;
+        if (tmdb.director) detail.director = tmdb.director;
+        if (tmdb.writer) detail.writer = tmdb.writer;
         if (tmdb.genres) detail.genres = tmdb.genres;
         if (tmdb.trailerYouTubeId) detail.trailerYouTubeId = tmdb.trailerYouTubeId;
         if (tmdb.englishTitle?.trim()) detail.title = tmdb.englishTitle.trim();
