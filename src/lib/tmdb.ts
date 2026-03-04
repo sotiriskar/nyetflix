@@ -39,6 +39,8 @@ export interface TmdbCreditsResponse {
 
 export interface TmdbDetailsResponse {
   genres?: Array<{ name?: string }>;
+  overview?: string | null;
+  tagline?: string | null;
 }
 
 export interface TmdbImages {
@@ -53,14 +55,123 @@ export interface TmdbImages {
   englishTitle: string | null;
   /** For TV: number of seasons (for hover card "X Seasons"). */
   seasonsCount?: number;
+  /** Plot/overview from TMDB (full description). */
+  overview: string | null;
+  /** Short tagline from TMDB (for hero). */
+  tagline: string | null;
+  /** Normalized age rating: "ALL" | "7+" | "13+" | "16+" | "18+" from TMDB certification. */
+  contentRating: string | null;
 }
 
-/** Fetch credits (cast) and details (genres) for a movie or TV show. */
+/** Normalized age rating for display (replaces PG, R, etc. with simple buckets). */
+export type AgeRating = 'ALL' | '7+' | '13+' | '16+' | '18+';
+
+const RATING_TO_AGE: Record<string, AgeRating> = {
+  G: 'ALL',
+  U: 'ALL',
+  '0': 'ALL',
+  TV_G: 'ALL',
+  TV_Y: 'ALL',
+  TV_Y7: 'ALL',
+  L: 'ALL',
+  '1': 'ALL',
+  '2': 'ALL',
+  '3': 'ALL',
+  '4': 'ALL',
+  '5': 'ALL',
+  '6': 'ALL',
+  PG: '7+',
+  TV_PG: '7+',
+  '7': '7+',
+  'PG-13': '13+',
+  PG_13: '13+',
+  '12': '13+',
+  '12A': '13+',
+  TV_14: '13+',
+  '11': '13+',
+  '13': '13+',
+  '15': '16+',
+  '16': '16+',
+  '14': '16+',
+  R: '18+',
+  'NC-17': '18+',
+  NC_17: '18+',
+  '18': '18+',
+  TV_MA: '18+',
+  'MA15+': '18+',
+  R18: '18+',
+  '17': '18+',
+};
+
+function certificationToAgeRating(cert: string): AgeRating | null {
+  if (!cert || typeof cert !== 'string') return null;
+  const key = cert.trim().toUpperCase().replace(/-/g, '_');
+  return RATING_TO_AGE[key] ?? RATING_TO_AGE[cert.trim()] ?? null;
+}
+
+interface ReleaseDateEntry {
+  certification?: string;
+  release_date?: string;
+  type?: number;
+}
+
+interface MovieReleaseDatesResult {
+  iso_3166_1?: string;
+  release_dates?: ReleaseDateEntry[];
+}
+
+interface MovieReleaseDatesResponse {
+  results?: MovieReleaseDatesResult[];
+}
+
+interface TvContentRatingResult {
+  iso_3166_1?: string;
+  rating?: string;
+}
+
+interface TvContentRatingsResponse {
+  results?: TvContentRatingResult[];
+}
+
+/** Fetch content rating (certification) for movie or TV; prefer US, then first. Returns normalized "ALL" | "7+" | "13+" | "16+" | "18+". */
+async function fetchContentRating(
+  apiKey: string,
+  tmdbId: number,
+  mediaType: string
+): Promise<string | null> {
+  try {
+    let raw: string | null = null;
+    if (mediaType === 'movie') {
+      const res = await fetch(`${TMDB_BASE}/movie/${tmdbId}/release_dates?api_key=${encodeURIComponent(apiKey)}`);
+      if (!res.ok) return null;
+      const data = (await res.json()) as MovieReleaseDatesResponse;
+      const results = data.results ?? [];
+      const us = results.find((r) => r.iso_3166_1 === 'US');
+      const region = us ?? results[0];
+      const entry = region?.release_dates?.find((e) => e.certification && e.certification.trim());
+      raw = entry?.certification?.trim() ?? null;
+    } else {
+      const res = await fetch(`${TMDB_BASE}/tv/${tmdbId}/content_ratings?api_key=${encodeURIComponent(apiKey)}`);
+      if (!res.ok) return null;
+      const data = (await res.json()) as TvContentRatingsResponse;
+      const results = data.results ?? [];
+      const us = results.find((r) => r.iso_3166_1 === 'US');
+      const region = us ?? results[0];
+      raw = region?.rating?.trim() ?? null;
+    }
+    if (!raw) return null;
+    return certificationToAgeRating(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch credits (cast), details (genres, overview, tagline) for a movie or TV show. */
 async function fetchCreditsAndGenres(
   apiKey: string,
   tmdbId: number,
   mediaType: string
-): Promise<{ cast: string | null; genres: string | null }> {
+): Promise<{ cast: string | null; genres: string | null; overview: string | null; tagline: string | null }> {
   const type = mediaType === 'tv' ? 'tv' : 'movie';
   const [creditsRes, detailsRes] = await Promise.all([
     fetch(`${TMDB_BASE}/${type}/${tmdbId}/credits?api_key=${encodeURIComponent(apiKey)}`),
@@ -68,6 +179,8 @@ async function fetchCreditsAndGenres(
   ]);
   let cast: string | null = null;
   let genres: string | null = null;
+  let overview: string | null = null;
+  let tagline: string | null = null;
   if (creditsRes.ok) {
     const data = (await creditsRes.json()) as TmdbCreditsResponse;
     const names = data.cast?.slice(0, 6).map((c) => c.name).filter(Boolean) ?? [];
@@ -77,8 +190,12 @@ async function fetchCreditsAndGenres(
     const data = (await detailsRes.json()) as TmdbDetailsResponse;
     const names = data.genres?.slice(0, 5).map((g) => g.name).filter(Boolean) ?? [];
     if (names.length) genres = names.join(', ');
+    const o = data.overview;
+    if (typeof o === 'string' && o.trim()) overview = o.trim();
+    const tl = data.tagline;
+    if (typeof tl === 'string' && tl.trim()) tagline = tl.trim();
   }
-  return { cast, genres };
+  return { cast, genres, overview, tagline };
 }
 
 /** Fetch logo (title treatment) for a movie or TV show. Prefers English logo when available. */
@@ -242,7 +359,7 @@ function yearFromResult(r: TmdbMultiResult): number | null {
   return y >= 1900 && y <= 2100 ? y : null;
 }
 
-/** Score how well a TMDB result matches the search query (higher = better). */
+/** Score how well a TMDB result matches the search query (higher = better). Part number is enforced so "Zootopia 2" never gets the first film's description. */
 function scoreResultMatch(
   query: string,
   resultTitle: string,
@@ -253,14 +370,14 @@ function scoreResultMatch(
   const t = (resultTitle || '').trim().toLowerCase();
   let score = 0;
   if (!t) return 0;
+  const part = partNumberFromQuery(query);
+  const has2 = titleSuggestsSequel(t);
   if (q === t) score = 100;
   else {
-    const part = partNumberFromQuery(query);
-    const has2 = titleSuggestsSequel(t);
     if (part === 2 && has2) score = 80;
-    else if (part === 2 && !has2) score = 30;
+    else if (part === 2 && !has2) score = 0;
     else if (part === 1 && !has2) score = 80;
-    else if (part === 1 && has2) score = 10;
+    else if (part === 1 && has2) score = 0;
     else {
       const qWords = q.replace(YEAR_IN_QUERY, ' ').split(/\s+/).filter(Boolean);
       const allIn = qWords.length > 0 && qWords.every((w) => /^\d{4}$/.test(w) || t.includes(w));
@@ -275,9 +392,9 @@ function scoreResultMatch(
   return score;
 }
 
-/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, and (for TV) seasons count. Pass raw folder/video name (e.g. "Zootopia (2016)" or "Zootopia 2 (2025)") so year and part number are used to pick the right result. */
+/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, overview, tagline, contentRating (ALL/7+/13+/16+/18+), and (for TV) seasons count. Pass raw folder/video name (e.g. "Zootopia (2016)" or "Zootopia 2 (2025)") so year and part number are used to pick the right result. */
 export async function getImagesForTitle(title: string): Promise<TmdbImages> {
-  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null, englishTitle: null };
+  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, genres: null, trailerYouTubeId: null, englishTitle: null, overview: null, tagline: null, contentRating: null };
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey?.trim()) return out;
 
@@ -310,19 +427,21 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   out.backdropUrl = buildImageUrl(first.backdrop_path, BACKDROP_SIZE);
   if (first.id != null && first.media_type) {
     try {
-      const extras: Promise<unknown>[] = [
+      const [logo, creditsAndGenres, trailerKey, contentRating, seasonNumbers] = await Promise.all([
         fetchTitleLogo(apiKey, first.id, first.media_type),
         fetchCreditsAndGenres(apiKey, first.id, first.media_type),
         fetchTrailerKey(apiKey, first.id, first.media_type),
-      ];
-      if (first.media_type === 'tv') {
-        extras.push(getTvShowSeasonNumbers(first.id));
-      }
-      const [logo, creditsAndGenres, trailerKey, seasonNumbers] = await Promise.all(extras);
+        fetchContentRating(apiKey, first.id, first.media_type),
+        first.media_type === 'tv' ? getTvShowSeasonNumbers(first.id) : Promise.resolve([] as number[]),
+      ]);
+      const cg = creditsAndGenres as { cast: string | null; genres: string | null; overview: string | null; tagline: string | null };
       out.titleLogoUrl = logo as string | null;
-      out.cast = (creditsAndGenres as { cast: string | null; genres: string | null }).cast;
-      out.genres = (creditsAndGenres as { cast: string | null; genres: string | null }).genres;
+      out.cast = cg.cast;
+      out.genres = cg.genres;
+      out.overview = cg.overview ?? null;
+      out.tagline = cg.tagline ?? null;
       out.trailerYouTubeId = trailerKey as string | null;
+      out.contentRating = (contentRating as string | null) ?? null;
       if (Array.isArray(seasonNumbers) && seasonNumbers.length > 0) {
         out.seasonsCount = seasonNumbers.length;
       }

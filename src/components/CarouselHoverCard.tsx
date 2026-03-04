@@ -9,6 +9,7 @@ import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import VolumeOff from '@mui/icons-material/VolumeOff';
 import VolumeUp from '@mui/icons-material/VolumeUp';
 import type { CarouselItem } from '../types/movie';
+import { getContentRatingDescriptors } from '@/lib/contentRating';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
 
@@ -39,6 +40,8 @@ interface CarouselHoverCardProps {
   mediaType?: 'movie' | 'series';
   seasonsCount?: number;
   hasSubtitles?: boolean;
+  /** Age rating e.g. "13+", "18+" (shows badge + descriptors on hover card). */
+  contentRating?: string;
   /** If true, show the thin progress bar at bottom of card (e.g. Continue Watching row). */
   showProgressBar?: boolean;
   onClick?: () => void;
@@ -57,6 +60,7 @@ export function CarouselHoverCard({
   mediaType,
   seasonsCount,
   hasSubtitles = false,
+  contentRating,
   showProgressBar = false,
   onClick,
   onPlay,
@@ -341,6 +345,11 @@ export function CarouselHoverCard({
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-5 pb-5 text-base text-white/80">
+        {contentRating && (
+          <span className="flex items-center gap-2">
+            <span className="inline-block border border-white/70 rounded px-1.5 py-0.5 text-xs font-medium text-white/90">{contentRating}</span>
+          </span>
+        )}
         {metaLine && <span>{metaLine}</span>}
         <span className="inline-flex items-center rounded border border-white/50 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-white/80">HD</span>
         {hasSubtitles && (

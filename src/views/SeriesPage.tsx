@@ -67,7 +67,7 @@ function isSeries(detailsMap: Record<string, MovieDetail>, id: string): boolean 
 export function SeriesPage() {
   const router = useRouter();
   const { moviesFolderPath } = useSettings();
-  const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh } = useLibrary(moviesFolderPath);
+  const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh, updateItemDetail } = useLibrary(moviesFolderPath);
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
   const { progressByItemId, getProgress } = useProgress();
@@ -174,6 +174,12 @@ export function SeriesPage() {
             onPlay={handlePlay}
             getMovieDetail={getDetail}
             pageTitle="Series"
+            onFetchItemDetail={async (id, title) => {
+              const res = await fetch('/api/item-metadata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, title }) });
+              if (!res.ok) return;
+              const patch = (await res.json()) as Partial<import('@/types/movie').MovieDetail>;
+              if (patch && (patch.description ?? patch.tagline ?? patch.backdropUrl ?? patch.posterUrl)) updateItemDetail(id, patch);
+            }}
           />
           <div className="relative z-10 -mt-24 pt-0">
             {displayCarousels[0] && (

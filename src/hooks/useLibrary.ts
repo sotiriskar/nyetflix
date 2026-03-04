@@ -27,6 +27,8 @@ export interface UseLibraryResult {
   error: string | null;
   refresh: () => void;
   clearError: () => void;
+  /** Merge metadata for one item (e.g. after fetching description for hero). Updates state and cache. */
+  updateItemDetail: (id: string, patch: Partial<MovieDetail>) => void;
 }
 
 function getCacheKey(path: string): string {
@@ -227,5 +229,14 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
   const refresh = useCallback(() => fetchLibrary(true), [fetchLibrary]);
   const clearError = useCallback(() => setError(null), []);
 
-  return { carousels, detailsMap, loading, error, refresh, clearError };
+  const updateItemDetail = useCallback((id: string, patch: Partial<MovieDetail>) => {
+    setDetailsMap((prev) => {
+      const existing = prev[id];
+      const next = { ...prev, [id]: { ...(existing ?? { id, title: '' }), ...patch } };
+      if (path) writeCache(path, carousels, next);
+      return next;
+    });
+  }, [path, carousels]);
+
+  return { carousels, detailsMap, loading, error, refresh, clearError, updateItemDetail };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Box from '@mui/material/Box';
 import Add from '@mui/icons-material/Add';
 import Check from '@mui/icons-material/Check';
 import Close from '@mui/icons-material/Close';
@@ -10,6 +11,7 @@ import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import type { MovieDetail, SeriesSeason } from '../types/movie';
+import { getContentRatingDescriptors } from '@/lib/contentRating';
 import { useProgress } from '@/context/ProgressContext';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
@@ -339,35 +341,41 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
 
         {/* Bottom: metadata + episodes – overlap video area to hide boundary line */}
         <div className="relative z-[2] -mt-6 pt-6 min-w-0 p-6 md:p-8 pb-20 md:pb-24 bg-[#181818]">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
-            {detail.year && <span className="text-base text-white/80">{detail.year}</span>}
-            {durationDisplay && (
-              <span className="text-base text-white/80">{durationDisplay}</span>
-            )}
-            {isSeries && seasons.length > 0 && (
-              <span className="text-base text-white/80">{seasons.length} Season{seasons.length !== 1 ? 's' : ''}</span>
-            )}
-            <span className="inline-flex items-center justify-center rounded border border-white/50 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-white/80">
-              HD
-            </span>
-            {(detail.hasSubtitles ?? (detail.subtitleLanguages?.length ?? 0) > 0) && (
-              <span className="inline-flex items-center text-white/80">
-                <SubtitlesOutlined sx={{ fontSize: 22 }} />
-              </span>
-            )}
-          </div>
-          {detail.contentRating && (
-            <p className="text-sm text-white/70 mb-2">
-              <span className="inline-block border border-white/70 rounded px-1.5 py-0.5 text-white/90">{detail.contentRating}</span>
-            </p>
-          )}
-          <div className="flex flex-col md:flex-row gap-6 md:gap-15">
-            <div className="flex-1 min-w-0">
-              <p className="text-white/90 text-sm leading-relaxed">
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'flex-start',
+              gap: 3,
+            }}
+          >
+            {/* Left column: meta, rating, description */}
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                {detail.year && <span className="text-base text-white/80">{detail.year}</span>}
+                {durationDisplay && <span className="text-base text-white/80">{durationDisplay}</span>}
+                {isSeries && seasons.length > 0 && (
+                  <span className="text-base text-white/80">{seasons.length} Season{seasons.length !== 1 ? 's' : ''}</span>
+                )}
+                <span className="inline-flex items-center justify-center rounded border border-white/50 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-white/80">HD</span>
+                {(detail.hasSubtitles ?? (detail.subtitleLanguages?.length ?? 0) > 0) && (
+                  <span className="inline-flex items-center text-white/80"><SubtitlesOutlined sx={{ fontSize: 22 }} /></span>
+                )}
+              </Box>
+              {detail.contentRating && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1 }}>
+                  <span className="inline-block border border-white/70 rounded px-1.5 py-0.5 text-white/90">{detail.contentRating}</span>
+                  {getContentRatingDescriptors(detail.contentRating) && (
+                    <span className="text-white/90">{getContentRatingDescriptors(detail.contentRating)}</span>
+                  )}
+                </Box>
+              )}
+              <Box component="p" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem', lineHeight: 1.6, m: 0, mt: 2.2 }}>
                 {detail.description ?? 'No description available.'}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 text-base text-white/70 md:min-w-[200px] md:max-w-[260px]">
+              </Box>
+            </Box>
+            {/* Right column: cast, genres – aligned to top, text flows left */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flexShrink: 0, minWidth: { sm: 200 }, maxWidth: { sm: 280 } }}>
               <div>
                 <span className="text-sm text-white/35">Cast: </span>
                 <span className="text-sm font-medium text-white/90">{detail.cast ?? '—'}</span>
@@ -376,8 +384,8 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                 <span className="text-sm text-white/35">Genres: </span>
                 <span className="text-sm font-medium text-white/90">{detail.genres ?? '—'}</span>
               </div>
-            </div>
-          </div>
+            </Box>
+          </Box>
 
           {isSeries && (
             <div className="mt-8 pt-6">

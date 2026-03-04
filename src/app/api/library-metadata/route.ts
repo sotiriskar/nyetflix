@@ -139,6 +139,9 @@ export async function POST(request: NextRequest) {
         if (tmdb.trailerYouTubeId) detail.trailerYouTubeId = tmdb.trailerYouTubeId;
         if (tmdb.englishTitle?.trim()) detail.title = tmdb.englishTitle.trim();
         if (tmdb.seasonsCount != null) detail.seasonsCount = tmdb.seasonsCount;
+        if (tmdb.overview && (!detail.description || detail.description === 'No description available.')) detail.description = tmdb.overview;
+        if (tmdb.tagline) detail.tagline = tmdb.tagline;
+        if (tmdb.contentRating) detail.contentRating = tmdb.contentRating;
       } catch {
         // no TMDB key or request failed
       }

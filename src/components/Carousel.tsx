@@ -116,6 +116,7 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
                     mediaType={detail?.mediaType}
                     seasonsCount={detail?.seasonsCount}
                     hasSubtitles={detail?.hasSubtitles ?? (detail?.subtitleLanguages?.length ?? 0) > 0}
+                    contentRating={detail?.contentRating}
                     showProgressBar={title === 'Continue Watching'}
                     onClick={() => onItemClick?.(item)}
                     onPlay={onPlayClick}
