@@ -202,12 +202,35 @@ function titleSuggestsSequel(title: string): boolean {
   return false;
 }
 
-/** Match sequel/part number from end of search query (e.g. "Zootopia 2" -> 2, "Zootopia II" -> 2). Uses bounded suffix to avoid ReDoS. */
+/** Match sequel/part number from end of search query (e.g. "Zootopia 2" -> 2, "Zootopia II" -> 2). String-only checks to avoid ReDoS. */
 function partNumberFromQuery(query: string): number | null {
   const lower = query.trim().toLowerCase();
-  const suffix = lower.slice(-20); // bounded input for safe matching
-  if (/\s+(2|3|4|5|ii|iii|iv|v|part\s*2|part\s*3)$/.test(suffix)) return 2;
-  if (/\s+(1|i|one|part\s*1)$/.test(suffix)) return 1;
+  const suffix = lower.slice(-20);
+
+  const beforeLast = (c: string) => suffix.slice(0, -c.length).trimEnd();
+  const endsWithPartN = (n: string) =>
+    suffix.endsWith(` ${n}`) || (suffix.endsWith(n) && beforeLast(n).endsWith(' part'));
+
+  if (
+    suffix.endsWith(' 2') ||
+    suffix.endsWith(' 3') ||
+    suffix.endsWith(' 4') ||
+    suffix.endsWith(' 5') ||
+    suffix.endsWith(' ii') ||
+    suffix.endsWith(' iii') ||
+    suffix.endsWith(' iv') ||
+    suffix.endsWith(' v') ||
+    endsWithPartN('2') ||
+    endsWithPartN('3')
+  )
+    return 2;
+  if (
+    suffix.endsWith(' 1') ||
+    suffix.endsWith(' i') ||
+    suffix.endsWith(' one') ||
+    endsWithPartN('1')
+  )
+    return 1;
   return null;
 }
 
