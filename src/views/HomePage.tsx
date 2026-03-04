@@ -106,6 +106,12 @@ export function HomePage() {
   const hasLibraryData = hasPath && !error && libraryCarousels.length > 0 && (libraryCarousels[0]?.items?.length ?? 0) > 0;
   const showSkeleton = !hasLibraryData;
 
+  const moreLikeThisItems = useMemo(() => {
+    if (!hasLibraryData || libraryCarousels.length === 0 || !selectedItem) return [];
+    const all = libraryCarousels[0].items ?? [];
+    return all.filter((item) => item.id !== selectedItem.id).slice(0, 6);
+  }, [hasLibraryData, libraryCarousels, selectedItem?.id]);
+
   const { heroItem, carousels } = useMemo(() => {
     if (!hasLibraryData || libraryCarousels.length === 0) return { heroItem: null as CarouselItem | null, carousels: [] as { title: string; items: CarouselItem[] }[] };
     const allItems = libraryCarousels[0].items;
@@ -241,6 +247,11 @@ export function HomePage() {
           isInList={isInMyList(detail.id)}
           onLikeClick={() => toggleLiked(detail.id)}
           isLiked={isLiked(detail.id)}
+          moreLikeThisItems={moreLikeThisItems}
+          getDetailForId={getDetail}
+          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisAddClick={(item) => toggleMyList(item.id)}
+          getIsInList={isInMyList}
         />
       )}
     </div>

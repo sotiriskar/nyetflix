@@ -4,6 +4,7 @@ import PlayArrow from '@mui/icons-material/PlayArrow';
 import type { CarouselItem } from '../types/movie';
 import type { MovieDetail } from '../types/movie';
 import { getMovieDetail } from '../data/dummyCarousel';
+import { truncateToWords } from '@/lib/description';
 
 const MAX_DESCRIPTION_RETRIES = 3;
 const RETRY_DELAY_MS = 2500;
@@ -106,7 +107,7 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
             </h1>
           )}
           <p className="md:text-xl font-semibold text-white/90 max-w-2xl drop-shadow-md">
-            {description}
+            {truncateToWords(description, 50)}
           </p>
         </div>
         {/* Play + More Info (left) | Age rating wide bar (right-0, full bleed) */}

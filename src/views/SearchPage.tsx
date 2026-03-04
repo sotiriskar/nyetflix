@@ -61,6 +61,11 @@ export function SearchPage() {
     });
   }, [q, libraryCarousels, detailsMap]);
 
+  const moreLikeThisItems = useMemo(() => {
+    if (!selectedItem || results.length === 0) return [];
+    return results.filter((item) => item.id !== selectedItem.id).slice(0, 6);
+  }, [results, selectedItem?.id]);
+
   const detail: MovieDetail | undefined = selectedItem
     ? (getDetail?.(selectedItem.id) ?? {
         id: selectedItem.id,
@@ -163,6 +168,11 @@ export function SearchPage() {
           isInList={isInMyList(detail.id)}
           onLikeClick={() => toggleLiked(detail.id)}
           isLiked={isLiked(detail.id)}
+          moreLikeThisItems={moreLikeThisItems}
+          getDetailForId={getDetail}
+          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisAddClick={(item) => toggleMyList(item.id)}
+          getIsInList={isInMyList}
         />
       )}
     </div>

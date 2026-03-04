@@ -146,6 +146,12 @@ export function MyListPage() {
       })
     : undefined;
 
+  const moreLikeThisItems = useMemo(() => {
+    if (!selectedItem) return [];
+    const all = [...movies, ...series];
+    return all.filter((item) => item.id !== selectedItem.id).slice(0, 6);
+  }, [movies, series, selectedItem?.id]);
+
   const hasPath = moviesFolderPath.trim() !== '';
   const hasLibraryData = hasPath && !error && libraryCarousels.length > 0;
 
@@ -271,6 +277,11 @@ export function MyListPage() {
           isInList={detail ? has(detail.id) : false}
           onLikeClick={() => detail && toggleLiked(detail.id)}
           isLiked={detail ? isLiked(detail.id) : false}
+          moreLikeThisItems={moreLikeThisItems}
+          getDetailForId={getDetail}
+          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisAddClick={(item) => toggle(item.id)}
+          getIsInList={has}
         />
       )}
     </div>

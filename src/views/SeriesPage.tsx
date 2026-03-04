@@ -144,6 +144,11 @@ export function SeriesPage() {
     return carousels.filter((row) => row.items.some((item) => item.id !== heroItem.id));
   }, [carousels, heroItem]);
 
+  const moreLikeThisItems = useMemo(() => {
+    if (!selectedItem) return [];
+    return seriesItems.filter((item) => item.id !== selectedItem.id).slice(0, 6);
+  }, [seriesItems, selectedItem?.id]);
+
   return (
     <div className="pb-0">
       <LibraryRefreshButton onRefresh={refresh} loading={loading} visible={hasPath} />
@@ -260,6 +265,11 @@ export function SeriesPage() {
           isInList={isInMyList(detail.id)}
           onLikeClick={() => toggleLiked(detail.id)}
           isLiked={isLiked(detail.id)}
+          moreLikeThisItems={moreLikeThisItems}
+          getDetailForId={getDetail}
+          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisAddClick={(item) => toggleMyList(item.id)}
+          getIsInList={isInMyList}
         />
       )}
     </div>

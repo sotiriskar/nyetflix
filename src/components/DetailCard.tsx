@@ -10,8 +10,9 @@ import VolumeUp from '@mui/icons-material/VolumeUp';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import type { MovieDetail, SeriesSeason } from '../types/movie';
+import type { CarouselItem, MovieDetail, SeriesSeason } from '../types/movie';
 import { getContentRatingDescriptors } from '@/lib/contentRating';
+import { truncateToWords } from '@/lib/description';
 import { useProgress } from '@/context/ProgressContext';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
@@ -36,6 +37,16 @@ interface DetailCardProps {
   onLikeClick?: () => void;
   /** Whether this title is liked. */
   isLiked?: boolean;
+  /** Up to 6 items for "More Like This" (exclude current). Shown after episodes for series. */
+  moreLikeThisItems?: CarouselItem[];
+  /** Resolve detail for a "More Like This" item (duration, description, etc.). */
+  getDetailForId?: (id: string) => MovieDetail | undefined;
+  /** When user clicks a "More Like This" card – e.g. open that item's detail. */
+  onMoreLikeThisClick?: (item: CarouselItem) => void;
+  /** When user clicks Add to list on a "More Like This" card. */
+  onMoreLikeThisAddClick?: (item: CarouselItem) => void;
+  /** Whether a given item id is in My List (for More Like This card state). */
+  getIsInList?: (id: string) => boolean;
 }
 
 interface YTPlayer {
@@ -45,7 +56,7 @@ interface YTPlayer {
   seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
 }
 
-export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false }: DetailCardProps) {
+export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false, moreLikeThisItems, getDetailForId, onMoreLikeThisClick, onMoreLikeThisAddClick, getIsInList }: DetailCardProps) {
   const { getProgress } = useProgress();
   const { isMuted, setMuted } = useTrailerMute();
   const { getAndClearResume } = useTrailerResume();
@@ -371,7 +382,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                 </Box>
               )}
               <Box component="p" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem', lineHeight: 1.6, m: 0, mt: 2.2 }}>
-                {detail.description ?? 'No description available.'}
+                {truncateToWords(detail.description ?? 'No description available.', 50)}
               </Box>
             </Box>
             {/* Right column: cast, genres – aligned to top, text flows left */}
@@ -390,7 +401,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
           {isSeries && (
             <div className="mt-8 pt-6">
               <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                <h3 className="text-lg font-semibold text-white">Episodes</h3>
+                <h3 className="text-2xl font-semibold text-white">Episodes</h3>
                 {seasons.length > 1 && (
                   <div className="relative w-[220px]" ref={seasonDropdownRef}>
                     <button
@@ -525,6 +536,93 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
               })()}
             </div>
           )}
+
+          {moreLikeThisItems && moreLikeThisItems.length > 0 && (
+            <div className="mt-10 pt-8">
+              <h3 className="text-2xl font-semibold text-white mb-4">More Like This</h3>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 2,
+                  maxWidth: 960,
+                  alignItems: 'stretch',
+                }}
+              >
+                {moreLikeThisItems.slice(0, 6).map((item) => {
+                  const d = getDetailForId?.(item.id);
+                  const isItemSeries = d?.mediaType === 'series';
+                  const meta = isItemSeries && d?.seasonsCount != null
+                    ? `${d.seasonsCount} Season${d.seasonsCount !== 1 ? 's' : ''}`
+                    : d?.duration ?? d?.year ?? '';
+                  const itemInList = getIsInList?.(item.id) ?? false;
+                  return (
+                    <div key={item.id} className="rounded-lg overflow-hidden bg-[#2F2F2F] flex flex-col h-full">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onMoreLikeThisClick?.(item)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onMoreLikeThisClick?.(item); } }}
+                        className="w-full text-left flex flex-col flex-1 min-w-0 cursor-pointer group"
+                      >
+                        <div className="relative aspect-video w-full bg-white/10 rounded-t-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={item.backdropUrl ?? item.posterUrl ?? ''}
+                            alt=""
+                            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                          />
+                          {/* Triangle shade gradient in top-right corner (right angle at corner) */}
+                          <div
+                            className=" rounded-tr-lg absolute top-0 right-0 w-[130px] h-[130px] pointer-events-none"
+                            style={{
+                              background: 'linear-gradient(to bottom left, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.12) 22%, rgba(0,0,0,0) 40%)',
+                              clipPath: 'polygon(100% 0, 100% 100%, 0 0)',
+                            }}
+                            aria-hidden
+                          />
+                          {meta && (
+                            <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-white text-xs font-medium z-[1]">
+                              {meta}
+                            </span>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="w-12 h-12 rounded-full border-2 border-white flex items-center justify-center bg-black/50">
+                              <PlayArrow sx={{ fontSize: 28, color: 'white' }} />
+                            </span>
+                          </div>
+                        </div>
+                        <div className="px-2.5 pt-2 flex flex-wrap items-center justify-between gap-1.5 text-xs text-white/80">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {d?.contentRating && (
+                              <span className="inline-block border border-white/60 rounded px-1 py-0.5 text-white/90">{d.contentRating}</span>
+                            )}
+                            <span className="inline-flex rounded border border-white/50 bg-white/5 px-1 py-0.5 font-medium text-white/80">HD</span>
+                            {d?.year && <span>{d.year}</span>}
+                          </div>
+                          {onMoreLikeThisAddClick && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onMoreLikeThisAddClick(item); }}
+                              title="Add to my list"
+                              className={`w-11 h-11 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                                itemInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
+                              }`}
+                              aria-label={itemInList ? 'In My List' : 'Add to my list'}
+                            >
+                              {itemInList ? <Check sx={{ fontSize: 22 }} /> : <Add sx={{ fontSize: 22 }} />}
+                            </button>
+                          )}
+                        </div>
+                        <p className="px-2.5 pb-14 pt-1.5 text-sm text-white/90 line-clamp-4 leading-snug">{truncateToWords(d?.description ?? item.title ?? '', 25)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </Box>
+            </div>
+          )}
+
+          <hr className="mt-10 border-t border-white/10" aria-hidden />
         </div>
       </div>
     </div>
