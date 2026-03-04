@@ -5,9 +5,35 @@ import type { ProfileId } from '@/lib/profiles';
 import { MAX_PROFILES } from '@/lib/profiles';
 
 const STORAGE_KEY = 'nyetflix-current-profile-id';
-const STORAGE_KEY_CHOSEN_AT = 'nyetflix-profile-chosen-at';
-/** Cache "who's watching" choice for 24 hours. */
-const CHOSEN_AT_TTL_MS = 24 * 60 * 60 * 1000;
+/** sessionStorage: remembered while tab/window is open; forgotten when browser is closed or tab is closed (e.g. after closing npm and opening a new tab). */
+function getStorage(): Storage | null {
+  return typeof window === 'undefined' ? null : sessionStorage;
+}
+
+function getStoredProfileId(): ProfileId | null {
+  const storage = getStorage();
+  if (!storage) return null;
+  try {
+    const v = storage.getItem(STORAGE_KEY);
+    if (v == null || v === '') return null;
+    const n = parseInt(v, 10);
+    if (n >= 1 && n <= MAX_PROFILES) return n as ProfileId;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function setStoredProfileId(id: ProfileId | null) {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    if (id == null) storage.removeItem(STORAGE_KEY);
+    else storage.setItem(STORAGE_KEY, String(id));
+  } catch {
+    // ignore
+  }
+}
 
 export interface Profile {
   id: number;
@@ -19,7 +45,7 @@ export interface Profile {
 export interface ProfileContextValue {
   currentProfileId: ProfileId | null;
   setCurrentProfileId: (id: ProfileId | null) => void;
-  /** Call when user picks a profile on "Who's watching?" – sets profile and caches for ~24h. */
+  /** Call when user picks a profile on "Who's watching?" – remembered until browser/tab is closed. */
   confirmProfileChoice: (id: ProfileId) => void;
   /** Clear profile and cache so Who's watching? is shown again. */
   signOut: () => void;
@@ -49,67 +75,10 @@ const defaultValue: ProfileContextValue = {
 
 const ProfileContext = createContext<ProfileContextValue>(defaultValue);
 
-function getStoredProfileId(): ProfileId | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v == null || v === '') return null;
-    const n = parseInt(v, 10);
-    if (n >= 1 && n <= MAX_PROFILES) return n as ProfileId;
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-function setStoredProfileId(id: ProfileId | null) {
-  if (typeof window === 'undefined') return;
-  try {
-    if (id == null) localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, String(id));
-  } catch {
-    // ignore
-  }
-}
-
-function getStoredChosenAt(): number | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const v = localStorage.getItem(STORAGE_KEY_CHOSEN_AT);
-    if (v == null || v === '') return null;
-    const n = parseInt(v, 10);
-    if (Number.isNaN(n)) return null;
-    return n;
-  } catch {
-    return null;
-  }
-}
-
-function setStoredChosenAt(ts: number) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY_CHOSEN_AT, String(ts));
-  } catch {
-    // ignore
-  }
-}
-
-function clearStoredChosenAt() {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.removeItem(STORAGE_KEY_CHOSEN_AT);
-  } catch {
-    // ignore
-  }
-}
-
-/** True if a profile was chosen on "Who's watching?" within the last 24h and that profile still exists. */
+/** True if a profile was chosen this session (sessionStorage) and that profile still exists. */
 export function hasValidCachedProfile(profileIds: number[]): boolean {
   const id = getStoredProfileId();
-  if (id == null || !profileIds.includes(id)) return false;
-  const at = getStoredChosenAt();
-  if (at == null) return false;
-  return Date.now() - at < CHOSEN_AT_TTL_MS;
+  return id != null && profileIds.includes(id);
 }
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
@@ -131,9 +100,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         }
         const ids = new Set(list.map((p) => p.id));
         if (prev != null && ids.has(prev)) return prev;
-        const first = list[0].id as ProfileId;
-        setStoredProfileId(first);
-        return first;
+        if (prev != null) setStoredProfileId(null);
+        return null;
       });
     } catch {
       setProfiles([]);
@@ -156,13 +124,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const confirmProfileChoice = useCallback((id: ProfileId) => {
     setCurrentProfileIdState(id);
     setStoredProfileId(id);
-    setStoredChosenAt(Date.now());
   }, []);
 
   const signOut = useCallback(() => {
     setCurrentProfileIdState(null);
     setStoredProfileId(null);
-    clearStoredChosenAt();
   }, []);
 
   const updateProfile = useCallback(async (id: ProfileId, data: { name?: string; avatarPath?: string; isKid?: boolean }) => {
@@ -192,7 +158,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (profiles.length === 0) {
         setCurrentProfileIdState(created.id as ProfileId);
         setStoredProfileId(created.id as ProfileId);
-        setStoredChosenAt(Date.now());
       }
       return created;
     } catch {
