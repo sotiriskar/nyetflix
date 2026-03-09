@@ -9,9 +9,14 @@ export const runtime = 'nodejs';
 const SEGMENT_DURATION = 6;
 
 export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('id');
+  let id = request.nextUrl.searchParams.get('id');
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  }
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep as-is
   }
 
   ensureHydrated();

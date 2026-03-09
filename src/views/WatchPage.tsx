@@ -16,7 +16,15 @@ export function WatchPage() {
   const { detailsMap } = useLibrary(moviesFolderPath ?? '');
   const { progressByItemId } = useProgress();
 
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  let id = rawId;
+  if (typeof rawId === 'string') {
+    try {
+      id = decodeURIComponent(rawId);
+    } catch {
+      id = rawId;
+    }
+  }
   const titleFromQuery = searchParams.get('title') ?? undefined;
   const seriesTitleFromQuery = searchParams.get('seriesTitle') ?? undefined;
   const subsFromQuery = searchParams.get('subs');

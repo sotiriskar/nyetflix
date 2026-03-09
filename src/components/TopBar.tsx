@@ -16,8 +16,8 @@ import { useProfile } from '@/context/ProfileContext';
 
 const NAV_ITEMS = [
   { label: 'Home', to: '/browse' },
-  { label: 'Series', to: '/series' },
-  { label: 'Films', to: '/films' },
+  { label: 'Series', to: '/browse/series' },
+  { label: 'Films', to: '/browse/films' },
   { label: 'My List', to: '/browse/my-list' },
 ];
 

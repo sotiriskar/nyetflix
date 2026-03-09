@@ -13,9 +13,14 @@ function getExt(path: string): string {
 
 /** Returns the best playback URL for an item. MKV with ffmpeg → HLS (seek + correct duration). MP4 or converted → direct stream. */
 export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('id');
+  let id = request.nextUrl.searchParams.get('id');
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  }
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep as-is if already decoded
   }
 
   ensureHydrated();

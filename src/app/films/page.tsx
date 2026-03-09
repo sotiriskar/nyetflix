@@ -1,10 +1,5 @@
-import type { Metadata } from 'next';
-import { FilmsPage } from '@/views/FilmsPage';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Films - Nyetflix',
-};
-
-export default function FilmsRoute() {
-  return <FilmsPage />;
+export default function FilmsRedirect() {
+  redirect('/browse/films');
 }

@@ -14,6 +14,9 @@ import { join } from 'path';
 const globalKey = Symbol.for('nyetflix-stream-registry');
 const REGISTRY_FILE = join(process.cwd(), 'data', 'stream-registry.json');
 
+const SHORT_ID_MIN = 1000000;
+const SHORT_ID_MAX = 9999999;
+
 interface StreamRegistry {
   itemIdToPath: Map<string, string>;
   itemIdToSubtitlePath: Map<string, Record<string, string>>;
@@ -23,6 +26,27 @@ interface StreamRegistry {
   episodeIdToPath: Map<string, string>;
   /** Episode subtitles: episodeId -> { langCode: filePath } */
   episodeIdToSubtitlePath: Map<string, Record<string, string>>;
+  /** Stable path -> short id so same path gets same id across rescans */
+  pathToItemId: Map<string, string>;
+}
+
+/** Returns a 7-digit numeric id for a path. Reuses existing id if path was seen before. */
+export function getOrCreateShortId(absolutePath: string): string {
+  const r = getRegistry();
+  const existing = r.pathToItemId.get(absolutePath);
+  if (existing) return existing;
+  const used = new Set<string>([...r.itemIdToPath.keys(), ...r.pathToItemId.values()]);
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const id = String(Math.floor(SHORT_ID_MIN + Math.random() * (SHORT_ID_MAX - SHORT_ID_MIN + 1)));
+    if (!used.has(id)) {
+      used.add(id);
+      r.pathToItemId.set(absolutePath, id);
+      return id;
+    }
+  }
+  const fallback = String(Date.now() % 10000000).padStart(7, '0').slice(-7);
+  r.pathToItemId.set(absolutePath, fallback);
+  return fallback;
 }
 
 function loadFromDisk(r: StreamRegistry): void {
@@ -35,12 +59,14 @@ function loadFromDisk(r: StreamRegistry): void {
       folderPathByItemId?: Record<string, string>;
       episodeIdToPath?: Record<string, string>;
       episodeIdToSubtitlePath?: Record<string, Record<string, string>>;
+      pathToItemId?: Record<string, string>;
     };
     if (data.itemIdToPath) Object.entries(data.itemIdToPath).forEach(([k, v]) => r.itemIdToPath.set(k, v));
     if (data.itemIdToSubtitlePath) Object.entries(data.itemIdToSubtitlePath).forEach(([k, v]) => r.itemIdToSubtitlePath.set(k, v));
     if (data.folderPathByItemId) Object.entries(data.folderPathByItemId).forEach(([k, v]) => r.folderPathByItemId.set(k, v));
     if (data.episodeIdToPath) Object.entries(data.episodeIdToPath).forEach(([k, v]) => r.episodeIdToPath.set(k, v));
     if (data.episodeIdToSubtitlePath) Object.entries(data.episodeIdToSubtitlePath).forEach(([k, v]) => r.episodeIdToSubtitlePath.set(k, v));
+    if (data.pathToItemId) Object.entries(data.pathToItemId).forEach(([k, v]) => r.pathToItemId.set(k, v));
   } catch {
     // ignore
   }
@@ -64,6 +90,7 @@ export function persistRegistry(): void {
       folderPathByItemId: Object.fromEntries(r.folderPathByItemId),
       episodeIdToPath: Object.fromEntries(r.episodeIdToPath),
       episodeIdToSubtitlePath: Object.fromEntries(r.episodeIdToSubtitlePath),
+      pathToItemId: Object.fromEntries(r.pathToItemId),
     };
     writeFileSync(REGISTRY_FILE, JSON.stringify(obj), 'utf-8');
   } catch {
@@ -81,6 +108,7 @@ function getRegistry(): StreamRegistry {
       folderPathByItemId: new Map(),
       episodeIdToPath: new Map(),
       episodeIdToSubtitlePath: new Map(),
+      pathToItemId: new Map(),
     };
     g[globalKey] = r;
     loadFromDisk(r);
@@ -89,6 +117,7 @@ function getRegistry(): StreamRegistry {
     if (!r.folderPathByItemId) r.folderPathByItemId = new Map();
     if (!r.episodeIdToPath) r.episodeIdToPath = new Map();
     if (!r.episodeIdToSubtitlePath) r.episodeIdToSubtitlePath = new Map();
+    if (!r.pathToItemId) r.pathToItemId = new Map();
   }
   return r;
 }

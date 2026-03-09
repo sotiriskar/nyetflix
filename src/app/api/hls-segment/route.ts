@@ -16,10 +16,15 @@ function getExt(path: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('id');
+  let id = request.nextUrl.searchParams.get('id');
   const nParam = request.nextUrl.searchParams.get('n');
   if (!id || nParam == null) {
     return NextResponse.json({ error: 'Missing id or n' }, { status: 400 });
+  }
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep as-is
   }
 
   const n = parseInt(nParam, 10);

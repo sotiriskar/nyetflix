@@ -27,13 +27,17 @@ function isVideoFile(name: string): boolean {
 
 /** Match "Season 1", "Season 01", "season 2" */
 const SEASON_DIR = /^season\s*(\d+)$/i;
+/** Match "S01", "S1", "s02" */
+const S_NUM = /^s(\d+)$/i;
 
 /** Match S01E01, S1E1, 1x01, etc. */
 const SXXEXX = /[sS](\d+)[eE](\d+)|(\d+)[xX](\d+)/;
 
 function parseSeasonFromDirName(name: string): number | null {
   const m = name.match(SEASON_DIR);
-  return m ? parseInt(m[1], 10) : null;
+  if (m) return parseInt(m[1], 10);
+  const s = name.match(S_NUM);
+  return s ? parseInt(s[1], 10) : null;
 }
 
 function parseSxxExx(name: string): { season: number; episode: number } | null {

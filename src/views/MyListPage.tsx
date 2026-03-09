@@ -279,7 +279,7 @@ export function MyListPage() {
           isLiked={detail ? isLiked(detail.id) : false}
           moreLikeThisItems={moreLikeThisItems}
           getDetailForId={getDetail}
-          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisPlay={(item) => { setSelectedItem(null); handlePlay(item); }}
           onMoreLikeThisAddClick={(item) => toggle(item.id)}
           getIsInList={has}
         />

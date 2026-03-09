@@ -41,8 +41,8 @@ interface DetailCardProps {
   moreLikeThisItems?: CarouselItem[];
   /** Resolve detail for a "More Like This" item (duration, description, etc.). */
   getDetailForId?: (id: string) => MovieDetail | undefined;
-  /** When user clicks a "More Like This" card – e.g. open that item's detail. */
-  onMoreLikeThisClick?: (item: CarouselItem) => void;
+  /** When user clicks a "More Like This" card – play that item (e.g. close modal and start playback). */
+  onMoreLikeThisPlay?: (item: CarouselItem) => void;
   /** When user clicks Add to list on a "More Like This" card. */
   onMoreLikeThisAddClick?: (item: CarouselItem) => void;
   /** Whether a given item id is in My List (for More Like This card state). */
@@ -56,7 +56,7 @@ interface YTPlayer {
   seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
 }
 
-export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false, moreLikeThisItems, getDetailForId, onMoreLikeThisClick, onMoreLikeThisAddClick, getIsInList }: DetailCardProps) {
+export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false, moreLikeThisItems, getDetailForId, onMoreLikeThisPlay, onMoreLikeThisAddClick, getIsInList }: DetailCardProps) {
   const { getProgress } = useProgress();
   const { isMuted, setMuted } = useTrailerMute();
   const { getAndClearResume } = useTrailerResume();
@@ -561,8 +561,8 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                       <div
                         role="button"
                         tabIndex={0}
-                        onClick={() => onMoreLikeThisClick?.(item)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onMoreLikeThisClick?.(item); } }}
+                        onClick={() => onMoreLikeThisPlay?.(item)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onMoreLikeThisPlay?.(item); } }}
                         className="w-full text-left flex flex-col flex-1 min-w-0 cursor-pointer group"
                       >
                         <div className="relative aspect-video w-full bg-white/10 rounded-t-lg overflow-hidden flex-shrink-0">

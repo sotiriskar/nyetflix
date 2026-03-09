@@ -12,9 +12,14 @@ const EPISODE_ID_REGEX = /^episode-(.+)-S(\d+)-E(\d+)$/;
  * Returns the next episode in the series (same season then next season), or null.
  */
 export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('id');
+  let id = request.nextUrl.searchParams.get('id');
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  }
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep as-is
   }
 
   const m = id.match(EPISODE_ID_REGEX);

@@ -170,7 +170,7 @@ export function SearchPage() {
           isLiked={isLiked(detail.id)}
           moreLikeThisItems={moreLikeThisItems}
           getDetailForId={getDetail}
-          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisPlay={(item) => { setSelectedItem(null); handlePlay(item); }}
           onMoreLikeThisAddClick={(item) => toggleMyList(item.id)}
           getIsInList={isInMyList}
         />

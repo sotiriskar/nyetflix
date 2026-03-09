@@ -7,10 +7,15 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('id');
+  let id = request.nextUrl.searchParams.get('id');
   const lang = request.nextUrl.searchParams.get('lang') ?? 'en';
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  }
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep as-is
   }
 
   const byLang = itemIdToSubtitlePath.get(id) ?? registry.episodeIdToSubtitlePath.get(id);

@@ -12,7 +12,7 @@ import {
 } from '@/lib/imdbapi';
 import { getImagesForTitle } from '@/lib/tmdb';
 import type { CarouselItem, MovieDetail } from '@/types/movie';
-import { registry, persistRegistry } from '@/lib/streamRegistry';
+import { registry, persistRegistry, getOrCreateShortId } from '@/lib/streamRegistry';
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const scanCache = new Map<
@@ -258,7 +258,14 @@ export async function GET(request: NextRequest) {
 
   const candidates: MovieCandidate[] = [];
 
-  // 1) Subfolders: each folder that contains at least one video = one movie (pick one video per folder)
+  /** Match "Season 1", "S01", "S1" for series season subdirs */
+  const SEASON_DIR_REGEX = /^season\s*(\d+)$/i;
+  const S_NUM_REGEX = /^s(\d+)$/i;
+  function isSeasonDirName(name: string): boolean {
+    return SEASON_DIR_REGEX.test(name) || S_NUM_REGEX.test(name);
+  }
+
+  // 1) Subfolders: each folder that contains at least one video = one title; or series (S01/S02/Season N subdirs with no direct videos)
   const subdirs = entries.filter((e) => e.isDirectory());
   for (const dir of subdirs) {
     const folderPath = join(canonicalResolved, dir.name);
@@ -269,21 +276,73 @@ export async function GET(request: NextRequest) {
       continue;
     }
     const subFiles = subEntries.filter((e) => e.isFile());
+    const subDirs = subEntries.filter((e) => e.isDirectory());
     const subVideoFiles = subFiles.filter((f) => isVideoFile(f.name)).map((f) => ({ name: f.name, path: join(folderPath, f.name) }));
-    if (subVideoFiles.length === 0) continue;
-    // Prefer .mp4, then first alphabetically
-    subVideoFiles.sort((a, b) => {
-      const aExt = a.name.slice(a.name.lastIndexOf('.')).toLowerCase();
-      const bExt = b.name.slice(b.name.lastIndexOf('.')).toLowerCase();
-      if (aExt === '.mp4' && bExt !== '.mp4') return -1;
-      if (aExt !== '.mp4' && bExt === '.mp4') return 1;
-      return a.name.localeCompare(b.name);
-    });
-    const chosen = subVideoFiles[0];
-    const fileNamesInFolder = new Set(subFiles.map((f) => f.name));
+
+    if (subVideoFiles.length > 0) {
+      // Direct videos in folder: treat as movie (or flat series)
+      subVideoFiles.sort((a, b) => {
+        const aExt = a.name.slice(a.name.lastIndexOf('.')).toLowerCase();
+        const bExt = b.name.slice(b.name.lastIndexOf('.')).toLowerCase();
+        if (aExt === '.mp4' && bExt !== '.mp4') return -1;
+        if (aExt !== '.mp4' && bExt === '.mp4') return 1;
+        return a.name.localeCompare(b.name);
+      });
+      const chosen = subVideoFiles[0]!;
+      const fileNamesInFolder = new Set(subFiles.map((f) => f.name));
+      candidates.push({
+        videoPath: chosen.path,
+        videoName: chosen.name,
+        folderPath,
+        fileNamesInFolder,
+        source: 'folder',
+        folderName: dir.name,
+      });
+      continue;
+    }
+
+    // No direct videos: check for season subdirs (S01, S02, Season 1, etc.)
+    const seasonDirs = subDirs
+      .filter((d) => isSeasonDirName(d.name))
+      .map((d) => ({
+        name: d.name,
+        num: (() => {
+          const m = d.name.match(SEASON_DIR_REGEX);
+          if (m) return parseInt(m[1], 10);
+          const s = d.name.match(S_NUM_REGEX);
+          return s ? parseInt(s[1], 10) : 0;
+        })(),
+      }))
+      .filter((x) => x.num >= 1)
+      .sort((a, b) => a.num - b.num);
+
+    if (seasonDirs.length === 0) continue;
+
+    // Pick first video from first season to represent the series (for streaming); folderPath = series root for episodes API
+    let representativeVideo: { path: string; name: string } | null = null;
+    let fileNamesInFolder = new Set<string>();
+    for (const { name: seasonName } of seasonDirs) {
+      const seasonPath = join(folderPath, seasonName);
+      let seasonEntries: Dirent[];
+      try {
+        seasonEntries = await readdir(seasonPath, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      const seasonFiles = seasonEntries.filter((e) => e.isFile());
+      const seasonVideos = seasonFiles.filter((f) => isVideoFile(f.name)).map((f) => ({ name: f.name, path: join(seasonPath, f.name) }));
+      if (seasonVideos.length > 0) {
+        seasonVideos.sort((a, b) => a.name.localeCompare(b.name));
+        representativeVideo = seasonVideos[0]!;
+        fileNamesInFolder = new Set(seasonFiles.map((f) => f.name));
+        break;
+      }
+    }
+    if (!representativeVideo) continue;
+
     candidates.push({
-      videoPath: chosen.path,
-      videoName: chosen.name,
+      videoPath: representativeVideo.path,
+      videoName: representativeVideo.name,
       folderPath,
       fileNamesInFolder,
       source: 'folder',
@@ -324,8 +383,7 @@ export async function GET(request: NextRequest) {
       if (!searchTitle || seenTitles.has(searchTitle.toLowerCase())) continue;
       seenTitles.add(searchTitle.toLowerCase());
 
-      const safePathPart = String(videoPath).replace(/[/\\]/g, '_').slice(0, 120);
-      const localId = `${source}-${i}-${safePathPart}`;
+      const localId = getOrCreateShortId(videoPath);
       let imdbTitle: ImdbTitle | null = null;
 
       try {

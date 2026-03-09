@@ -23,36 +23,41 @@ import { buildCarousels } from '@/lib/carouselBuild';
 
 const skeletonSx = { bgcolor: 'rgba(255,255,255,0.11)' };
 
-function HeroSkeleton() {
-  return (
-    <section className="relative w-full min-h-[98vh] flex items-end bg-[#1a1a1a]">
-      <Skeleton variant="rectangular" height="100%" width="100%" sx={{ position: 'absolute', inset: 0, ...skeletonSx }} />
-      <div className="relative z-10 w-full px-6 md:px-12 pb-8 md:pb-12 pt-32">
-        <div className="max-w-4xl flex flex-col gap-5">
-          <Skeleton variant="text" width={320} height={56} sx={skeletonSx} />
-          <Skeleton variant="text" width="80%" height={28} sx={skeletonSx} />
-          <Skeleton variant="text" width="60%" height={28} sx={skeletonSx} />
-        </div>
-        <div className="flex gap-3 mt-5">
-          <Skeleton variant="rounded" width={120} height={48} sx={skeletonSx} />
-          <Skeleton variant="rounded" width={140} height={48} sx={skeletonSx} />
-        </div>
-      </div>
-    </section>
-  );
-}
+const CAROUSEL_SKELETON_CARDS = 6;
+
+const SKELETON_APPEAR_DURATION = 0.6;
+const SKELETON_APPEAR_STAGGER = 0.25;
+const SKELETON_PULSE_START = 2.2;
+const SKELETON_PULSE_DURATION = 2.2;
 
 function CarouselRowSkeleton() {
   return (
     <section className="w-full pt-6 pb-4 px-6 md:px-12">
-      <Skeleton variant="text" width={160} height={28} sx={{ mb: 2, ...skeletonSx }} />
-      <div className="flex gap-3 overflow-hidden">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Skeleton
+      <div
+        className="mb-2"
+        style={{
+          animation: `skeleton-card-pulse ${SKELETON_PULSE_DURATION}s ease-in-out ${SKELETON_PULSE_START}s infinite`,
+        }}
+      >
+        <Skeleton variant="text" width={160} height={28} animation={false} sx={skeletonSx} />
+      </div>
+      <div className="flex overflow-hidden" style={{ gap: 8 }}>
+        {Array.from({ length: CAROUSEL_SKELETON_CARDS }, (_, i) => (
+          <div
             key={i}
-            variant="rounded"
-            sx={{ flex: '0 0  clamp(140px, 25vw, 240px)', aspectRatio: '16/9', ...skeletonSx }}
-          />
+            className="flex-1 min-w-0 rounded overflow-hidden"
+            style={{ aspectRatio: '16/9' }}
+          >
+            <div
+              className="w-full h-full rounded bg-white/10"
+              style={{
+                opacity: 0,
+                animation: `skeleton-card-appear ${SKELETON_APPEAR_DURATION}s ease-out forwards, skeleton-card-pulse ${SKELETON_PULSE_DURATION}s ease-in-out ${SKELETON_PULSE_START}s infinite`,
+                animationDelay: `${i * SKELETON_APPEAR_STAGGER}s, ${SKELETON_PULSE_START}s`,
+                animationFillMode: 'forwards, none',
+              }}
+            />
+          </div>
         ))}
       </div>
     </section>
@@ -148,14 +153,9 @@ export function HomePage() {
         </Alert>
       </Snackbar>
       {showSkeleton ? (
-        <>
-          <HeroSkeleton />
-          <div className="bg-[#141414]">
-            <CarouselRowSkeleton />
-            <CarouselRowSkeleton />
-            <CarouselRowSkeleton />
-          </div>
-        </>
+        <div className="bg-[#141414] pt-24 md:pt-50 pb-[70vh]">
+          <CarouselRowSkeleton />
+        </div>
       ) : heroItem ? (
         <>
           <HeroBanner
@@ -212,12 +212,9 @@ export function HomePage() {
           </div>
         </>
       ) : (
-        <>
-          <HeroSkeleton />
-          <div className="bg-[#141414]">
-            <CarouselRowSkeleton />
-          </div>
-        </>
+        <div className="bg-[#141414] pt-24 md:pt-32">
+          <CarouselRowSkeleton />
+        </div>
       )}
       <Footer
         socialLinks={{
@@ -249,7 +246,7 @@ export function HomePage() {
           isLiked={isLiked(detail.id)}
           moreLikeThisItems={moreLikeThisItems}
           getDetailForId={getDetail}
-          onMoreLikeThisClick={setSelectedItem}
+          onMoreLikeThisPlay={(item) => { setSelectedItem(null); handlePlay(item); }}
           onMoreLikeThisAddClick={(item) => toggleMyList(item.id)}
           getIsInList={isInMyList}
         />
