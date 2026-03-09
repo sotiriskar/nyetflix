@@ -1,8 +1,11 @@
 import type { CarouselItem } from '@/types/movie';
 
-const MAX_ITEMS_PER_ROW = 10;
+const MAX_ITEMS_PER_ROW = 12;
 const MIN_ITEMS_PER_ROW = 4;
 const MAX_GENRE_ROWS = 8;
+/** When we have at least this many genre categories, only show genres with at least MIN_ITEMS_FOR_GENRE_WHEN_MANY items. */
+const MIN_GENRE_COUNT_FOR_THRESHOLD = 5;
+const MIN_ITEMS_FOR_GENRE_WHEN_MANY = 7;
 
 export interface BuildCarouselsInput {
   items: CarouselItem[];
@@ -65,10 +68,15 @@ export function buildCarousels(input: BuildCarouselsInput): BuildCarouselsResult
       genreToItems.get(g)!.push(item);
     }
   }
-  const sortedGenres = [...genreToItems.entries()]
+  let sortedGenres = [...genreToItems.entries()]
     .filter(([, list]) => list.length >= 1)
     .sort((a, b) => b[1].length - a[1].length)
     .slice(0, MAX_GENRE_ROWS);
+
+  // When we have at least 5 genre categories, only show genres with at least 7 items (Recently Added / Continue Watching are unchanged).
+  if (sortedGenres.length >= MIN_GENRE_COUNT_FOR_THRESHOLD) {
+    sortedGenres = sortedGenres.filter(([, list]) => list.length >= MIN_ITEMS_FOR_GENRE_WHEN_MANY);
+  }
 
   const usedIds = new Set<string>([heroId]);
   const genreRows: { title: string; items: CarouselItem[] }[] = [];

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, sep } from 'path';
 import type { Dirent } from 'fs';
-import { registry, persistRegistry } from '@/lib/streamRegistry';
+import { registry, persistRegistry, ensureHydrated } from '@/lib/streamRegistry';
 import {
   getTvShowIdByTitle,
   getTvShowSeasonNumbers,
@@ -167,12 +167,18 @@ async function buildLocalEpisodeMap(
 }
 
 export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('id');
+  let id = request.nextUrl.searchParams.get('id');
   const title = request.nextUrl.searchParams.get('title')?.trim();
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep as-is
+  }
 
+  ensureHydrated();
   const { itemIdToPath, folderPathByItemId, episodeIdToPath, episodeIdToSubtitlePath } = registry;
   let folderPath = folderPathByItemId.get(id);
   if (!folderPath) {
@@ -181,6 +187,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unknown series. Rescan the library.' }, { status: 404 });
     }
     folderPath = dirname(singlePath);
+    const lastSegment = folderPath.split(sep).filter(Boolean).pop() ?? '';
+    if (parseSeasonFromDirName(lastSegment) !== null) {
+      folderPath = dirname(folderPath);
+    }
   }
 
   const localMap = await buildLocalEpisodeMap(folderPath, id, episodeIdToPath, episodeIdToSubtitlePath);
@@ -189,23 +199,34 @@ export async function GET(request: NextRequest) {
   if (title) {
     const tv = await getTvShowIdByTitle(title);
     if (tv) {
-      const seasonNumbers = await getTvShowSeasonNumbers(tv.id);
+      const localSeasonNumbers = [...new Set([...localMap.keys()].map((k) => parseInt(k.split('-')[0], 10)))].sort((a, b) => a - b);
+      const tmdbSeasonNumbers = await getTvShowSeasonNumbers(tv.id);
+      const seasonNumbers = [...new Set([...localSeasonNumbers, ...tmdbSeasonNumbers])].sort((a, b) => a - b);
       const seasons: SeriesSeason[] = [];
       for (const seasonNum of seasonNumbers) {
-        const tmdbEpisodes = await getTvSeasonEpisodes(tv.id, seasonNum);
-        const episodes: SeriesEpisode[] = tmdbEpisodes.map((e) => {
-          const epNum = e.episode_number;
+        const localKeysForSeason = [...localMap.keys()].filter((k) => parseInt(k.split('-')[0], 10) === seasonNum);
+        const localEpNums = [...new Set(localKeysForSeason.map((k) => parseInt(k.split('-')[1], 10)))].sort((a, b) => a - b);
+        let tmdbEpisodes: { episode_number: number; name?: string; overview?: string; still_path?: string; runtime?: number }[] = [];
+        try {
+          tmdbEpisodes = await getTvSeasonEpisodes(tv.id, seasonNum);
+        } catch {
+          // use local only
+        }
+        const tmdbByEp = new Map(tmdbEpisodes.map((e) => [e.episode_number, e]));
+        const epNumbers = [...new Set([...localEpNums, ...tmdbEpisodes.map((e) => e.episode_number)])].sort((a, b) => a - b);
+        const episodes: SeriesEpisode[] = epNumbers.map((epNum) => {
           const key = `${seasonNum}-${epNum}`;
           const local = localMap.get(key);
+          const tmdb = tmdbByEp.get(epNum);
           const episodeId = local?.episodeId;
           return {
             ...(episodeId ? { id: episodeId } : undefined),
             seasonNumber: seasonNum,
             episodeNumber: epNum,
-            title: e.name?.trim() || `Episode ${epNum}`,
-            durationMinutes: e.runtime ?? undefined,
-            description: e.overview?.trim() || undefined,
-            posterUrl: buildStillUrl(e.still_path) ?? undefined,
+            title: tmdb?.name?.trim() || `Episode ${epNum}`,
+            durationMinutes: tmdb?.runtime ?? undefined,
+            description: tmdb?.overview?.trim() || undefined,
+            posterUrl: tmdb?.still_path ? buildStillUrl(tmdb.still_path) ?? undefined : undefined,
             subtitleLanguages: local && Object.keys(local.subtitlePaths).length > 0
               ? Object.keys(local.subtitlePaths).sort()
               : undefined,

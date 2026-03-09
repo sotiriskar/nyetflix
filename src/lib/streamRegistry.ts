@@ -53,7 +53,9 @@ function loadFromDisk(r: StreamRegistry): void {
   try {
     if (!existsSync(REGISTRY_FILE)) return;
     const raw = readFileSync(REGISTRY_FILE, 'utf-8');
-    const data = JSON.parse(raw) as {
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    if (!trimmed) return;
+    let data: {
       itemIdToPath?: Record<string, string>;
       itemIdToSubtitlePath?: Record<string, Record<string, string>>;
       folderPathByItemId?: Record<string, string>;
@@ -61,6 +63,11 @@ function loadFromDisk(r: StreamRegistry): void {
       episodeIdToSubtitlePath?: Record<string, Record<string, string>>;
       pathToItemId?: Record<string, string>;
     };
+    try {
+      data = JSON.parse(trimmed) as typeof data;
+    } catch {
+      return;
+    }
     if (data.itemIdToPath) Object.entries(data.itemIdToPath).forEach(([k, v]) => r.itemIdToPath.set(k, v));
     if (data.itemIdToSubtitlePath) Object.entries(data.itemIdToSubtitlePath).forEach(([k, v]) => r.itemIdToSubtitlePath.set(k, v));
     if (data.folderPathByItemId) Object.entries(data.folderPathByItemId).forEach(([k, v]) => r.folderPathByItemId.set(k, v));

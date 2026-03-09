@@ -14,6 +14,7 @@ import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress } from '@/context/ProgressContext';
 import { buildWatchUrl } from '@/lib/watchUrl';
+import { pickMoreLikeThis } from '@/lib/moreLikeThis';
 
 export function SearchPage() {
   const router = useRouter();
@@ -63,8 +64,17 @@ export function SearchPage() {
 
   const moreLikeThisItems = useMemo(() => {
     if (!selectedItem || results.length === 0) return [];
-    return results.filter((item) => item.id !== selectedItem.id).slice(0, 6);
-  }, [results, selectedItem?.id]);
+    const currentGenres = detailsMap[selectedItem.id]?.genres
+      ? detailsMap[selectedItem.id].genres!.split(',').map((g) => g.trim()).filter(Boolean)
+      : undefined;
+    return pickMoreLikeThis(
+      selectedItem.id,
+      currentGenres,
+      results,
+      (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
+      6
+    );
+  }, [results, selectedItem?.id, detailsMap]);
 
   const detail: MovieDetail | undefined = selectedItem
     ? (getDetail?.(selectedItem.id) ?? {

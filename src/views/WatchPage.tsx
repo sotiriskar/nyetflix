@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { VideoPlayerModal } from '@/components/VideoPlayerModal';
 import { useLibrary } from '@/hooks/useLibrary';
@@ -47,11 +47,21 @@ export function WatchPage() {
   const subtitleLanguages = subtitleLanguagesFromQuery ?? (id ? getDetail(id)?.subtitleLanguages : undefined);
   const seriesTitle = seriesTitleFromQuery ?? (id ? getDetail(id)?.title : undefined);
 
+  const isSeriesEpisode = typeof id === 'string' && /^episode-.+-S\d+-E\d+$/.test(id);
+  const closingRef = useRef(false);
+
   useEffect(() => {
     if (!id) {
       router.replace('/browse');
     }
   }, [id, router]);
+
+  const handleClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    const target = isSeriesEpisode ? '/browse/series' : '/browse/films';
+    router.replace(target);
+  }, [isSeriesEpisode, router]);
 
   if (!id) {
     return (
@@ -68,7 +78,7 @@ export function WatchPage() {
       subtitleLanguages={subtitleLanguages}
       preferredSubtitleLang={subtitleLanguage}
       message={null}
-      onClose={() => router.back()}
+      onClose={handleClose}
       onPlayEpisode={(episodeId, episodeTitle, subtitleLangs, seriesTitleParam) => {
         router.push(buildWatchUrl(episodeId, {
           title: episodeTitle ?? undefined,

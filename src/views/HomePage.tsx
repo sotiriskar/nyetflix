@@ -20,6 +20,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { useProgress, CONTINUE_WATCHING_MAX_PROGRESS } from '@/context/ProgressContext';
 import { buildWatchUrl } from '@/lib/watchUrl';
 import { buildCarousels } from '@/lib/carouselBuild';
+import { pickMoreLikeThis } from '@/lib/moreLikeThis';
 
 const skeletonSx = { bgcolor: 'rgba(255,255,255,0.11)' };
 
@@ -114,8 +115,17 @@ export function HomePage() {
   const moreLikeThisItems = useMemo(() => {
     if (!hasLibraryData || libraryCarousels.length === 0 || !selectedItem) return [];
     const all = libraryCarousels[0].items ?? [];
-    return all.filter((item) => item.id !== selectedItem.id).slice(0, 6);
-  }, [hasLibraryData, libraryCarousels, selectedItem?.id]);
+    const currentGenres = detailsMap[selectedItem.id]?.genres
+      ? detailsMap[selectedItem.id].genres!.split(',').map((g) => g.trim()).filter(Boolean)
+      : undefined;
+    return pickMoreLikeThis(
+      selectedItem.id,
+      currentGenres,
+      all,
+      (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
+      6
+    );
+  }, [hasLibraryData, libraryCarousels, selectedItem?.id, detailsMap]);
 
   const { heroItem, carousels } = useMemo(() => {
     if (!hasLibraryData || libraryCarousels.length === 0) return { heroItem: null as CarouselItem | null, carousels: [] as { title: string; items: CarouselItem[] }[] };

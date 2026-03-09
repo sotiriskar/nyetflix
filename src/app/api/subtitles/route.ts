@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
+import iconv from 'iconv-lite';
 import { registry } from '@/lib/streamRegistry';
 const itemIdToSubtitlePath = registry.itemIdToSubtitlePath;
+
+/** Decode subtitle buffer as UTF-8, or for Greek try Windows-1253 / ISO-8859-7 if UTF-8 yields replacement chars. */
+function decodeSubtitle(buffer: Buffer, lang: string): string {
+  const utf8 = buffer.toString('utf-8');
+  if (lang !== 'el') return utf8;
+  if (!utf8.includes('\uFFFD')) return utf8;
+  const win1253 = iconv.decode(buffer, 'win1253');
+  if (!win1253.includes('\uFFFD')) return win1253;
+  return iconv.decode(buffer, 'iso-8859-7');
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -31,7 +42,8 @@ export async function GET(request: NextRequest) {
   const isVtt = ext === '.vtt';
 
   try {
-    const content = await readFile(filePath, 'utf-8');
+    const buffer = await readFile(filePath);
+    const content = decodeSubtitle(buffer, lang);
     return new NextResponse(isVtt ? content : srtToVtt(content), {
       headers: {
         'Content-Type': 'text/vtt; charset=utf-8',

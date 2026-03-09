@@ -24,8 +24,15 @@ function getStore(): Store {
     try {
       if (existsSync(filePath)) {
         const raw = readFileSync(filePath, 'utf-8');
-        const obj = JSON.parse(raw) as Record<string, string>;
-        Object.entries(obj).forEach(([k, v]) => s!.map.set(k, v));
+        const trimmed = typeof raw === 'string' ? raw.trim() : '';
+        if (trimmed) {
+          try {
+            const obj = JSON.parse(trimmed) as Record<string, string>;
+            if (obj && typeof obj === 'object') Object.entries(obj).forEach(([k, v]) => s!.map.set(k, v));
+          } catch {
+            // ignore corrupted or truncated JSON
+          }
+        }
       }
     } catch {
       // ignore
@@ -54,6 +61,12 @@ export function getConvertedPath(itemId: string): string | undefined {
 export function setConvertedPath(itemId: string, path: string): void {
   getStore().map.set(itemId, path);
   save();
+}
+
+/** Set converted path and wait for persistence. Call before sending "done" to client so playback can start. */
+export async function setConvertedPathAndFlush(itemId: string, path: string): Promise<void> {
+  getStore().map.set(itemId, path);
+  await save();
 }
 
 export function isConversionInProgress(itemId: string): boolean {

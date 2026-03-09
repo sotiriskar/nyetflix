@@ -46,6 +46,18 @@ export async function GET(request: NextRequest) {
 
   ensureHydrated();
   let filePath = itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
+  // After MKV conversion the request may hit a process where registry isn't populated; use converted path if present
+  if (!filePath) {
+    const converted = getConvertedPath(id);
+    if (converted) {
+      try {
+        const st = await statAsync(converted);
+        if (st.isFile()) filePath = converted;
+      } catch {
+        // ignore
+      }
+    }
+  }
   if (!filePath) {
     return NextResponse.json({ error: 'Unknown or expired item. Rescan the library.' }, { status: 404 });
   }
@@ -98,8 +110,13 @@ export async function GET(request: NextRequest) {
   const range = request.headers.get('range');
   const mime = getMime(filePath);
 
+  const onAbort = (nodeStream: ReturnType<typeof createReadStream>) => {
+    if (!nodeStream.destroyed) nodeStream.destroy();
+  };
+
   if (!range || !range.startsWith('bytes=')) {
     const nodeStream = createReadStream(filePath);
+    request.signal?.addEventListener('abort', () => onAbort(nodeStream));
     const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
     return new Response(webStream, {
       status: 200,
@@ -121,6 +138,7 @@ export async function GET(request: NextRequest) {
   const chunkLength = chunkEnd - chunkStart + 1;
 
   const nodeStream = createReadStream(filePath, { start: chunkStart, end: chunkEnd });
+  request.signal?.addEventListener('abort', () => onAbort(nodeStream));
   const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
   return new Response(webStream, {
     status: 206,

@@ -23,7 +23,7 @@ interface CarouselProps {
   getIsLiked?: (id: string) => boolean;
 }
 
-const MAX_ITEMS = 8;
+const MAX_ITEMS = 12;
 
 const getDetail = (id: string, getMovieDetailProp?: (id: string) => MovieDetail | undefined) =>
   getMovieDetailProp?.(id) ?? getMovieDetail(id);

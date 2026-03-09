@@ -534,7 +534,8 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       .catch(() => setNextEpisode(null));
   }, [itemId]);
 
-  // When episodes panel opens, fetch full series episode list
+  // When episodes panel opens, fetch full series episode list. Only depend on panel open and seriesId
+  // so prop changes (seriesTitle, title, getSeriesTitle) don't clear the list and cause loading flicker.
   useEffect(() => {
     if (!episodesPanelOpen || !seriesId || typeof window === 'undefined') return;
     setSeriesEpisodes(null);
@@ -545,7 +546,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => (data?.seasons ? setSeriesEpisodes(data.seasons) : setSeriesEpisodes([])))
       .catch(() => setSeriesEpisodes([]));
-  }, [episodesPanelOpen, seriesId, seriesTitle, title, getSeriesTitle]);
+  }, [episodesPanelOpen, seriesId]);
 
   const handleError = () => {
     if (!streamUrl) return;
@@ -771,8 +772,12 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       )}
       <button
         type="button"
-        onClick={onClose}
-        className="absolute top-4 right-4 z-20 w-12 h-12 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onClose();
+        }}
+        className="absolute top-4 right-4 z-[200] w-12 h-12 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors pointer-events-auto"
         aria-label="Close"
       >
         <Close sx={{ fontSize: 28 }} />

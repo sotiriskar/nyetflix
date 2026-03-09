@@ -20,6 +20,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@vidstack/react": "^1.12.1",
     "better-sqlite3": "^12.6.2",
+    "iconv-lite": "^0.7.2",
     "next": "^15.5.12",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

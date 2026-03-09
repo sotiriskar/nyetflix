@@ -197,11 +197,14 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
       clearTimeout(timeoutId);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = data.error || `Scan failed: ${res.status}`;
-        const attempted = data.attemptedPath as string | undefined;
+        const msg = (data && data.error) || `Scan failed: ${res.status}`;
+        const attempted = data?.attemptedPath as string | undefined;
         throw new Error(attempted ? `${msg} (Path used: ${attempted})` : msg);
       }
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (data == null) {
+        throw new Error('Scan returned invalid response. Try again.');
+      }
       const nextCarousels = data.carousels ?? [];
       const nextDetailsMap = data.detailsMap ?? {};
       setCarousels(nextCarousels);

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Add from '@mui/icons-material/Add';
 import Check from '@mui/icons-material/Check';
@@ -77,11 +77,14 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
   const trailerId = detail.trailerYouTubeId ?? undefined;
   const showTrailer = Boolean(trailerId && !trailerEnded);
 
-  const fetchEpisodes = useCallback(() => {
+  // Fetch episodes only when series id changes. Don't depend on detail object identity or detail.title
+  // so parent re-renders (e.g. progress updates) don't re-run this and cause loading flicker.
+  useEffect(() => {
     if (!isSeries || !detail.id) return;
+    const title = detail.title ?? '';
     setEpisodesLoading(true);
     setEpisodesError(null);
-    fetch(`/api/series-episodes?id=${encodeURIComponent(detail.id)}&title=${encodeURIComponent(detail.title ?? '')}`)
+    fetch(`/api/series-episodes?id=${encodeURIComponent(detail.id)}&title=${encodeURIComponent(title)}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.status === 404 ? 'No episodes found.' : 'Failed to load episodes.');
         return res.json();
@@ -93,11 +96,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
       })
       .catch((err) => setEpisodesError(err instanceof Error ? err.message : 'Failed to load episodes.'))
       .finally(() => setEpisodesLoading(false));
-  }, [isSeries, detail.id, detail.title]);
-
-  useEffect(() => {
-    if (isSeries && detail.id) fetchEpisodes();
-  }, [isSeries, detail.id, fetchEpisodes]);
+  }, [isSeries, detail.id]);
 
   useEffect(() => {
     setTrailerEnded(false);

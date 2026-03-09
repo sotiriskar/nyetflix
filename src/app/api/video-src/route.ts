@@ -24,8 +24,17 @@ export async function GET(request: NextRequest) {
   }
 
   ensureHydrated();
-  const filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
+  let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
+  // After MKV conversion the refetch may hit a process where registry isn't populated; use converted path if present
   if (!filePath) {
+    const converted = getConvertedPath(id);
+    if (converted && existsSync(converted)) {
+      return NextResponse.json({
+        url: `${request.nextUrl.origin}/api/stream-video?id=${encodeURIComponent(id)}`,
+        type: 'video',
+        seekable: true,
+      });
+    }
     return NextResponse.json({ error: 'Unknown or expired item. Rescan the library.' }, { status: 404 });
   }
 

@@ -9,7 +9,7 @@ import { unlink, writeFileSync } from 'fs';
 import { cpus } from 'os';
 import { getFfmpegPath } from './ffmpegPath';
 import {
-  setConvertedPath,
+  setConvertedPathAndFlush,
   isConversionInProgress,
   hasAnyConversionInProgress,
   markConversionStarted,
@@ -306,8 +306,8 @@ export function runMkvConversion(
         audioArgs,
         abortSignal
       )
-        .then(() => {
-          setConvertedPath(itemId, mp4Path);
+        .then(async () => {
+          await setConvertedPathAndFlush(itemId, mp4Path);
           notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
           unlink(mkvPath, () => {});
           progressMap.delete(itemId);
@@ -384,10 +384,13 @@ export function runMkvConversion(
       cleanupAbort();
       markConversionFinished(itemId);
       if (code === 0) {
-        setConvertedPath(itemId, mp4Path);
-        notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
-        unlink(mkvPath, () => {}); // Remove original MKV now that MP4 plays
-        resolve(mp4Path);
+        setConvertedPathAndFlush(itemId, mp4Path)
+          .then(() => {
+            notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
+            unlink(mkvPath, () => {}); // Remove original MKV now that MP4 plays
+            resolve(mp4Path);
+          })
+          .catch(reject);
       } else {
         const deletePartial = (): void => {
           unlink(mp4Path, (err) => {

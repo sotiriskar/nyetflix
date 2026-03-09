@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, realpath } from 'fs/promises';
+import { readdir, realpath, stat } from 'fs/promises';
 import { join, resolve, sep, isAbsolute } from 'path';
 import { homedir, platform } from 'os';
 import type { Dirent } from 'fs';
@@ -11,6 +11,7 @@ import {
   type ImdbTitle,
 } from '@/lib/imdbapi';
 import { getImagesForTitle } from '@/lib/tmdb';
+import { getDurationSecondsFromFile } from '@/lib/videoDuration';
 import type { CarouselItem, MovieDetail } from '@/types/movie';
 import { registry, persistRegistry, getOrCreateShortId } from '@/lib/streamRegistry';
 
@@ -254,6 +255,12 @@ export async function GET(request: NextRequest) {
     fileNamesInFolder: Set<string>;
     source: 'folder' | 'root';
     folderName?: string;
+    /** Time file was added (birthtime or mtime) for "Recently Added" ordering */
+    addedAt?: number;
+    /** When true, folder has season subdirs (S01, etc.) – treat as series and show episodes. */
+    isSeries?: boolean;
+    /** Number of season folders (e.g. 1 for S01 only). Used for "X Seasons" and series detection. */
+    seasonCount?: number;
   };
 
   const candidates: MovieCandidate[] = [];
@@ -347,6 +354,8 @@ export async function GET(request: NextRequest) {
       fileNamesInFolder,
       source: 'folder',
       folderName: dir.name,
+      isSeries: true,
+      seasonCount: seasonDirs.length,
     });
   }
 
@@ -363,6 +372,20 @@ export async function GET(request: NextRequest) {
       source: 'root',
     });
   }
+
+  // Sort by "when added": folder mtime for folder-based titles (when folder was copied in), file mtime for root files (oldest first so newest = hero)
+  await Promise.all(
+    candidates.map(async (c) => {
+      try {
+        const pathToStat = c.source === 'folder' ? c.folderPath : c.videoPath;
+        const st = await stat(pathToStat);
+        (c as MovieCandidate & { addedAt: number }).addedAt = st.mtime?.getTime() ?? 0;
+      } catch {
+        (c as MovieCandidate & { addedAt: number }).addedAt = 0;
+      }
+    })
+  );
+  candidates.sort((a, b) => (a.addedAt ?? 0) - (b.addedAt ?? 0));
 
   const items: CarouselItem[] = [];
   const detailsMap: Record<string, MovieDetail> = {};
@@ -432,12 +455,26 @@ export async function GET(request: NextRequest) {
         if (tmdb.genres) detail.genres = tmdb.genres;
         if (tmdb.trailerYouTubeId) detail.trailerYouTubeId = tmdb.trailerYouTubeId;
         if (tmdb.englishTitle?.trim()) detail.title = tmdb.englishTitle.trim();
-        if (tmdb.seasonsCount != null) detail.seasonsCount = tmdb.seasonsCount;
+        if (candidates[i].isSeries) {
+          detail.mediaType = 'series';
+          detail.seasonsCount = candidates[i].seasonCount ?? tmdb.seasonsCount ?? 1;
+        } else if (tmdb.seasonsCount != null) {
+          detail.seasonsCount = tmdb.seasonsCount;
+        }
         if (tmdb.overview && (!detail.description || detail.description === 'No description available.')) detail.description = tmdb.overview;
         if (tmdb.tagline) detail.tagline = tmdb.tagline;
         if (tmdb.contentRating) detail.contentRating = tmdb.contentRating;
+        if (!detail.duration && tmdb.runtimeMinutes != null && tmdb.runtimeMinutes > 0) detail.duration = `${tmdb.runtimeMinutes}m`;
       } catch {
         // no TMDB key or request failed
+      }
+      if (candidates[i].isSeries) {
+        detail.mediaType = 'series';
+        if (detail.seasonsCount == null) detail.seasonsCount = candidates[i].seasonCount ?? 1;
+      }
+      if (!detail.duration && !candidates[i].isSeries) {
+        const sec = await getDurationSecondsFromFile(videoPath);
+        if (sec != null) detail.duration = `${Math.round(sec / 60)}m`;
       }
       if (!detail.posterUrl) detail.posterUrl = imdbPosterUrl;
       pathByItemId[localId] = videoPath;
@@ -489,10 +526,18 @@ export async function GET(request: NextRequest) {
   Object.entries(subtitlePathByItemId).forEach(([k, v]) => itemIdToSubtitlePath.set(k, v));
   persistRegistry();
 
-  return NextResponse.json({
-    carousels,
-    detailsMap,
-  });
+  try {
+    return NextResponse.json({
+      carousels,
+      detailsMap,
+    });
+  } catch (serializeErr) {
+    console.error('[scan-library] Serialize error', serializeErr);
+    return NextResponse.json(
+      { error: 'Scan completed but response too large or invalid.' },
+      { status: 500 }
+    );
+  }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Scan failed';
     console.error('[scan-library]', err);

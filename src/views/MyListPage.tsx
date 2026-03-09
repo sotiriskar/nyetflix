@@ -16,6 +16,7 @@ import { useProgress } from '@/context/ProgressContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { buildWatchUrl } from '@/lib/watchUrl';
+import { pickMoreLikeThis } from '@/lib/moreLikeThis';
 
 type SortBy = 'alphabetical' | 'time';
 
@@ -149,8 +150,17 @@ export function MyListPage() {
   const moreLikeThisItems = useMemo(() => {
     if (!selectedItem) return [];
     const all = [...movies, ...series];
-    return all.filter((item) => item.id !== selectedItem.id).slice(0, 6);
-  }, [movies, series, selectedItem?.id]);
+    const currentGenres = detailsMap[selectedItem.id]?.genres
+      ? detailsMap[selectedItem.id].genres!.split(',').map((g) => g.trim()).filter(Boolean)
+      : undefined;
+    return pickMoreLikeThis(
+      selectedItem.id,
+      currentGenres,
+      all,
+      (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
+      6
+    );
+  }, [movies, series, selectedItem?.id, detailsMap]);
 
   const hasPath = moviesFolderPath.trim() !== '';
   const hasLibraryData = hasPath && !error && libraryCarousels.length > 0;
