@@ -11,11 +11,17 @@ import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import { useProfile } from '@/context/ProfileContext';
 import { useSettings } from '@/context/SettingsContext';
 import { AVATAR_PATHS } from '@/lib/profiles';
-import type { AppLanguage } from '@/context/SettingsContext';
+import type { AppLanguage, SubtitlePreference } from '@/context/SettingsContext';
 import type { Profile } from '@/context/ProfileContext';
 import type { ProfileId } from '@/lib/profiles';
 
 const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'el', label: 'Greek' },
+];
+
+const SUBTITLE_OPTIONS: { value: SubtitlePreference; label: string }[] = [
+  { value: 'off', label: 'Off' },
   { value: 'en', label: 'English' },
   { value: 'el', label: 'Greek' },
 ];
@@ -30,7 +36,7 @@ async function fetchProfile(id: number): Promise<Profile | null> {
 async function fetchSettings(profileId: number) {
   const res = await fetch('/api/settings', { headers: { 'X-Profile-Id': String(profileId) } });
   if (!res.ok) return null;
-  return res.json() as Promise<{ language: AppLanguage; subtitleLanguage: AppLanguage; moviesFolderPath: string } | null>;
+  return res.json() as Promise<{ language: AppLanguage; subtitleLanguage: SubtitlePreference; moviesFolderPath: string } | null>;
 }
 
 async function saveProfile(id: ProfileId, data: { name?: string; avatarPath?: string; isKid?: boolean }) {
@@ -42,7 +48,7 @@ async function saveProfile(id: ProfileId, data: { name?: string; avatarPath?: st
   return res.ok;
 }
 
-async function saveSettings(profileId: number, data: { language?: AppLanguage; subtitleLanguage?: AppLanguage; moviesFolderPath?: string }) {
+async function saveSettings(profileId: number, data: { language?: AppLanguage; subtitleLanguage?: SubtitlePreference; moviesFolderPath?: string }) {
   const res = await fetch('/api/settings', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'X-Profile-Id': String(profileId) },
@@ -60,7 +66,7 @@ export default function SettingsProfilePage() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [language, setLanguage] = useState<AppLanguage>('en');
-  const [subtitleLanguage, setSubtitleLanguage] = useState<AppLanguage>('en');
+  const [subtitleLanguage, setSubtitleLanguage] = useState<SubtitlePreference>('off');
   const [moviesFolderPath, setMoviesFolderPath] = useState('');
   const [name, setName] = useState('');
   const [avatarPath, setAvatarPath] = useState('');
@@ -83,7 +89,7 @@ export default function SettingsProfilePage() {
       }
       if (s) {
         setLanguage(s.language ?? 'en');
-        setSubtitleLanguage(s.subtitleLanguage ?? 'en');
+        setSubtitleLanguage(s.subtitleLanguage ?? 'off');
         setMoviesFolderPath(s.moviesFolderPath ?? '');
       }
       setLoaded(true);
@@ -115,7 +121,7 @@ export default function SettingsProfilePage() {
   );
 
   const handleSubtitleChange = useCallback(
-    (lang: AppLanguage) => {
+    (lang: SubtitlePreference) => {
       setSubtitleLanguage(lang);
       if (profileId != null) saveSettings(profileId, { subtitleLanguage: lang });
     },
@@ -298,10 +304,10 @@ export default function SettingsProfilePage() {
             </div>
             <select
               value={subtitleLanguage}
-              onChange={(e) => handleSubtitleChange(e.target.value as AppLanguage)}
+              onChange={(e) => handleSubtitleChange(e.target.value as SubtitlePreference)}
               className="px-3 py-2 rounded border border-white/20 bg-white/5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
             >
-              {LANGUAGE_OPTIONS.map(({ value, label }) => (
+              {SUBTITLE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value} className="bg-[#181818] text-white">{label}</option>
               ))}
             </select>

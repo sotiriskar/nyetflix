@@ -10,6 +10,7 @@ import type { ProfileId } from '@/lib/profiles';
 import {
   useSettings,
   type AppLanguage,
+  type SubtitlePreference,
 } from '../context/SettingsContext';
 import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import { removeLibraryHandle } from '@/lib/libraryHandleStorage';
@@ -19,6 +20,12 @@ interface AppSettingsModalProps {
 }
 
 const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'el', label: 'Greek' },
+];
+
+const SUBTITLE_OPTIONS: { value: SubtitlePreference; label: string }[] = [
+  { value: 'off', label: 'Off' },
   { value: 'en', label: 'English' },
   { value: 'el', label: 'Greek' },
 ];
@@ -119,11 +126,11 @@ export function AppSettingsModal({ onClose }: AppSettingsModalProps) {
             </div>
             <select
               value={subtitleLanguage}
-              onChange={(e) => setSubtitleLanguage(e.target.value as AppLanguage)}
+              onChange={(e) => setSubtitleLanguage(e.target.value as SubtitlePreference)}
               className="w-full max-w-xs px-4 py-2.5 rounded bg-white/5 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent appearance-none cursor-pointer bg-no-repeat bg-[length:1rem] bg-[right_0.5rem_center] pr-10"
               style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23fff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E\")" }}
             >
-              {LANGUAGE_OPTIONS.map(({ value, label }) => (
+              {SUBTITLE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value} className="bg-[#181818] text-white">
                   {label}
                 </option>

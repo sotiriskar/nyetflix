@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, realpath, stat } from 'fs/promises';
-import { join, resolve, sep, isAbsolute } from 'path';
+import { join, resolve, sep, isAbsolute, dirname } from 'path';
 import { homedir, platform } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
@@ -15,7 +15,7 @@ import { getDurationSecondsFromFile } from '@/lib/videoDuration';
 import type { CarouselItem, MovieDetail } from '@/types/movie';
 import { registry, persistRegistry, getOrCreateShortId } from '@/lib/streamRegistry';
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours – library rarely changes
 const scanCache = new Map<
   string,
   {
@@ -458,7 +458,9 @@ export async function GET(request: NextRequest) {
         if (candidates[i].isSeries) {
           detail.mediaType = 'series';
           detail.seasonsCount = candidates[i].seasonCount ?? tmdb.seasonsCount ?? 1;
-        } else if (tmdb.seasonsCount != null) {
+        } else if (tmdb.seasonsCount != null && tmdb.seasonsCount > 0) {
+          // TMDB matched a TV show; trust it so we don't flip between series/movie (e.g. Adolescence)
+          detail.mediaType = 'series';
           detail.seasonsCount = tmdb.seasonsCount;
         }
         if (tmdb.overview && (!detail.description || detail.description === 'No description available.')) detail.description = tmdb.overview;
@@ -481,7 +483,8 @@ export async function GET(request: NextRequest) {
       folderPathByItemIdRecord[localId] = folderPath;
       const dotIdx = String(videoName).lastIndexOf('.');
       const baseName = dotIdx >= 0 ? videoName.slice(0, dotIdx) : videoName;
-      const subtitlePaths = findSubtitlesForVideo(folderPath, fileNamesInFolder, baseName);
+      const videoDir = dirname(videoPath);
+      const subtitlePaths = findSubtitlesForVideo(videoDir, fileNamesInFolder, baseName);
       if (Object.keys(subtitlePaths).length > 0) {
         subtitlePathByItemId[localId] = subtitlePaths;
         detail.subtitleLanguages = Object.keys(subtitlePaths).sort();

@@ -59,8 +59,13 @@ export function WatchPage() {
   const handleClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
-    const target = isSeriesEpisode ? '/browse/series' : '/browse/films';
-    router.replace(target);
+    // Use back when possible – faster, preserves scroll/state; else replace
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      const target = isSeriesEpisode ? '/browse/series' : '/browse/films';
+      router.replace(target);
+    }
   }, [isSeriesEpisode, router]);
 
   if (!id) {

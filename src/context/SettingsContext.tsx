@@ -4,9 +4,12 @@ import { useProfile } from '@/context/ProfileContext';
 
 export type AppLanguage = 'en' | 'el';
 
+/** Subtitle preference: 'off' = no subtitles by default, or a language code. */
+export type SubtitlePreference = 'off' | AppLanguage;
+
 export interface SettingsState {
   language: AppLanguage;
-  subtitleLanguage: AppLanguage;
+  subtitleLanguage: SubtitlePreference;
   moviesFolderPath: string;
   profileName: string;
   profileIsKid: boolean;
@@ -14,7 +17,7 @@ export interface SettingsState {
 
 export interface SettingsContextValue extends SettingsState {
   setLanguage: (lang: AppLanguage) => void;
-  setSubtitleLanguage: (lang: AppLanguage) => void;
+  setSubtitleLanguage: (lang: SubtitlePreference) => void;
   setMoviesFolderPath: (path: string) => void;
   clearMoviesFolderPath: () => void;
   setProfileName: (name: string) => void;
@@ -39,7 +42,7 @@ const defaultValue: SettingsContextValue = {
 
 const Context = createContext<SettingsContextValue>(defaultValue);
 
-async function fetchSettings(profileId: number): Promise<{ language: AppLanguage; subtitleLanguage: AppLanguage; moviesFolderPath: string } | null> {
+async function fetchSettings(profileId: number): Promise<{ language: AppLanguage; subtitleLanguage: SubtitlePreference; moviesFolderPath: string } | null> {
   try {
     const res = await fetch('/api/settings', { headers: { 'X-Profile-Id': String(profileId) } });
     if (!res.ok) return null;
@@ -50,7 +53,7 @@ async function fetchSettings(profileId: number): Promise<{ language: AppLanguage
   }
 }
 
-async function saveSettings(profileId: number, partial: { language?: AppLanguage; subtitleLanguage?: AppLanguage; moviesFolderPath?: string }) {
+async function saveSettings(profileId: number, partial: { language?: AppLanguage; subtitleLanguage?: SubtitlePreference; moviesFolderPath?: string }) {
   try {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
@@ -69,7 +72,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const currentProfile = useMemo(() => profiles.find((p) => p.id === currentProfileId), [profiles, currentProfileId]);
 
   const [language, setLanguageState] = useState<AppLanguage>('en');
-  const [subtitleLanguage, setSubtitleLanguageState] = useState<AppLanguage>('en');
+  const [subtitleLanguage, setSubtitleLanguageState] = useState<SubtitlePreference>('off');
   const [moviesFolderPath, setMoviesFolderPathState] = useState<string>('');
 
   useEffect(() => {
@@ -77,7 +80,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     fetchSettings(currentProfileId).then((data) => {
       if (data) {
         setLanguageState(data.language ?? 'en');
-        setSubtitleLanguageState(data.subtitleLanguage ?? 'en');
+        setSubtitleLanguageState(data.subtitleLanguage ?? 'off');
         setMoviesFolderPathState(data.moviesFolderPath ?? '');
       }
     });

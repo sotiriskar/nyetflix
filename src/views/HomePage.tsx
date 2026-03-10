@@ -12,8 +12,7 @@ import { Carousel } from '@/components/Carousel';
 import { DetailCard } from '@/components/DetailCard';
 import { Footer } from '@/components/Footer';
 import { HeroBanner } from '@/components/HeroBanner';
-import { useLibrary } from '@/hooks/useLibrary';
-import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
+import { useLibraryContext } from '@/context/LibraryContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
@@ -68,7 +67,7 @@ function CarouselRowSkeleton() {
 export function HomePage() {
   const router = useRouter();
   const { moviesFolderPath } = useSettings();
-  const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh, updateItemDetail } = useLibrary(moviesFolderPath);
+  const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh, updateItemDetail } = useLibraryContext();
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
   const { progressByItemId, getProgress } = useProgress();
@@ -81,11 +80,10 @@ export function HomePage() {
       const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
       const id = resumeEpisodeId ?? item.id;
       const seriesTitle = isSeries ? (detailsMap[item.id]?.title ?? undefined) : undefined;
-      const path = moviesFolderPath?.trim() ?? '';
-      if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
-      router.push(buildWatchUrl(id, { seriesTitle }));
+      const subs = detailsMap[item.id]?.subtitleLanguages;
+      router.push(buildWatchUrl(id, { seriesTitle, subs: subs?.length ? subs : undefined }));
     },
-    [moviesFolderPath, getProgress, detailsMap, router]
+    [getProgress, detailsMap, router]
   );
 
   const getDetail = useMemo(

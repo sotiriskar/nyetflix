@@ -171,6 +171,56 @@ function EnsureUnmuted() {
   return null;
 }
 
+/** Enables the preferred caption track – overrides Vidstack's default of first track (e.g. Arabic). */
+function DefaultCaptionEnabler({ defaultTrackIndex }: { defaultTrackIndex: number }) {
+  const remote = useMediaRemote();
+  const textTracks = useMediaState('textTracks');
+
+  useEffect(() => {
+    if (defaultTrackIndex < 0) return;
+    const list = textTracks;
+    const length = Array.isArray(list) ? list.length : (list as { length?: number })?.length ?? 0;
+    if (length === 0) return;
+    const idx = Math.min(defaultTrackIndex, length - 1);
+    const r = remote as { changeTextTrackMode?: (i: number, m: string) => void; changeTextTrack?: (i: number) => void };
+    const enablePreferred = () => {
+      if (typeof r.changeTextTrackMode === 'function') {
+        r.changeTextTrackMode(idx, 'showing');
+      } else if (typeof r.changeTextTrack === 'function') {
+        r.changeTextTrack(idx);
+      }
+    };
+    // Run on next tick and again after delay – Vidstack often defaults to first track before we can override
+    enablePreferred();
+    const t = setTimeout(enablePreferred, 200);
+    const t2 = setTimeout(enablePreferred, 500);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(t2);
+    };
+  }, [defaultTrackIndex, textTracks, remote]);
+
+  return null;
+}
+
+/** Explicitly disables captions when user preference is "off" – prevents Vidstack from defaulting to first track. */
+function CaptionDisabler() {
+  const remote = useMediaRemote();
+  const textTracks = useMediaState('textTracks');
+
+  useEffect(() => {
+    const list = textTracks;
+    const length = Array.isArray(list) ? list.length : (list as { length?: number })?.length ?? 0;
+    if (length === 0) return;
+    const r = remote as { disableCaptions?: () => void };
+    if (typeof r.disableCaptions === 'function') {
+      r.disableCaptions();
+    }
+  }, [textTracks, remote]);
+
+  return null;
+}
+
 /** Memoized episodes panel to avoid re-renders from high-frequency display time updates. */
 const EpisodesPanel = memo(function EpisodesPanel({
   seriesEpisodes,
@@ -321,8 +371,8 @@ interface VideoPlayerModalProps {
   itemId: string | null;
   title?: string;
   subtitleLanguages?: string[];
-  /** Preferred subtitle language code (e.g. from settings). If a track matches, it will be selected by default. */
-  preferredSubtitleLang?: string;
+  /** Preferred subtitle language from settings: 'off' = no subtitles by default; 'en'|'el' = that language if available. */
+  preferredSubtitleLang?: 'off' | string;
   /** When set, show this message instead of the video (e.g. "This episode is not in your library"). */
   message?: string | null;
   onClose: () => void;
@@ -336,8 +386,18 @@ interface VideoPlayerModalProps {
 
 const EPISODE_ID_REGEX = /^episode-.+-S\d+-E\d+$/;
 
-export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang: _preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
-  void _preferredSubtitleLang; // reserved for future use
+/** Preferred lang (e.g. 'en') matches track lang (e.g. 'en', 'eng'). */
+function trackMatchesPreferred(trackLang: string, preferred: string | undefined): boolean {
+  if (!preferred || preferred === 'off') return false;
+  const p = preferred.toLowerCase();
+  const t = trackLang.toLowerCase();
+  if (p === t) return true;
+  if (p === 'en' && (t === 'eng' || t === 'en')) return true;
+  if (p === 'el' && (t === 'ell' || t === 'gre' || t === 'gr' || t === 'el')) return true;
+  return false;
+}
+
+export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
   const [streamUrl, setStreamUrl] = useState('');
   const [streamType, setStreamType] = useState<'video' | 'hls'>('video');
   /** Which itemId the current streamUrl is for – only show player when this matches itemId so we never reuse old stream for new episode. */
@@ -353,6 +413,8 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const [nextEpisode, setNextEpisode] = useState<NextEpisodeInfo | null>(null);
   const [episodesPanelOpen, setEpisodesPanelOpen] = useState(false);
   const [seriesEpisodes, setSeriesEpisodes] = useState<SeriesSeason[] | null>(null);
+  /** Combined external + embedded subtitle tracks from /api/subtitle-tracks (when set, used instead of subtitleLanguages). */
+  const [subtitleTracks, setSubtitleTracks] = useState<Array<{ lang: string; label: string; src: string }> | null>(null);
   const showModal = !!itemId || !!message;
   const seriesId = itemId ? (itemId.match(/^episode-(.+)-S\d+-E\d+$/) ?? null)?.[1] ?? null : null;
   const { getProgress, setProgress } = useProgress();
@@ -367,6 +429,22 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     onPlayEpisodeRef.current?.(epId, epTitle, subs, seriesTitle);
   }).current;
   const streamReadyForCurrentItem = !!streamUrl && streamForItemId === itemId;
+
+  // Fetch combined subtitle tracks (external + embedded). When API returns empty we fall back to subtitleLanguages below.
+  useEffect(() => {
+    if (!itemId || isHandleMode || typeof window === 'undefined') {
+      setSubtitleTracks(null);
+      return;
+    }
+    setSubtitleTracks(null);
+    const origin = window.location.origin;
+    fetch(`${origin}/api/subtitle-tracks?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { tracks?: Array<{ lang: string; label: string; src: string }> } | null) => {
+        setSubtitleTracks(data?.tracks ?? []);
+      })
+      .catch(() => setSubtitleTracks([]));
+  }, [itemId, isHandleMode]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -572,14 +650,31 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const tracks =
-    itemId && subtitleLanguages?.length && origin && !isHandleMode
-      ? subtitleLanguages.map((lang) => ({
-          lang,
-          src: `${origin}/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
-          label: LANG_LABELS[lang] ?? lang,
-        }))
+  // Use API tracks when we got a non-empty list; otherwise use subtitleLanguages (from library/URL) so captions option always shows when available
+  const rawTracks =
+    itemId && origin && !isHandleMode
+      ? (subtitleTracks != null && subtitleTracks.length > 0)
+        ? subtitleTracks.map((t) => ({ lang: t.lang, src: origin + t.src, label: t.label }))
+        : (subtitleLanguages?.length
+          ? subtitleLanguages.map((lang) => ({
+              lang,
+              src: `${origin}/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
+              label: LANG_LABELS[lang] ?? lang,
+            }))
+          : [])
       : [];
+
+  // Put preferred track first so Vidstack's default (first track) is correct – avoids Arabic when API returns alphabetical order
+  const tracks =
+    preferredSubtitleLang != null && preferredSubtitleLang !== 'off' && rawTracks.length > 0
+      ? (() => {
+          const i = rawTracks.findIndex((t) => trackMatchesPreferred(t.lang, preferredSubtitleLang));
+          if (i <= 0) return rawTracks;
+          const preferred = rawTracks[i]!;
+          const rest = rawTracks.filter((_, j) => j !== i);
+          return [preferred, ...rest];
+        })()
+      : rawTracks;
 
   // In the control bar: for series always "Show Name • S1 E2" (same whether from Play or Episodes list). Only add short episode name, never the long "Show – S1:E1 Episode 1" format from DetailCard.
   const episodeMatch = itemId?.match(/S(\d+)-E(\d+)/);
@@ -702,16 +797,30 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                 overrideDurationSeconds={durationSeconds}
               />
             )}
-            {tracks.map((t, i) => (
-              <Track
-                key={t.lang}
-                kind="subtitles"
-                src={t.src}
-                lang={t.lang}
-                label={t.label}
-                default={i === 0}
-              />
-            ))}
+            {(() => {
+              // Use settings preference: 'off' or no match → subtitles off by default; else use matching track
+              const defaultIdx =
+                preferredSubtitleLang != null && preferredSubtitleLang !== 'off'
+                  ? tracks.findIndex((t) => trackMatchesPreferred(t.lang, preferredSubtitleLang))
+                  : -1;
+              const idx = defaultIdx >= 0 ? defaultIdx : -1; // -1 = no default, never fall back to first track
+              return (
+                <>
+                  {tracks.length > 0 && idx >= 0 && <DefaultCaptionEnabler defaultTrackIndex={idx} />}
+                  {tracks.length > 0 && idx < 0 && <CaptionDisabler />}
+                  {tracks.map((t, i) => (
+                    <Track
+                      key={t.src}
+                      kind="subtitles"
+                      src={t.src}
+                      lang={t.lang}
+                      label={t.label}
+                      default={i === idx}
+                    />
+                  ))}
+                </>
+              );
+            })()}
           </MediaProvider>
           <DefaultVideoLayout
             icons={defaultLayoutIcons}

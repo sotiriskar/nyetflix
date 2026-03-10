@@ -99,7 +99,7 @@ export function HeroBanner({ heroItem, onMoreInfo, onPlay, getMovieDetail: getMo
             <img
               src={titleLogoUrl}
               alt={heroItem.title}
-              className="max-w-2xl max-h-16 md:max-h-20 lg:max-h-50 w-auto object-contain object-left drop-shadow-lg"
+              className="max-w-2xl max-h-16 md:max-h-20 lg:max-h-50 w-auto object-contain object-left drop-shadow-lg [filter:drop-shadow(0_0_10px_rgba(255,255,255,0.4))_drop-shadow(0_2px_8px_rgba(0,0,0,0.6))]"
             />
           ) : (
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">

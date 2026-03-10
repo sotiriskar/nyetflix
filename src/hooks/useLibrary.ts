@@ -11,7 +11,7 @@ import { getLibraryHandle } from '@/lib/libraryHandleStorage';
 import { scanFolderHandle } from '@/lib/scanFolderHandle';
 
 const CACHE_KEY_PREFIX = 'nyetflix-library-';
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours – library rarely changes
 /** Abort library scan after this time so the UI doesn't load forever. */
 const SCAN_TIMEOUT_MS = 120_000; // 2 minutes
 

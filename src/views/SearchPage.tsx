@@ -8,7 +8,6 @@ import { CarouselHoverCard } from '@/components/CarouselHoverCard';
 import { DetailCard } from '@/components/DetailCard';
 import { LibraryRefreshButton } from '@/components/LibraryRefreshButton';
 import { useLibrary } from '@/hooks/useLibrary';
-import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
@@ -34,11 +33,10 @@ export function SearchPage() {
       const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
       const id = resumeEpisodeId ?? item.id;
       const seriesTitle = isSeries ? (detailsMap[item.id]?.title ?? undefined) : undefined;
-      const path = moviesFolderPath?.trim() ?? '';
-      if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
-      router.push(buildWatchUrl(id, { seriesTitle }));
+      const subs = detailsMap[item.id]?.subtitleLanguages;
+      router.push(buildWatchUrl(id, { seriesTitle, subs: subs?.length ? subs : undefined }));
     },
-    [moviesFolderPath, detailsMap, getProgress, router]
+    [detailsMap, getProgress, router]
   );
 
   const getDetail = useMemo(

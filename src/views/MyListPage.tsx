@@ -9,8 +9,7 @@ import type { MovieDetail } from '@/types/movie';
 import { CarouselHoverCard } from '@/components/CarouselHoverCard';
 import { DetailCard } from '@/components/DetailCard';
 import { LibraryRefreshButton } from '@/components/LibraryRefreshButton';
-import { useLibrary } from '@/hooks/useLibrary';
-import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
+import { useLibraryContext } from '@/context/LibraryContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress } from '@/context/ProgressContext';
 import { useLiked } from '@/hooks/useLiked';
@@ -77,7 +76,7 @@ function SectionGrid({
 export function MyListPage() {
   const router = useRouter();
   const { moviesFolderPath } = useSettings();
-  const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibrary(moviesFolderPath);
+  const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibraryContext();
   const { list, toggle, has, getAddedAt } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
   const { progressByItemId, getProgress } = useProgress();
@@ -91,11 +90,10 @@ export function MyListPage() {
       const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
       const id = resumeEpisodeId ?? item.id;
       const seriesTitle = isSeries ? (detailsMap[item.id]?.title ?? undefined) : undefined;
-      const path = moviesFolderPath?.trim() ?? '';
-      if (path && path !== LIBRARY_HANDLE_MODE) void fetch(`/api/scan-library?path=${encodeURIComponent(path)}`);
-      router.push(buildWatchUrl(id, { seriesTitle }));
+      const subs = detailsMap[item.id]?.subtitleLanguages;
+      router.push(buildWatchUrl(id, { seriesTitle, subs: subs?.length ? subs : undefined }));
     },
-    [moviesFolderPath, detailsMap, getProgress, router]
+    [detailsMap, getProgress, router]
   );
 
   const getDetail = useMemo(

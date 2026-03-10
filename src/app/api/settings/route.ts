@@ -13,16 +13,22 @@ type SettingsRow = {
 
 type SettingsState = {
   language: 'en' | 'el';
-  subtitleLanguage: 'en' | 'el';
+  subtitleLanguage: 'off' | 'en' | 'el';
   moviesFolderPath: string;
 };
 
+function parseSubtitleLanguage(v: string | null): 'off' | 'en' | 'el' {
+  if (v === 'off' || v === 'el') return v;
+  if (v === 'en') return 'en';
+  return 'off'; // null/empty/unknown → off
+}
+
 function rowToJson(row: SettingsRow | undefined): SettingsState & { saved: boolean } {
   const state: SettingsState = !row
-    ? { language: 'en', subtitleLanguage: 'en', moviesFolderPath: '' }
+    ? { language: 'en', subtitleLanguage: 'off', moviesFolderPath: '' }
     : {
         language: row.language === 'el' ? 'el' : 'en',
-        subtitleLanguage: row.subtitle_language === 'el' ? 'el' : 'en',
+        subtitleLanguage: parseSubtitleLanguage(row.subtitle_language),
         moviesFolderPath: row.movies_folder_path ?? '',
       };
   return { ...state, saved: !!row };
@@ -54,7 +60,7 @@ export async function PATCH(request: NextRequest) {
 
     const cur = rowToJson(current);
     const language = body.language !== undefined ? (body.language === 'el' ? 'el' : 'en') : cur.language;
-    const subtitleLanguage = body.subtitleLanguage !== undefined ? (body.subtitleLanguage === 'el' ? 'el' : 'en') : cur.subtitleLanguage;
+    const subtitleLanguage = body.subtitleLanguage !== undefined ? parseSubtitleLanguage(String(body.subtitleLanguage)) : cur.subtitleLanguage;
     const moviesFolderPath = body.moviesFolderPath !== undefined ? String(body.moviesFolderPath) : cur.moviesFolderPath;
 
     database

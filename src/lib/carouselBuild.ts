@@ -3,9 +3,13 @@ import type { CarouselItem } from '@/types/movie';
 const MAX_ITEMS_PER_ROW = 12;
 const MIN_ITEMS_PER_ROW = 4;
 const MAX_GENRE_ROWS = 8;
+/** Minimum genre category rows to show when we have enough genres (Home, Series, Films). */
+const MIN_GENRE_ROWS = 5;
 /** When we have at least this many genre categories, only show genres with at least MIN_ITEMS_FOR_GENRE_WHEN_MANY items. */
 const MIN_GENRE_COUNT_FOR_THRESHOLD = 5;
 const MIN_ITEMS_FOR_GENRE_WHEN_MANY = 7;
+/** First N items in each genre row are unique across rows. */
+const TOP_UNIQUE_PER_ROW = 7;
 
 export interface BuildCarouselsInput {
   items: CarouselItem[];
@@ -61,42 +65,70 @@ export function buildCarousels(input: BuildCarouselsInput): BuildCarouselsResult
     .slice(0, MAX_ITEMS_PER_ROW);
 
   const genreToItems = new Map<string, CarouselItem[]>();
+  const primaryGenreById = new Map<string, string>();
   for (const item of items) {
     const genres = getGenres(item.id) ?? [];
-    for (const g of genres) {
+    for (let index = 0; index < genres.length; index++) {
+      const g = genres[index];
+      if (index === 0 && !primaryGenreById.has(item.id)) {
+        primaryGenreById.set(item.id, g);
+      }
       if (!genreToItems.has(g)) genreToItems.set(g, []);
       genreToItems.get(g)!.push(item);
     }
   }
-  let sortedGenres = [...genreToItems.entries()]
+  const allGenresSorted = [...genreToItems.entries()]
     .filter(([, list]) => list.length >= 1)
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, MAX_GENRE_ROWS);
+    .sort((a, b) => b[1].length - a[1].length);
 
-  // When we have at least 5 genre categories, only show genres with at least 7 items (Recently Added / Continue Watching are unchanged).
-  if (sortedGenres.length >= MIN_GENRE_COUNT_FOR_THRESHOLD) {
-    sortedGenres = sortedGenres.filter(([, list]) => list.length >= MIN_ITEMS_FOR_GENRE_WHEN_MANY);
-  }
+  // Prefer categories with the most movies: if we have enough "big" genres (with at least
+  // MIN_ITEMS_FOR_GENRE_WHEN_MANY items), only use those. Otherwise, fall back to using
+  // all genres (still sorted by size) so we don't end up with too few rows.
+  const bigGenres = allGenresSorted.filter(([, list]) => list.length >= MIN_ITEMS_FOR_GENRE_WHEN_MANY);
+  // If we have enough big genres, consider all of them; otherwise consider all genres.
+  const baseGenres = bigGenres.length >= MIN_GENRE_COUNT_FOR_THRESHOLD ? bigGenres : allGenresSorted;
 
-  const usedIds = new Set<string>([heroId]);
   const genreRows: { title: string; items: CarouselItem[] }[] = [];
 
-  for (const [genre, genreItems] of sortedGenres) {
-    const notUsed = genreItems.filter((i) => !usedIds.has(i.id));
-    const alreadyUsed = genreItems.filter((i) => usedIds.has(i.id));
+  // Track which items have been used in the *first 7 slots* across all genre rows (same on Home, Series, Films).
+  const usedInTopSlots = new Set<string>([heroId]);
+
+  function buildGenreRow(genre: string, genreItems: CarouselItem[]): CarouselItem[] {
     const row: CarouselItem[] = [];
-    for (const item of notUsed) {
-      if (row.length >= MAX_ITEMS_PER_ROW) break;
+    for (const item of genreItems) {
+      if (row.length >= TOP_UNIQUE_PER_ROW) break;
+      if (usedInTopSlots.has(item.id)) continue;
       row.push(item);
-      usedIds.add(item.id);
+      usedInTopSlots.add(item.id);
     }
-    if (row.length < MIN_ITEMS_PER_ROW && alreadyUsed.length > 0) {
-      for (const item of alreadyUsed) {
-        if (row.length >= MAX_ITEMS_PER_ROW) break;
-        row.push(item);
+    for (const item of genreItems) {
+      if (row.length >= MAX_ITEMS_PER_ROW) break;
+      if (row.some((r) => r.id === item.id)) continue;
+      row.push(item);
+    }
+    return row;
+  }
+
+  const usedGenreNames = new Set<string>();
+  for (const [genre, genreItems] of baseGenres) {
+    if (genreRows.length >= MAX_GENRE_ROWS) break;
+    const row = buildGenreRow(genre, genreItems);
+    if (row.length > 0) {
+      genreRows.push({ title: genre, items: row });
+      usedGenreNames.add(genre);
+    }
+  }
+
+  // Same as Home: ensure at least MIN_GENRE_ROWS category rows when we have more genres to show (Series/Films too).
+  if (genreRows.length < MIN_GENRE_ROWS) {
+    const remainingGenres = allGenresSorted.filter(([g]) => !usedGenreNames.has(g));
+    for (const [genre, genreItems] of remainingGenres) {
+      if (genreRows.length >= MIN_GENRE_ROWS || genreRows.length >= MAX_GENRE_ROWS) break;
+      const row = buildGenreRow(genre, genreItems);
+      if (row.length > 0) {
+        genreRows.push({ title: genre, items: row });
       }
     }
-    if (row.length > 0) genreRows.push({ title: genre, items: row });
   }
 
   const carousels: { title: string; items: CarouselItem[] }[] = [];

@@ -4,7 +4,7 @@ export interface CarouselItem {
   posterUrl?: string;
   /** Wide/backdrop image for hero and carousel cards */
   backdropUrl?: string;
-  /** Title treatment / logo image (e.g. for hero) */
+  /** Title treatment / logo image (e.g. for hero and carousel). */
   titleLogoUrl?: string;
   /** YouTube video ID for trailer (hover card plays this instead of static image) */
   trailerYouTubeId?: string;
@@ -16,7 +16,7 @@ export interface MovieDetail {
   posterUrl?: string;
   /** Large image for the top of the detail card */
   backdropUrl?: string;
-  /** Title treatment / logo image */
+  /** Title treatment / logo image. */
   titleLogoUrl?: string;
   description?: string;
   year?: string;

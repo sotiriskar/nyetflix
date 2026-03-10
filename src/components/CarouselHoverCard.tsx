@@ -195,6 +195,7 @@ export function CarouselHoverCard({
           playlist: item.trailerYouTubeId,
           disablekb: 1,
           fs: 0,
+          start: 8,
         },
         events: {
           onReady: () => {
@@ -288,11 +289,15 @@ export function CarouselHoverCard({
             <span className="text-white/40 text-4xl font-bold select-none" aria-hidden>?</span>
           </div>
         )}
-        {/* Title / logo inside video area, bottom-left */}
+        {/* Title / logo inside video area, bottom-left – wide logo only */}
         <div className="absolute left-0 right-0 bottom-[-1px] pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-md">
           <div className="flex items-end min-h-[1.25rem]">
             {item.titleLogoUrl ? (
-              <img src={item.titleLogoUrl} alt={item.title} className="max-h-8 w-auto object-contain object-left drop-shadow-md" />
+              <img
+                src={item.titleLogoUrl}
+                alt={item.title}
+                className="w-auto max-w-[min(100%,15rem)] max-h-14 object-contain object-left drop-shadow-md [filter:drop-shadow(0_0_6px_rgba(255,255,255,0.35))_drop-shadow(0_1px_4px_rgba(0,0,0,0.5))]"
+              />
             ) : (
               <span className="text-white font-semibold text-xs truncate block drop-shadow-md">{item.title}</span>
             )}
@@ -387,9 +392,13 @@ export function CarouselHoverCard({
           )}
         </div>
         <div className={`absolute left-0 right-0 bottom-0 pt-10 pb-2 px-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent rounded-b-md pointer-events-none transition-opacity duration-200 ${isHovered ? 'opacity-0' : ''} ${showTrailer ? 'opacity-0' : ''}`}>
-          <div className="flex items-end justify-start min-h-[clamp(1.25rem,5vmin,2rem)]">
+          <div className="flex items-end justify-start min-h-[clamp(1.75rem,7vmin,2.75rem)]">
             {item.titleLogoUrl ? (
-              <img src={item.titleLogoUrl} alt={item.title} className="max-h-[clamp(1.5rem,7vmin,3.5rem)] w-auto object-contain object-left" />
+              <img
+                src={item.titleLogoUrl}
+                alt={item.title}
+                className="w-auto max-w-[min(100%,13rem)] max-h-[clamp(2.25rem,10vmin,4.5rem)] object-contain object-left [filter:drop-shadow(0_0_5px_rgba(255,255,255,0.35))_drop-shadow(0_1px_3px_rgba(0,0,0,0.5))]"
+              />
             ) : (
               <span className="text-white font-semibold truncate drop-shadow-md" style={{ fontSize: 'clamp(0.8rem, 2.4vmin, 1.15rem)' }}>
                 {item.title}

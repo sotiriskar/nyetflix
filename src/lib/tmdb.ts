@@ -3,6 +3,8 @@
  * Get a free API key at https://www.themoviedb.org/settings/api
  */
 
+import sharp from 'sharp';
+
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 const BACKDROP_SIZE = 'w1280';
@@ -20,7 +22,7 @@ export interface TmdbMultiResult {
 }
 
 export interface TmdbImagesResponse {
-  logos?: Array<{ file_path?: string; iso_639_1?: string | null }>;
+  logos?: Array<{ file_path?: string; iso_639_1?: string | null; aspect_ratio?: number; width?: number; height?: number }>;
 }
 
 export interface TmdbSearchMultiResponse {
@@ -215,7 +217,7 @@ async function fetchCreditsAndGenres(
   return { cast, director, writer, genres, overview, tagline, runtimeMinutes };
 }
 
-/** Fetch logo (title treatment) for a movie or TV show. Prefers English logo when available. */
+/** Fetch logo for a movie or TV show: prefer English, then biggest width; skip mostly black. */
 async function fetchTitleLogo(
   apiKey: string,
   tmdbId: number,
@@ -227,11 +229,45 @@ async function fetchTitleLogo(
   if (!res.ok) return null;
   const data = (await res.json()) as TmdbImagesResponse;
   const logos = data.logos ?? [];
-  const enLogo = logos.find((l) => l.iso_639_1 === 'en');
-  const first = enLogo ?? logos[0];
-  const path = first?.file_path;
-  if (!path) return null;
-  return buildImageUrl(path, 'w500');
+  const withPath = logos.filter((l) => l.file_path);
+  const en = withPath.filter((l) => l.iso_639_1 === 'en');
+  const pool = en.length > 0 ? en : withPath;
+  const candidates = [...pool].sort((a, b) => (b.width ?? 0) - (a.width ?? 0));
+  const toUrl = (p: string | undefined) => (p ? buildImageUrl(p, 'w500') : null);
+  for (let i = 0; i < candidates.length; i++) {
+    const u = toUrl(candidates[i]?.file_path);
+    if (!u) continue;
+    try {
+      const resImg = await fetch(u, { signal: AbortSignal.timeout(8000) });
+      if (!resImg.ok) return u;
+      const buf = Buffer.from(await resImg.arrayBuffer());
+      const stats = await sharp(buf)
+        .resize(50, 50, { fit: 'inside' })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const { data: pixelData, info } = stats;
+      const channels = info.channels ?? 4;
+      const n = pixelData.length;
+      let sum = 0;
+      let count = 0;
+      for (let j = 0; j < n; j += channels) {
+        const r = pixelData[j] ?? 0;
+        const g = pixelData[j + 1] ?? 0;
+        const b = pixelData[j + 2] ?? 0;
+        const a = channels === 4 ? (pixelData[j + 3] ?? 255) : 255;
+        if (a < 128) continue;
+        sum += 0.299 * r + 0.587 * g + 0.114 * b;
+        count++;
+      }
+      if (count === 0) return u;
+      const avgLuminance = sum / count;
+      if (avgLuminance >= 85) return u;
+    } catch {
+      return u;
+    }
+  }
+  return toUrl(candidates[0]?.file_path) ?? null;
 }
 
 export interface TmdbVideoResult {
@@ -444,7 +480,7 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   out.backdropUrl = buildImageUrl(first.backdrop_path, BACKDROP_SIZE);
   if (first.id != null && first.media_type) {
     try {
-      const [logo, creditsAndGenres, trailerKey, contentRating, seasonNumbers] = await Promise.all([
+      const [logoUrl, creditsAndGenres, trailerKey, contentRating, seasonNumbers] = await Promise.all([
         fetchTitleLogo(apiKey, first.id, first.media_type),
         fetchCreditsAndGenres(apiKey, first.id, first.media_type),
         fetchTrailerKey(apiKey, first.id, first.media_type),
@@ -452,7 +488,7 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
         first.media_type === 'tv' ? getTvShowSeasonNumbers(first.id) : Promise.resolve([] as number[]),
       ]);
       const cg = creditsAndGenres as { cast: string | null; director: string | null; writer: string | null; genres: string | null; overview: string | null; tagline: string | null; runtimeMinutes: number | null };
-      out.titleLogoUrl = logo as string | null;
+      out.titleLogoUrl = logoUrl;
       out.cast = cg.cast;
       out.director = cg.director;
       out.writer = cg.writer;

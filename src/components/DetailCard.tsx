@@ -10,7 +10,7 @@ import VolumeUp from '@mui/icons-material/VolumeUp';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import type { CarouselItem, MovieDetail, SeriesSeason } from '../types/movie';
+import type { CarouselItem, MovieDetail, SeriesSeason, SeriesEpisode } from '../types/movie';
 import { getContentRatingDescriptors, getContentRatingRecommendation } from '@/lib/contentRating';
 import { truncateToWords } from '@/lib/description';
 import { useProgress } from '@/context/ProgressContext';
@@ -131,6 +131,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
           modestbranding: 1,
           disablekb: 1,
           fs: 0,
+          start: 8,
         },
         events: {
           onStateChange: (e: { data: number }) => {
@@ -223,15 +224,27 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
 
   const handleMainPlay = () => {
     if (isSeries && seasons.length > 0 && episodes.length > 0) {
-      const first = episodes[0];
-      if (first.hasFile && first.id && onPlayEpisode) {
+      const prog = getProgress(detail.id ?? '');
+      const resumeEpisodeId = prog?.lastEpisodeId;
+      let targetEp: SeriesEpisode | undefined;
+      if (resumeEpisodeId) {
+        for (const s of seasons) {
+          const ep = s.episodes?.find((e) => e.id === resumeEpisodeId);
+          if (ep && ep.hasFile !== false) {
+            targetEp = ep;
+            break;
+          }
+        }
+      }
+      const ep = targetEp ?? episodes[0];
+      if (ep.hasFile && ep.id && onPlayEpisode) {
         onPlayEpisode(
-          first.id,
-          `${detail.title} – S${first.seasonNumber}:E${first.episodeNumber} ${first.title}`,
-          first.subtitleLanguages,
+          ep.id,
+          `${detail.title} – S${ep.seasonNumber}:E${ep.episodeNumber} ${ep.title}`,
+          ep.subtitleLanguages,
           detail.title
         );
-      } else if (!first.hasFile && onPlayUnavailable) {
+      } else if (!ep.hasFile && onPlayUnavailable) {
         onPlayUnavailable('This episode is not in your library.');
       }
     } else {
@@ -299,7 +312,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                 <img
                   src={detail.titleLogoUrl}
                   alt={detail.title ?? ''}
-                  className="max-h-20 md:max-h-20 w-auto object-contain object-left drop-shadow-lg"
+                  className="max-h-20 md:max-h-20 w-auto object-contain object-left drop-shadow-lg [filter:drop-shadow(0_0_8px_rgba(255,255,255,0.4))_drop-shadow(0_2px_6px_rgba(0,0,0,0.5))]"
                 />
               ) : (
                 <h2 className="text-white text-lg md:text-xl font-bold drop-shadow-lg">

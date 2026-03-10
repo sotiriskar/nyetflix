@@ -51,24 +51,32 @@ function parseSxxExx(name: string): { season: number; episode: number } | null {
 function findSubtitlesForVideo(
   folderPath: string,
   fileNames: Set<string>,
-  videoBaseName: string
+  videoBaseName: string,
+  subsFolderFiles?: Set<string>
 ): Record<string, string> {
   const subtitlePaths: Record<string, string> = {};
-  for (const ext of SUBTITLE_EXT) {
-    const plainName = videoBaseName + ext;
-    if (fileNames.has(plainName)) {
-      subtitlePaths.en = join(folderPath, plainName);
-      break;
+  const checkFolder = (folder: string, names: Set<string>) => {
+    for (const ext of SUBTITLE_EXT) {
+      const plainName = videoBaseName + ext;
+      if (names.has(plainName) && !subtitlePaths.en) {
+        subtitlePaths.en = join(folder, plainName);
+        break;
+      }
     }
-  }
-  for (const fileName of fileNames) {
-    if (!SUBTITLE_EXT.some((e) => fileName.toLowerCase().endsWith(e))) continue;
-    if (!fileName.toLowerCase().startsWith(videoBaseName.toLowerCase())) continue;
-    const match = fileName.match(LANG_SUFFIX);
-    const lang = match ? match[1].toLowerCase() : null;
-    if (lang && lang !== 'en') {
-      subtitlePaths[lang] = join(folderPath, fileName);
+    for (const fileName of names) {
+      if (!SUBTITLE_EXT.some((e) => fileName.toLowerCase().endsWith(e))) continue;
+      if (!fileName.toLowerCase().startsWith(videoBaseName.toLowerCase())) continue;
+      const match = fileName.match(LANG_SUFFIX);
+      const lang = match ? match[1].toLowerCase() : null;
+      if (lang && lang !== 'en' && !subtitlePaths[lang]) {
+        subtitlePaths[lang] = join(folder, fileName);
+      }
     }
+  };
+  checkFolder(folderPath, fileNames);
+  if (subsFolderFiles && subsFolderFiles.size > 0) {
+    const subsPath = join(folderPath, 'Subs');
+    checkFolder(subsPath, subsFolderFiles);
   }
   return subtitlePaths;
 }
@@ -104,6 +112,17 @@ async function buildLocalEpisodeMap(
         continue;
       }
       const files = subEntries.filter((e) => e.isFile());
+      const subDirs = subEntries.filter((e) => e.isDirectory());
+      const subsDir = subDirs.find((d) => d.name.toLowerCase() === 'subs');
+      let subsFileNames = new Set<string>();
+      if (subsDir) {
+        try {
+          const subsEntries = await readdir(join(seasonPath, subsDir.name), { withFileTypes: true });
+          subsFileNames = new Set(subsEntries.filter((e) => e.isFile()).map((f) => f.name));
+        } catch {
+          // ignore
+        }
+      }
       const videoFiles = files.filter((f) => isVideoFile(f.name)).map((f) => ({
         name: f.name,
         path: join(seasonPath, f.name),
@@ -123,7 +142,7 @@ async function buildLocalEpisodeMap(
         const key = `${s}-${e}`;
         const episodeId = `episode-${id}-S${s}-E${e}`;
         const baseName = videoName.includes('.') ? videoName.slice(0, videoName.lastIndexOf('.')) : videoName;
-        const subtitlePaths = findSubtitlesForVideo(seasonPath, fileNamesInFolder, baseName);
+        const subtitlePaths = findSubtitlesForVideo(seasonPath, fileNamesInFolder, baseName, subsFileNames);
         episodeIdToPath.set(episodeId, videoPath);
         if (Object.keys(subtitlePaths).length > 0) {
           episodeIdToSubtitlePath.set(episodeId, subtitlePaths);
@@ -133,6 +152,17 @@ async function buildLocalEpisodeMap(
     }
   } else {
     const rootFiles = entries.filter((e) => e.isFile());
+    const rootDirs = entries.filter((e) => e.isDirectory());
+    const subsDir = rootDirs.find((d) => d.name.toLowerCase() === 'subs');
+    let subsFileNames = new Set<string>();
+    if (subsDir) {
+      try {
+        const subsEntries = await readdir(join(folderPath, subsDir.name), { withFileTypes: true });
+        subsFileNames = new Set(subsEntries.filter((e) => e.isFile()).map((f) => f.name));
+      } catch {
+        // ignore
+      }
+    }
     const videoFiles = rootFiles.filter((f) => isVideoFile(f.name)).map((f) => ({
       name: f.name,
       path: join(folderPath, f.name),
@@ -155,7 +185,7 @@ async function buildLocalEpisodeMap(
       const key = `${s}-${e}`;
       const episodeId = `episode-${id}-S${s}-E${e}`;
       const baseName = videoName.includes('.') ? videoName.slice(0, videoName.lastIndexOf('.')) : videoName;
-      const subtitlePaths = findSubtitlesForVideo(folderPath, fileNamesInFolder, baseName);
+      const subtitlePaths = findSubtitlesForVideo(folderPath, fileNamesInFolder, baseName, subsFileNames);
       episodeIdToPath.set(episodeId, videoPath);
       if (Object.keys(subtitlePaths).length > 0) {
         episodeIdToSubtitlePath.set(episodeId, subtitlePaths);

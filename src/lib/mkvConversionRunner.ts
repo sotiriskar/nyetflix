@@ -15,6 +15,8 @@ import {
   markConversionStarted,
   markConversionFinished,
 } from './convertedMkvStore';
+import { extractEmbeddedSubtitlesToSidecar } from './extractEmbeddedSubtitles';
+import { registry, persistRegistry } from './streamRegistry';
 
 export type ConversionProgress = {
   progress: number; // 0–1
@@ -282,6 +284,21 @@ export function runMkvConversion(
     return Promise.reject(new Error('Another conversion is already in progress. Please wait for it to finish.'));
   }
 
+  /** Extract embedded subtitles to sidecar .vtt and register – we show files only, never embedded. */
+  async function extractAndRegisterSubtitles(): Promise<void> {
+    const extracted = await extractEmbeddedSubtitlesToSidecar(mkvPath, dir, base);
+    if (Object.keys(extracted).length === 0) return;
+    const r = registry;
+    const isEpisode = /^episode-.+-S\d+-E\d+$/.test(itemId);
+    const existing = isEpisode
+      ? (r.episodeIdToSubtitlePath.get(itemId) ?? {})
+      : (r.itemIdToSubtitlePath.get(itemId) ?? {});
+    const merged = { ...existing, ...extracted };
+    if (isEpisode) r.episodeIdToSubtitlePath.set(itemId, merged);
+    else r.itemIdToSubtitlePath.set(itemId, merged);
+    persistRegistry();
+  }
+
   markConversionStarted(itemId);
   notifyProgress(itemId, { progress: 0, currentTime: 0, durationSeconds });
 
@@ -308,6 +325,7 @@ export function runMkvConversion(
       )
         .then(async () => {
           await setConvertedPathAndFlush(itemId, mp4Path);
+          await extractAndRegisterSubtitles();
           notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
           unlink(mkvPath, () => {});
           progressMap.delete(itemId);
@@ -385,6 +403,7 @@ export function runMkvConversion(
       markConversionFinished(itemId);
       if (code === 0) {
         setConvertedPathAndFlush(itemId, mp4Path)
+          .then(() => extractAndRegisterSubtitles())
           .then(() => {
             notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
             unlink(mkvPath, () => {}); // Remove original MKV now that MP4 plays
