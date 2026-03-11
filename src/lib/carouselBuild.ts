@@ -1,7 +1,6 @@
 import type { CarouselItem } from '@/types/movie';
 
 const MAX_ITEMS_PER_ROW = 12;
-const MIN_ITEMS_PER_ROW = 4;
 const MAX_GENRE_ROWS = 8;
 /** Minimum genre category rows to show when we have enough genres (Home, Series, Films). */
 const MIN_GENRE_ROWS = 5;

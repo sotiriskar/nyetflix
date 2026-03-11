@@ -593,7 +593,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => (data?.seasons ? setSeriesEpisodes(data.seasons) : setSeriesEpisodes([])))
       .catch(() => setSeriesEpisodes([]));
-  }, [episodesPanelOpen, seriesId]);
+  }, [episodesPanelOpen, seriesId, getSeriesTitle, seriesTitle, title]);
 
   // Reset close button visibility when starting playback; start hide timer to match player controls; clear on cleanup.
   useEffect(() => {

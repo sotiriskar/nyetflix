@@ -171,7 +171,7 @@ export function MyListPage() {
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [movies, series, selectedItem?.id, detailsMap]);
+  }, [movies, series, selectedItem, detailsMap]);
 
   const hasPath = moviesFolderPath.trim() !== '';
   const hasLibraryData = hasPath && !error && libraryCarousels.length > 0;

@@ -85,7 +85,7 @@ export function SearchPage() {
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [results, selectedItem?.id, detailsMap]);
+  }, [results, selectedItem, detailsMap]);
 
   const detail: MovieDetail | undefined = selectedItem
     ? (getDetail?.(selectedItem.id) ?? {

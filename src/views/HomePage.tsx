@@ -136,7 +136,7 @@ export function HomePage() {
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [hasLibraryData, libraryCarousels, selectedItem?.id, detailsMap]);
+  }, [hasLibraryData, libraryCarousels, selectedItem, detailsMap]);
 
   const { heroItem, carousels } = useMemo(() => {
     if (!hasLibraryData || libraryCarousels.length === 0) return { heroItem: null as CarouselItem | null, carousels: [] as { title: string; items: CarouselItem[] }[] };

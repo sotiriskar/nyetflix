@@ -10,7 +10,6 @@ import VolumeOff from '@mui/icons-material/VolumeOff';
 import VolumeUp from '@mui/icons-material/VolumeUp';
 import Tooltip from '@mui/material/Tooltip';
 import type { CarouselItem } from '../types/movie';
-import { getContentRatingDescriptors } from '@/lib/contentRating';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
 

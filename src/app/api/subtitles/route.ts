@@ -3,13 +3,9 @@ import { readFile } from 'fs/promises';
 import { spawn } from 'child_process';
 import iconv from 'iconv-lite';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
-import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
-import { stat } from 'fs';
-import { promisify } from 'util';
 
 const itemIdToSubtitlePath = registry.itemIdToSubtitlePath;
-const statAsync = promisify(stat);
 
 /** Original video path from registry (no converted fallback). Use for embedded stream extraction so we read from the file that has the subs. */
 function getOriginalVideoPath(id: string): string | null {
@@ -25,24 +21,6 @@ function decodeSubtitle(buffer: Buffer, lang: string): string {
   const win1253 = iconv.decode(buffer, 'win1253');
   if (!win1253.includes('\uFFFD')) return win1253;
   return iconv.decode(buffer, 'iso-8859-7');
-}
-
-/** Resolve video file path for an item or episode id (including converted MKV). */
-async function getVideoPath(id: string): Promise<string | null> {
-  ensureHydrated();
-  let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
-  if (!filePath) {
-    const converted = getConvertedPath(id);
-    if (converted) {
-      try {
-        const st = await statAsync(converted);
-        if (st.isFile()) filePath = converted;
-      } catch {
-        // ignore
-      }
-    }
-  }
-  return filePath ?? null;
 }
 
 export const dynamic = 'force-dynamic';

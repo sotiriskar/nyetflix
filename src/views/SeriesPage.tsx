@@ -173,7 +173,7 @@ export function SeriesPage() {
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [seriesItems, selectedItem?.id, detailsMap]);
+  }, [seriesItems, selectedItem, detailsMap]);
 
   return (
     <div className="pb-0">

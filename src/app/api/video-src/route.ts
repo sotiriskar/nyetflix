@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   ensureHydrated();
-  let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
+  const filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
   // After MKV conversion the refetch may hit a process where registry isn't populated; use converted path if present
   if (!filePath) {
     const converted = getConvertedPath(id);

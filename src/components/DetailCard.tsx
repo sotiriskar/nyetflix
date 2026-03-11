@@ -96,7 +96,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
       })
       .catch((err) => setEpisodesError(err instanceof Error ? err.message : 'Failed to load episodes.'))
       .finally(() => setEpisodesLoading(false));
-  }, [isSeries, detail.id]);
+  }, [isSeries, detail.id, detail.title]);
 
   useEffect(() => {
     setTrailerEnded(false);

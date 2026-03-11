@@ -173,7 +173,7 @@ export function FilmsPage() {
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [movieItems, selectedItem?.id, detailsMap]);
+  }, [movieItems, selectedItem, detailsMap]);
 
   return (
     <div className="pb-0">
