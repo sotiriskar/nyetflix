@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, memo } from 'react';
+import { useEffect, useState, useRef, memo, useCallback } from 'react';
 import Close from '@mui/icons-material/Close';
 import SkipNext from '@mui/icons-material/SkipNext';
 import PlaylistPlay from '@mui/icons-material/PlaylistPlay';
@@ -25,8 +25,11 @@ import { useLibraryHandle } from '@/context/LibraryHandleContext';
 import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 import type { ProgressEntry } from '@/context/ProgressContext';
+import { LANG_LABELS as SHARED_LANG_LABELS } from '@/lib/subtitleLabels';
 
 const SAVE_INTERVAL_MS = 5000;
+/** Match Vidstack default layout: hide controls after this many ms of no pointer movement. */
+const CONTROLS_HIDE_DELAY_MS = 2000;
 
 function ProgressSync({
   itemId,
@@ -171,39 +174,7 @@ function EnsureUnmuted() {
   return null;
 }
 
-/** Enables the preferred caption track – overrides Vidstack's default of first track (e.g. Arabic). */
-function DefaultCaptionEnabler({ defaultTrackIndex }: { defaultTrackIndex: number }) {
-  const remote = useMediaRemote();
-  const textTracks = useMediaState('textTracks');
-
-  useEffect(() => {
-    if (defaultTrackIndex < 0) return;
-    const list = textTracks;
-    const length = Array.isArray(list) ? list.length : (list as { length?: number })?.length ?? 0;
-    if (length === 0) return;
-    const idx = Math.min(defaultTrackIndex, length - 1);
-    const r = remote as { changeTextTrackMode?: (i: number, m: string) => void; changeTextTrack?: (i: number) => void };
-    const enablePreferred = () => {
-      if (typeof r.changeTextTrackMode === 'function') {
-        r.changeTextTrackMode(idx, 'showing');
-      } else if (typeof r.changeTextTrack === 'function') {
-        r.changeTextTrack(idx);
-      }
-    };
-    // Run on next tick and again after delay – Vidstack often defaults to first track before we can override
-    enablePreferred();
-    const t = setTimeout(enablePreferred, 200);
-    const t2 = setTimeout(enablePreferred, 500);
-    return () => {
-      clearTimeout(t);
-      clearTimeout(t2);
-    };
-  }, [defaultTrackIndex, textTracks, remote]);
-
-  return null;
-}
-
-/** Explicitly disables captions when user preference is "off" – prevents Vidstack from defaulting to first track. */
+/** When preference is "off", disable captions so no subtitles show. */
 function CaptionDisabler() {
   const remote = useMediaRemote();
   const textTracks = useMediaState('textTracks');
@@ -354,12 +325,7 @@ const EpisodesPanel = memo(function EpisodesPanel({
   );
 });
 
-const LANG_LABELS: Record<string, string> = {
-  en: 'English', el: 'Greek', es: 'Spanish', fr: 'French',
-  de: 'German', it: 'Italian', pt: 'Portuguese', ru: 'Russian',
-  ja: 'Japanese', zh: 'Chinese', ko: 'Korean', ar: 'Arabic',
-  tr: 'Turkish', nl: 'Dutch', pl: 'Polish', sv: 'Swedish',
-};
+const LANG_LABELS = SHARED_LANG_LABELS;
 
 interface NextEpisodeInfo {
   nextId: string;
@@ -387,13 +353,13 @@ interface VideoPlayerModalProps {
 const EPISODE_ID_REGEX = /^episode-.+-S\d+-E\d+$/;
 
 /** Preferred lang (e.g. 'en') matches track lang (e.g. 'en', 'eng'). */
+/** Match user's selected subtitle language to a track (same code or 2/3-letter variant). */
 function trackMatchesPreferred(trackLang: string, preferred: string | undefined): boolean {
   if (!preferred || preferred === 'off') return false;
-  const p = preferred.toLowerCase();
-  const t = trackLang.toLowerCase();
+  const p = preferred.toLowerCase().trim();
+  const t = trackLang.toLowerCase().trim();
   if (p === t) return true;
-  if (p === 'en' && (t === 'eng' || t === 'en')) return true;
-  if (p === 'el' && (t === 'ell' || t === 'gre' || t === 'gr' || t === 'el')) return true;
+  if (p.length <= 3 && t.length <= 3 && (p.startsWith(t) || t.startsWith(p))) return true;
   return false;
 }
 
@@ -415,6 +381,9 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const [seriesEpisodes, setSeriesEpisodes] = useState<SeriesSeason[] | null>(null);
   /** Combined external + embedded subtitle tracks from /api/subtitle-tracks (when set, used instead of subtitleLanguages). */
   const [subtitleTracks, setSubtitleTracks] = useState<Array<{ lang: string; label: string; src: string }> | null>(null);
+  /** Sync with player controls: hide close button after same idle delay as DefaultVideoLayout. */
+  const [closeButtonVisible, setCloseButtonVisible] = useState(true);
+  const closeButtonIdleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showModal = !!itemId || !!message;
   const seriesId = itemId ? (itemId.match(/^episode-(.+)-S\d+-E\d+$/) ?? null)?.[1] ?? null : null;
   const { getProgress, setProgress } = useProgress();
@@ -626,6 +595,31 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       .catch(() => setSeriesEpisodes([]));
   }, [episodesPanelOpen, seriesId]);
 
+  // Reset close button visibility when starting playback; start hide timer to match player controls; clear on cleanup.
+  useEffect(() => {
+    if (streamReadyForCurrentItem && !episodesPanelOpen) {
+      setCloseButtonVisible(true);
+      if (closeButtonIdleRef.current) clearTimeout(closeButtonIdleRef.current);
+      closeButtonIdleRef.current = setTimeout(() => setCloseButtonVisible(false), CONTROLS_HIDE_DELAY_MS);
+    }
+    return () => {
+      if (closeButtonIdleRef.current) {
+        clearTimeout(closeButtonIdleRef.current);
+        closeButtonIdleRef.current = null;
+      }
+    };
+  }, [itemId, streamReadyForCurrentItem, episodesPanelOpen]);
+
+  const scheduleCloseButtonHide = useCallback(() => {
+    if (closeButtonIdleRef.current) clearTimeout(closeButtonIdleRef.current);
+    closeButtonIdleRef.current = setTimeout(() => setCloseButtonVisible(false), CONTROLS_HIDE_DELAY_MS);
+  }, []);
+
+  const handlePointerMoveForControls = useCallback(() => {
+    setCloseButtonVisible(true);
+    scheduleCloseButtonHide();
+  }, [scheduleCloseButtonHide]);
+
   const handleError = () => {
     if (!streamUrl) return;
     fetch(streamUrl, { method: 'GET', headers: { Range: 'bytes=0-0' }, credentials: 'same-origin' })
@@ -664,17 +658,23 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           : [])
       : [];
 
-  // Put preferred track first so Vidstack's default (first track) is correct – avoids Arabic when API returns alphabetical order
+  // Preferred language first in the list so it's first in the menu and gets default selection
   const tracks =
     preferredSubtitleLang != null && preferredSubtitleLang !== 'off' && rawTracks.length > 0
-      ? (() => {
-          const i = rawTracks.findIndex((t) => trackMatchesPreferred(t.lang, preferredSubtitleLang));
-          if (i <= 0) return rawTracks;
-          const preferred = rawTracks[i]!;
-          const rest = rawTracks.filter((_, j) => j !== i);
-          return [preferred, ...rest];
-        })()
+      ? [...rawTracks].sort((a, b) => {
+          const aMatch = trackMatchesPreferred(a.lang, preferredSubtitleLang);
+          const bMatch = trackMatchesPreferred(b.lang, preferredSubtitleLang);
+          if (aMatch && !bMatch) return -1;
+          if (!aMatch && bMatch) return 1;
+          return 0;
+        })
       : rawTracks;
+
+  // Only enable captions by default when the preferred language track exists; otherwise keep off
+  const preferredTrackExists =
+    preferredSubtitleLang != null &&
+    preferredSubtitleLang !== 'off' &&
+    rawTracks.some((t) => trackMatchesPreferred(t.lang, preferredSubtitleLang));
 
   // In the control bar: for series always "Show Name • S1 E2" (same whether from Play or Episodes list). Only add short episode name, never the long "Show – S1:E1 Episode 1" format from DetailCard.
   const episodeMatch = itemId?.match(/S(\d+)-E(\d+)/);
@@ -725,6 +725,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       role="dialog"
       aria-modal="true"
       aria-label={title ? `Playing ${title}` : 'Video player'}
+      onPointerMove={streamReadyForCurrentItem && !episodesPanelOpen ? handlePointerMoveForControls : undefined}
     >
       {error ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black text-white p-6 z-30">
@@ -798,16 +799,11 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
               />
             )}
             {(() => {
-              // Use settings preference: 'off' or no match → subtitles off by default; else use matching track
-              const defaultIdx =
-                preferredSubtitleLang != null && preferredSubtitleLang !== 'off'
-                  ? tracks.findIndex((t) => trackMatchesPreferred(t.lang, preferredSubtitleLang))
-                  : -1;
-              const idx = defaultIdx >= 0 ? defaultIdx : -1; // -1 = no default, never fall back to first track
+              // Off or preferred language not available → disable captions. Otherwise preferred is first in tracks and gets default.
+              const wantCaptions = preferredTrackExists;
               return (
                 <>
-                  {tracks.length > 0 && idx >= 0 && <DefaultCaptionEnabler defaultTrackIndex={idx} />}
-                  {tracks.length > 0 && idx < 0 && <CaptionDisabler />}
+                  {tracks.length > 0 && !wantCaptions && <CaptionDisabler />}
                   {tracks.map((t, i) => (
                     <Track
                       key={t.src}
@@ -815,7 +811,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                       src={t.src}
                       lang={t.lang}
                       label={t.label}
-                      default={i === idx}
+                      default={wantCaptions && i === 0}
                     />
                   ))}
                 </>
@@ -879,18 +875,22 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           getProgress={getProgress}
         />
       )}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onClose();
-        }}
-        className="absolute top-4 right-4 z-[200] w-12 h-12 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors pointer-events-auto"
-        aria-label="Close"
-      >
-        <Close sx={{ fontSize: 28 }} />
-      </button>
+      {!episodesPanelOpen && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onClose();
+          }}
+          className={`absolute top-4 right-4 z-[200] w-12 h-12 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-white hover:text-black transition-opacity duration-300 ${
+            closeButtonVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+          aria-label="Close"
+        >
+          <Close sx={{ fontSize: 28 }} />
+        </button>
+      )}
     </div>
   );
 }

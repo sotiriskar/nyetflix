@@ -2,46 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dirname, basename } from 'path';
 import { registry, ensureHydrated, persistRegistry } from '@/lib/streamRegistry';
 import { extractEmbeddedSubtitlesToSidecar } from '@/lib/extractEmbeddedSubtitles';
-
-/** Language code -> display label. ISO 639-1 and ISO 639-2 (incl. bibliographic codes like gre, baq). */
-const LANG_LABELS: Record<string, string> = {
-  en: 'English', eng: 'English',
-  el: 'Greek', ell: 'Greek', gre: 'Greek', gr: 'Greek',
-  es: 'Spanish', spa: 'Spanish',
-  fr: 'French', fra: 'French', fre: 'French',
-  de: 'German', deu: 'German', ger: 'German',
-  it: 'Italian', ita: 'Italian',
-  pt: 'Portuguese', por: 'Portuguese',
-  ru: 'Russian', rus: 'Russian',
-  ja: 'Japanese', jpn: 'Japanese',
-  zh: 'Chinese', zho: 'Chinese', chi: 'Chinese',
-  ko: 'Korean', kor: 'Korean',
-  ar: 'Arabic', ara: 'Arabic',
-  tr: 'Turkish', tur: 'Turkish',
-  nl: 'Dutch', nld: 'Dutch', dut: 'Dutch',
-  pl: 'Polish', pol: 'Polish',
-  sv: 'Swedish', swe: 'Swedish',
-  hi: 'Hindi', hin: 'Hindi',
-  th: 'Thai', tha: 'Thai',
-  vi: 'Vietnamese', vie: 'Vietnamese',
-  id: 'Indonesian', ind: 'Indonesian',
-  ms: 'Malay', msa: 'Malay', may: 'Malay',
-  ca: 'Catalan', cat: 'Catalan',
-  cs: 'Czech', cze: 'Czech', ces: 'Czech',
-  da: 'Danish', dan: 'Danish',
-  eu: 'Basque', baq: 'Basque', eus: 'Basque',
-  fi: 'Finnish', fin: 'Finnish',
-  fil: 'Filipino',
-  gl: 'Galician', glg: 'Galician',
-  he: 'Hebrew', heb: 'Hebrew',
-  hu: 'Hungarian', hun: 'Hungarian',
-  no: 'Norwegian', nor: 'Norwegian', nob: 'Norwegian Bokmål', nno: 'Norwegian Nynorsk',
-  ro: 'Romanian', ron: 'Romanian', rum: 'Romanian',
-  sk: 'Slovak', slk: 'Slovak', slo: 'Slovak',
-  uk: 'Ukrainian', ukr: 'Ukrainian',
-  hr: 'Croatian', hrv: 'Croatian',
-  und: 'Unknown',
-};
+import { LANG_LABELS } from '@/lib/subtitleLabels';
 
 export interface SubtitleTrackResponse {
   tracks: Array<{ lang: string; label: string; src: string }>;

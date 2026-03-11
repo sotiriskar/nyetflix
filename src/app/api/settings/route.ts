@@ -13,14 +13,15 @@ type SettingsRow = {
 
 type SettingsState = {
   language: 'en' | 'el';
-  subtitleLanguage: 'off' | 'en' | 'el';
+  subtitleLanguage: 'off' | string;
   moviesFolderPath: string;
 };
 
-function parseSubtitleLanguage(v: string | null): 'off' | 'en' | 'el' {
-  if (v === 'off' || v === 'el') return v;
-  if (v === 'en') return 'en';
-  return 'off'; // null/empty/unknown → off
+function parseSubtitleLanguage(v: string | null): 'off' | string {
+  if (v == null || v === '') return 'off';
+  const s = String(v).trim().toLowerCase();
+  if (s === 'off') return 'off';
+  return s; // any language code (en, el, spa, etc.)
 }
 
 function rowToJson(row: SettingsRow | undefined): SettingsState & { saved: boolean } {

@@ -4,8 +4,8 @@ import { useProfile } from '@/context/ProfileContext';
 
 export type AppLanguage = 'en' | 'el';
 
-/** Subtitle preference: 'off' = no subtitles by default, or a language code. */
-export type SubtitlePreference = 'off' | AppLanguage;
+/** Subtitle preference: 'off' = no subtitles by default, or any language code (e.g. en, el, spa). */
+export type SubtitlePreference = 'off' | string;
 
 export interface SettingsState {
   language: AppLanguage;
@@ -46,7 +46,7 @@ async function fetchSettings(profileId: number): Promise<{ language: AppLanguage
   try {
     const res = await fetch('/api/settings', { headers: { 'X-Profile-Id': String(profileId) } });
     if (!res.ok) return null;
-    const data = (await res.json()) as { language: AppLanguage; subtitleLanguage: AppLanguage; moviesFolderPath: string };
+    const data = (await res.json()) as { language: AppLanguage; subtitleLanguage: SubtitlePreference; moviesFolderPath: string };
     return data;
   } catch {
     return null;
@@ -91,7 +91,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (currentProfileId != null) saveSettings(currentProfileId, { language: lang });
   }, [currentProfileId]);
 
-  const setSubtitleLanguage = useCallback((lang: AppLanguage) => {
+  const setSubtitleLanguage = useCallback((lang: SubtitlePreference) => {
     setSubtitleLanguageState(lang);
     if (currentProfileId != null) saveSettings(currentProfileId, { subtitleLanguage: lang });
   }, [currentProfileId]);

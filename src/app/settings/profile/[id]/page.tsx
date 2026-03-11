@@ -14,14 +14,9 @@ import { AVATAR_PATHS } from '@/lib/profiles';
 import type { AppLanguage, SubtitlePreference } from '@/context/SettingsContext';
 import type { Profile } from '@/context/ProfileContext';
 import type { ProfileId } from '@/lib/profiles';
+import { SUBTITLE_PREFERENCE_OPTIONS } from '@/lib/subtitleLabels';
 
 const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
-  { value: 'en', label: 'English' },
-  { value: 'el', label: 'Greek' },
-];
-
-const SUBTITLE_OPTIONS: { value: SubtitlePreference; label: string }[] = [
-  { value: 'off', label: 'Off' },
   { value: 'en', label: 'English' },
   { value: 'el', label: 'Greek' },
 ];
@@ -62,7 +57,8 @@ export default function SettingsProfilePage() {
   const router = useRouter();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const profileId = (id >= 1 && id <= 5 ? id : null) as ProfileId | null;
-  const { refetchProfiles, deleteProfile, profiles } = useProfile();
+  const { currentProfileId, refetchProfiles, deleteProfile, profiles } = useProfile();
+  const { setSubtitleLanguage: setContextSubtitleLang, setLanguage: setContextLanguage, setMoviesFolderPath: setContextPath } = useSettings();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [language, setLanguage] = useState<AppLanguage>('en');
@@ -115,20 +111,21 @@ export default function SettingsProfilePage() {
   const handleLanguageChange = useCallback(
     (lang: AppLanguage) => {
       setLanguage(lang);
+      if (profileId === currentProfileId) setContextLanguage(lang);
       if (profileId != null) saveSettings(profileId, { language: lang });
     },
-    [profileId]
+    [profileId, currentProfileId, setContextLanguage]
   );
 
   const handleSubtitleChange = useCallback(
     (lang: SubtitlePreference) => {
       setSubtitleLanguage(lang);
+      if (profileId === currentProfileId) setContextSubtitleLang(lang);
       if (profileId != null) saveSettings(profileId, { subtitleLanguage: lang });
     },
-    [profileId]
+    [profileId, currentProfileId, setContextSubtitleLang]
   );
 
-  const { setMoviesFolderPath: setContextPath } = useSettings();
   const handleMoviesPathChange = useCallback(
     (path: string) => {
       setMoviesFolderPath(path);
@@ -303,11 +300,11 @@ export default function SettingsProfilePage() {
               </div>
             </div>
             <select
-              value={subtitleLanguage}
+              value={SUBTITLE_PREFERENCE_OPTIONS.some((o) => o.value === subtitleLanguage) ? subtitleLanguage : 'off'}
               onChange={(e) => handleSubtitleChange(e.target.value as SubtitlePreference)}
               className="px-3 py-2 rounded border border-white/20 bg-white/5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
             >
-              {SUBTITLE_OPTIONS.map(({ value, label }) => (
+              {SUBTITLE_PREFERENCE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value} className="bg-[#181818] text-white">{label}</option>
               ))}
             </select>

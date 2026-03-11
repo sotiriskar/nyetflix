@@ -18,6 +18,7 @@ import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
 import { useProgress, CONTINUE_WATCHING_MAX_PROGRESS } from '@/context/ProgressContext';
 import { buildWatchUrl } from '@/lib/watchUrl';
+import { getFirstEpisodeId } from '@/lib/getFirstEpisodeId';
 import { buildCarousels } from '@/lib/carouselBuild';
 import { pickMoreLikeThis } from '@/lib/moreLikeThis';
 
@@ -83,9 +84,21 @@ export function SeriesPage() {
       const prog = getProgress(item.id);
       const isSeries = detailsMap[item.id]?.mediaType === 'series';
       const resumeEpisodeId = isSeries ? prog?.lastEpisodeId : undefined;
-      const id = resumeEpisodeId ?? item.id;
       const seriesTitle = isSeries ? (detailsMap[item.id]?.title ?? undefined) : undefined;
       const subs = detailsMap[item.id]?.subtitleLanguages;
+
+      if (isSeries && !resumeEpisodeId) {
+        getFirstEpisodeId(item.id, seriesTitle).then((firstId) => {
+          if (firstId) {
+            router.push(buildWatchUrl(firstId, { seriesTitle, subs: subs?.length ? subs : undefined }));
+          } else {
+            router.replace('/browse/series');
+          }
+        });
+        return;
+      }
+
+      const id = resumeEpisodeId ?? item.id;
       router.push(buildWatchUrl(id, { seriesTitle, subs: subs?.length ? subs : undefined }));
     },
     [getProgress, detailsMap, router]
