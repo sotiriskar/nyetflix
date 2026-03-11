@@ -42,12 +42,15 @@ function saveProgress(profileId: number, data: Record<string, ProgressEntry>) {
 export interface ProgressContextValue {
   getProgress: (itemId: string) => ProgressEntry | undefined;
   setProgress: (itemId: string, progress: number) => void;
+  /** Remove item (or series) from continue watching. */
+  clearProgress: (itemId: string) => void;
   progressByItemId: Record<string, ProgressEntry>;
 }
 
 const defaultValue: ProgressContextValue = {
   getProgress: () => undefined,
   setProgress: () => {},
+  clearProgress: () => {},
   progressByItemId: {},
 };
 
@@ -85,14 +88,24 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const clearProgress = useCallback((itemId: string) => {
+    if (profileIdRef.current == null) return;
+    setProgressByItemId((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      saveProgress(profileIdRef.current!, next);
+      return next;
+    });
+  }, []);
+
   const getProgress = useCallback(
     (itemId: string) => progressByItemId[itemId],
     [progressByItemId]
   );
 
   const value = useMemo(
-    () => ({ getProgress, setProgress, progressByItemId }),
-    [getProgress, setProgress, progressByItemId]
+    () => ({ getProgress, setProgress, clearProgress, progressByItemId }),
+    [getProgress, setProgress, clearProgress, progressByItemId]
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;

@@ -1,76 +1,74 @@
-import { useState, useRef, useCallback, useMemo, useLayoutEffect, useEffect } from 'react';
+'use client';
+
+import { useState, useRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Add from '@mui/icons-material/Add';
 import Check from '@mui/icons-material/Check';
+import Close from '@mui/icons-material/Close';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import ThumbUp from '@mui/icons-material/ThumbUp';
-import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
 import VolumeOff from '@mui/icons-material/VolumeOff';
 import VolumeUp from '@mui/icons-material/VolumeUp';
 import Tooltip from '@mui/material/Tooltip';
-import type { CarouselItem } from '../types/movie';
-import { getContentRatingDescriptors } from '@/lib/contentRating';
+import type { CarouselItem } from '@/types/movie';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
 
-const HOVER_OVERLAY_PLAYER_ID = 'hover-overlay-trailer';
-
+const HOVER_OVERLAY_PLAYER_ID = 'hover-overlay-continue-trailer';
 const HOVER_OVERLAY_DELAY_MS = 500;
 const HOVER_TRAILER_DELAY_MS = 400;
 const OVERLAY_WIDTH = 445;
 const OVERLAY_MIN_HEIGHT = 400;
 
-/** Format duration string: "145m" -> "2h 25m", "45m" -> "45m". */
-function formatDuration(d: string | undefined): string | undefined {
-  if (!d?.trim()) return undefined;
-  const minOnly = d.trim().match(/^(\d+)\s*m(?:in)?$/i);
-  if (minOnly) {
-    const totalM = parseInt(minOnly[1], 10);
-    if (totalM >= 60) return `${Math.floor(totalM / 60)}h ${totalM % 60}m`;
-    return `${totalM}m`;
-  }
-  return d;
+/** Parse duration string to total minutes. "126m" -> 126, "2h 25m" -> 145. */
+function parseDurationToMinutes(d: string | undefined): number {
+  if (!d?.trim()) return 0;
+  const s = d.trim();
+  const minOnly = s.match(/^(\d+)\s*m(?:in)?$/i);
+  if (minOnly) return parseInt(minOnly[1], 10);
+  const hAndM = s.match(/^(\d+)\s*h(?:ours?)?\s*(\d+)\s*m(?:in)?$/i);
+  if (hAndM) return parseInt(hAndM[1], 10) * 60 + parseInt(hAndM[2], 10);
+  return 0;
 }
 
-interface CarouselHoverCardProps {
+/** Format minutes as "Xm" or "Xh Ym". */
+function formatMinutes(m: number): string {
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+export interface ContinueWatchingHoverCardProps {
   item: CarouselItem;
   duration?: string;
   progress?: number;
-  genres?: string;
-  mediaType?: 'movie' | 'series';
-  seasonsCount?: number;
-  hasSubtitles?: boolean;
-  /** Age rating e.g. "13+", "18+" (shows badge + descriptors on hover card). */
-  contentRating?: string;
-  /** If true, show the thin progress bar at bottom of card (e.g. Continue Watching row). */
-  showProgressBar?: boolean;
   onClick?: () => void;
   onPlay?: (item: CarouselItem) => void;
   onAddClick?: () => void;
   isInList?: boolean;
   onLikeClick?: () => void;
   isLiked?: boolean;
+  onRemoveFromContinueWatching?: () => void;
 }
 
-export function CarouselHoverCard({
+export function ContinueWatchingHoverCard({
   item,
   duration,
   progress = 0,
-  genres,
-  mediaType,
-  seasonsCount,
-  hasSubtitles = false,
-  contentRating,
-  showProgressBar = false,
   onClick,
   onPlay,
   onAddClick,
   isInList = false,
   onLikeClick,
   isLiked = false,
-}: CarouselHoverCardProps) {
+  onRemoveFromContinueWatching,
+}: ContinueWatchingHoverCardProps) {
   const progressPercent = Math.min(1, Math.max(0, progress ?? 0)) * 100;
+  const totalMinutes = parseDurationToMinutes(duration);
+  const currentMinutes = totalMinutes > 0 ? Math.floor((progress ?? 0) * totalMinutes) : 0;
+  const progressLabel =
+    totalMinutes > 0 ? `${currentMinutes} of ${formatMinutes(totalMinutes)}` : '';
+
   const { isMuted, setMuted } = useTrailerMute();
   const [showTrailer, setShowTrailer] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -84,19 +82,6 @@ export function CarouselHoverCard({
   const hoverYtPlayerRef = useRef<{ getCurrentTime: () => number; mute: () => void; unMute: () => void; destroy: () => void } | null>(null);
   const isMutedRef = useRef(isMuted);
   isMutedRef.current = isMuted;
-
-  const genreList = useMemo(() => {
-    if (!genres?.trim()) return [];
-    return genres.split(',').map((g) => g.trim()).filter(Boolean).slice(0, 3);
-  }, [genres]);
-
-  const durationDisplay = duration ? formatDuration(duration) : undefined;
-  const metaLine =
-    mediaType === 'series'
-      ? seasonsCount != null && seasonsCount > 0
-        ? `${seasonsCount} Season${seasonsCount !== 1 ? 's' : ''}`
-        : undefined
-      : durationDisplay;
 
   const updateOverlayRect = useCallback(() => {
     if (!cardRef.current) return;
@@ -253,6 +238,12 @@ export function CarouselHoverCard({
     onClick?.();
   }, [closeOverlay, onClick, item.trailerYouTubeId, setResume]);
 
+  const handleRemove = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemoveFromContinueWatching?.();
+    closeOverlay();
+  }, [onRemoveFromContinueWatching, closeOverlay]);
+
   const initialScale = overlayRect ? Math.min(1, overlayRect.cardWidth / OVERLAY_WIDTH) : 1;
   const zoomInReady = overlayAnimated;
   const overlayContent = overlayRect && (
@@ -290,7 +281,6 @@ export function CarouselHoverCard({
             <span className="text-white/40 text-4xl font-bold select-none" aria-hidden>?</span>
           </div>
         )}
-        {/* Title / logo inside video area, bottom-left – wide logo only */}
         <div className="absolute left-0 right-0 bottom-[-1px] pt-6 pb-2 px-5 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none rounded-t-md">
           <div className="flex items-end min-h-[1.25rem]">
             {item.titleLogoUrl ? (
@@ -304,7 +294,6 @@ export function CarouselHoverCard({
             )}
           </div>
         </div>
-        {/* Mute / unmute inside video area, bottom-right */}
         {showTrailer && item.trailerYouTubeId && (
           <button
             type="button"
@@ -318,11 +307,12 @@ export function CarouselHoverCard({
       </div>
       <div className="flex items-center gap-2 px-5 pt-3 pb-3">
         <button
+          type="button"
           className="w-13 h-13 rounded-full border-2 border-white flex items-center justify-center text-black bg-white hover:bg-white/90 transition-colors shrink-0"
           aria-label="Play"
           onClick={(e) => { e.stopPropagation(); onPlay?.(item); }}
         >
-          <PlayArrow sx={{ fontSize: 38 }} />
+          <PlayArrow sx={{ fontSize: 28 }} />
         </button>
         <Tooltip slotProps={{ popper: { sx: { zIndex: 10001, '& .MuiTooltip-arrow': { color: '#fff' } } }, tooltip: { sx: { backgroundColor: '#fff', color: '#000', fontSize: '20px', padding: '5px 25px', fontWeight: 700 } } }} title={isInList ? 'Remove from My List' : 'Add to My List'} placement="top" arrow>
           <button
@@ -331,7 +321,17 @@ export function CarouselHoverCard({
             aria-label={isInList ? 'In My List' : 'Add to list'}
             onClick={(e) => { e.stopPropagation(); onAddClick?.(); }}
           >
-            {isInList ? <Check sx={{ fontSize: 34 }} /> : <Add sx={{ fontSize: 34 }} />}
+            {isInList ? <Check sx={{ fontSize: 28 }} /> : <Add sx={{ fontSize: 28 }} />}
+          </button>
+        </Tooltip>
+        <Tooltip slotProps={{ popper: { sx: { zIndex: 10001, '& .MuiTooltip-arrow': { color: '#fff' } } }, tooltip: { sx: { backgroundColor: '#fff', color: '#000', fontSize: '20px', padding: '5px 25px', fontWeight: 700 } } }} title="Remove from row" placement="top" arrow>
+          <button
+            type="button"
+            className="w-14 h-14 rounded-full border-2 border-white/40 hover:border-white/80 flex items-center justify-center text-white bg-white/5 hover:bg-white/25 transition-colors shrink-0"
+            aria-label="Remove from Continue Watching"
+            onClick={handleRemove}
+          >
+            <Close sx={{ fontSize: 28 }} />
           </button>
         </Tooltip>
         <Tooltip slotProps={{ popper: { sx: { zIndex: 10001, '& .MuiTooltip-arrow': { color: '#fff' } } }, tooltip: { sx: { backgroundColor: '#fff', color: '#000', fontSize: '20px', padding: '5px 25px', fontWeight: 700 } } }} title={isLiked ? 'Not for me' : 'I like this'} placement="top" arrow>
@@ -341,7 +341,7 @@ export function CarouselHoverCard({
             aria-label={isLiked ? 'Liked' : 'Like'}
             onClick={(e) => { e.stopPropagation(); onLikeClick?.(); }}
           >
-            <ThumbUp sx={{ fontSize: 28 }} />
+            <ThumbUp sx={{ fontSize: 24 }} />
           </button>
         </Tooltip>
         <Tooltip slotProps={{ popper: { sx: { zIndex: 10001, '& .MuiTooltip-arrow': { color: '#fff' } } }, tooltip: { sx: { backgroundColor: '#fff', color: '#000', fontSize: '20px', padding: '5px 25px', fontWeight: 700 } } }} title="Episodes & info" placement="top" arrow>
@@ -351,25 +351,22 @@ export function CarouselHoverCard({
             aria-label="More info"
             onClick={(e) => { e.stopPropagation(); openModal(); }}
           >
-            <ExpandMore sx={{ fontSize: 38 }} />
+            <ExpandMore sx={{ fontSize: 28 }} />
           </button>
         </Tooltip>
       </div>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-4 px-5 pt-1 pb-5 text-md font-normal text-white/80">
-        {contentRating && (
-          <span className="flex items-center gap-2">
-            <span className="inline-block border border-white/70  px-2 text-[14px] font-normal text-white/90">{contentRating}</span>
+      {/* Progress bar + label inline */}
+      <div className="px-5 pt-5 pb-5 flex items-center gap-3">
+        <div className="flex-1 min-w-0 h-1 rounded-full overflow-hidden bg-white/30" aria-hidden>
+          <div
+            className="h-full bg-[#E50914] rounded-full transition-[width] duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        {progressLabel && (
+          <span className="text-sm text-white/80 tabular-nums shrink-0" aria-live="polite">
+            {progressLabel}
           </span>
-        )}
-        {metaLine && <span>{metaLine}</span>}
-        <span className="inline-flex items-center rounded border border-white/50 px-2 text-[10px] font-normal text-white/80">HD</span>
-        {hasSubtitles && (
-          <span className="inline-flex items-center text-white/80">
-            <SubtitlesOutlined sx={{ fontSize: 24 }} />
-          </span>
-        )}
-        {genreList.length > 0 && (
-          <span className="w-full truncate text-md font-normal text-white/90">{genreList.join(' • ')}</span>
         )}
       </div>
     </div>
@@ -388,7 +385,6 @@ export function CarouselHoverCard({
         tabIndex={0}
       >
         <div className="absolute inset-0 rounded-md overflow-hidden ring-1 ring-white/10 bg-white/10">
-          {/* Trailer plays only in the overlay portal, not on the thumbnail — avoids double video/sound */}
           {(item.backdropUrl ?? item.posterUrl) ? (
             <img src={item.backdropUrl ?? item.posterUrl} alt="" className="block size-full object-cover object-top" />
           ) : (
@@ -412,7 +408,7 @@ export function CarouselHoverCard({
             )}
           </div>
         </div>
-        {showProgressBar && progressPercent > 0 && (
+        {progressPercent > 0 && (
           <div className="absolute left-0 right-0 bottom-0 h-1 rounded-b-md overflow-hidden bg-white/30 pointer-events-none z-10" aria-hidden>
             <div className="h-full bg-[#E50914] rounded-b-md transition-[width] duration-300" style={{ width: `${progressPercent}%` }} />
           </div>

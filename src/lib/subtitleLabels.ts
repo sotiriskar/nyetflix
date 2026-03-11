@@ -35,6 +35,7 @@ export const LANG_LABELS: Record<string, string> = {
   gl: 'Galician', glg: 'Galician',
   he: 'Hebrew', heb: 'Hebrew',
   hu: 'Hungarian', hun: 'Hungarian',
+  is: 'Icelandic', isl: 'Icelandic', ice: 'Icelandic',
   no: 'Norwegian', nor: 'Norwegian', nob: 'Norwegian Bokmål', nno: 'Norwegian Nynorsk',
   ro: 'Romanian', ron: 'Romanian', rum: 'Romanian',
   sk: 'Slovak', slk: 'Slovak', slo: 'Slovak',

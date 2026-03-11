@@ -21,12 +21,7 @@ const NAV_ITEMS = [
   { label: 'My List', to: '/browse/my-list' },
 ];
 
-interface TopBarProps {
-  /** Optional: open account/profile settings (used by standalone React App wrapper). */
-  onOpenAccount?: () => void;
-}
-
-export function TopBar({ onOpenAccount }: TopBarProps) {
+export function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,13 +43,13 @@ export function TopBar({ onOpenAccount }: TopBarProps) {
     }
   }, [searchOpen]);
 
-  // Sync search input with URL when on search page
+  // Sync search input with URL when on search page (depend on primitive q so we don't re-run on every render from searchParams ref change)
+  const searchQ = searchParams.get('q') ?? '';
   useEffect(() => {
     if (pathname === '/search') {
-      const q = searchParams.get('q') ?? '';
-      setSearchQuery(q);
+      setSearchQuery(searchQ);
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchQ]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -312,8 +307,7 @@ export function TopBar({ onOpenAccount }: TopBarProps) {
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  if (onOpenAccount) onOpenAccount();
-                  else if (currentProfileId != null) router.push(`/settings/profile/${currentProfileId}`);
+                  if (currentProfileId != null) router.push(`/settings/profile/${currentProfileId}`);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-white/90 hover:text-white hover:underline transition-colors"
               >

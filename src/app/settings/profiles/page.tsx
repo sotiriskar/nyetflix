@@ -1,12 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import ArrowBack from '@mui/icons-material/ArrowBack';
 import { useProfile } from '@/context/ProfileContext';
-import { AddProfileModal } from '@/components/AddProfileModal';
+
+const AddProfileModal = dynamic(
+  () => import('@/components/AddProfileModal').then((m) => ({ default: m.AddProfileModal })),
+  { ssr: false }
+);
 
 export default function SettingsProfilesPage() {
   const router = useRouter();

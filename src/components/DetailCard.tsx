@@ -326,23 +326,23 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                   className="flex items-center justify-center gap-3 rounded-md px-8 py-3 bg-white text-black text-lg font-semibold hover:bg-white/90 transition-colors shrink-0"
                   aria-label="Play"
                 >
-                  <PlayArrow sx={{ fontSize: 34 }} />
+                  <PlayArrow sx={{ fontSize: 32, color: 'black' }} />
                   <span>Play</span>
                 </button>
                 <button
                   type="button"
                   onClick={onAddClick}
-                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                  className={`w-13 h-13 rounded-full border-2 flex bg-black/20 items-center justify-center transition-colors shrink-0 ${
                     isInList ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
                   }`}
                   aria-label={isInList ? 'In My List' : 'Add to My List'}
                 >
-                  {isInList ? <Check sx={{ fontSize: 26 }} /> : <Add sx={{ fontSize: 26 }} />}
+                  {isInList ? <Check sx={{ fontSize: 30 }} /> : <Add sx={{ fontSize: 26 }} />}
                 </button>
                 <button
                   type="button"
                   onClick={onLikeClick}
-                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
+                  className={`w-13 h-13 rounded-full border-2 bg-black/20 flex items-center justify-center transition-colors shrink-0 ${
                     isLiked ? 'border-white bg-white text-black' : 'border-white/70 text-white hover:bg-white/20'
                   }`}
                   aria-label={isLiked ? 'Liked' : 'Like'}
@@ -353,7 +353,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
             </div>
             <button
               type="button"
-              className="w-12 h-12 rounded-full border-2 border-white/70 text-white flex items-center justify-center hover:bg-white/20 transition-colors shrink-0 self-end"
+              className="w-13 h-13 rounded-full border-2 border-white/30 hover:border-white/80 bg-black/20 text-white/30 hover:text-white/80 flex items-center justify-center hover:bg-white/20 transition-colors shrink-0 self-end"
               aria-label={isMuted ? 'Unmute' : 'Mute'}
               onClick={(e) => { e.stopPropagation(); setMuted(!isMuted); }}
             >
@@ -513,7 +513,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                           <span className={`text-2xl font-bold ${isHighlighted ? 'text-white' : 'text-white/50'}`}>{ep.episodeNumber}</span>
                         )}
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <span className="w-14 h-14 rounded-full border-2 border-white flex items-center justify-center bg-black/40">
+                          <span className="w-13 h-13 rounded-full border-2 border-white flex items-center justify-center bg-black/40">
                             <PlayArrow sx={{ fontSize: 32, color: 'white' }} />
                           </span>
                         </div>
@@ -598,7 +598,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                             </span>
                           )}
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="w-12 h-12 rounded-full border-2 border-white flex items-center justify-center bg-black/50">
+                            <span className="w-13 h-13 rounded-full border-2 border-white flex items-center justify-center bg-black/50">
                               <PlayArrow sx={{ fontSize: 28, color: 'white' }} />
                             </span>
                           </div>

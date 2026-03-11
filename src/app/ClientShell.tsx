@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
-import { AppSettingsModal } from '@/components/AppSettingsModal';
 import { WhosWatching } from '@/components/WhosWatching';
 import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
@@ -13,7 +11,6 @@ import { TrailerMuteProvider } from '@/context/TrailerMuteContext';
 import { TrailerResumeProvider } from '@/context/TrailerResumeContext';
 
 function AppWithProviders({ children }: { children: React.ReactNode }) {
-  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   return (
     <SettingsProvider>
       <LibraryHandleProvider>
@@ -24,9 +21,6 @@ function AppWithProviders({ children }: { children: React.ReactNode }) {
             <TopBar />
             <main>{children}</main>
           </div>
-          {appSettingsOpen && (
-            <AppSettingsModal onClose={() => setAppSettingsOpen(false)} />
-          )}
           </TrailerResumeProvider>
           </TrailerMuteProvider>
         </ProgressProvider>

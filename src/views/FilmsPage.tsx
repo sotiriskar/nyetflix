@@ -76,7 +76,7 @@ export function FilmsPage() {
   const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh, updateItemDetail } = useLibraryContext();
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
-  const { progressByItemId, getProgress } = useProgress();
+  const { progressByItemId, getProgress, clearProgress } = useProgress();
   const [selectedItem, setSelectedItem] = useState<CarouselItem | null>(null);
 
   const handlePlay = useCallback(
@@ -220,6 +220,7 @@ export function FilmsPage() {
                 getIsInList={isInMyList}
                 onLikeClick={(item) => toggleLiked(item.id)}
                 getIsLiked={isLiked}
+                onRemoveFromContinueWatching={(item) => clearProgress(item.id)}
               />
             )}
             <div
@@ -243,6 +244,7 @@ export function FilmsPage() {
                 getIsInList={isInMyList}
                 onLikeClick={(item) => toggleLiked(item.id)}
                 getIsLiked={isLiked}
+                onRemoveFromContinueWatching={(item) => clearProgress(item.id)}
               />
             ))}
           </div>

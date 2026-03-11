@@ -5,6 +5,7 @@ import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import 'swiper/css';
 import { CarouselHoverCard } from './CarouselHoverCard';
+import { ContinueWatchingHoverCard } from './ContinueWatchingHoverCard';
 import { getMovieDetail } from '../data/dummyCarousel';
 import type { CarouselItem } from '../types/movie';
 import type { MovieDetail } from '../types/movie';
@@ -21,6 +22,8 @@ interface CarouselProps {
   getIsInList?: (id: string) => boolean;
   onLikeClick?: (item: CarouselItem) => void;
   getIsLiked?: (id: string) => boolean;
+  /** When provided and title is "Continue Watching", the X button removes the item from the list. */
+  onRemoveFromContinueWatching?: (item: CarouselItem) => void;
 }
 
 const MAX_ITEMS = 12;
@@ -28,7 +31,7 @@ const MAX_ITEMS = 12;
 const getDetail = (id: string, getMovieDetailProp?: (id: string) => MovieDetail | undefined) =>
   getMovieDetailProp?.(id) ?? getMovieDetail(id);
 
-export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetail: getMovieDetailProp, onAddClick, getIsInList, onLikeClick, getIsLiked }: CarouselProps) {
+export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetail: getMovieDetailProp, onAddClick, getIsInList, onLikeClick, getIsLiked, onRemoveFromContinueWatching }: CarouselProps) {
   const swiperRef = useRef<Swiper | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isBeginning, setIsBeginning] = useState(true);
@@ -97,6 +100,7 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
           >
           {displayItems.map((item) => {
             const detail = getDetail(item.id, getMovieDetailProp);
+            const isContinueWatching = title === 'Continue Watching';
             return (
               <SwiperSlide
                 key={item.id}
@@ -108,23 +112,38 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
                   onMouseEnter={() => setIsCardHovered(true)}
                   onMouseLeave={handleSlideMouseLeave}
                 >
-                  <CarouselHoverCard
-                    item={item}
-                    duration={detail?.duration}
-                    progress={detail?.progress}
-                    genres={detail?.genres}
-                    mediaType={detail?.mediaType}
-                    seasonsCount={detail?.seasonsCount}
-                    hasSubtitles={detail?.hasSubtitles ?? (detail?.subtitleLanguages?.length ?? 0) > 0}
-                    contentRating={detail?.contentRating}
-                    showProgressBar={title === 'Continue Watching'}
-                    onClick={() => onItemClick?.(item)}
-                    onPlay={onPlayClick}
-                    onAddClick={onAddClick ? () => onAddClick(item) : undefined}
-                    isInList={getIsInList?.(item.id)}
-                    onLikeClick={onLikeClick ? () => onLikeClick(item) : undefined}
-                    isLiked={getIsLiked?.(item.id)}
-                  />
+                  {isContinueWatching ? (
+                    <ContinueWatchingHoverCard
+                      item={item}
+                      duration={detail?.duration}
+                      progress={detail?.progress}
+                      onClick={() => onItemClick?.(item)}
+                      onPlay={onPlayClick}
+                      onAddClick={onAddClick ? () => onAddClick(item) : undefined}
+                      isInList={getIsInList?.(item.id)}
+                      onLikeClick={onLikeClick ? () => onLikeClick(item) : undefined}
+                      isLiked={getIsLiked?.(item.id)}
+                      onRemoveFromContinueWatching={onRemoveFromContinueWatching ? () => onRemoveFromContinueWatching(item) : undefined}
+                    />
+                  ) : (
+                    <CarouselHoverCard
+                      item={item}
+                      duration={detail?.duration}
+                      progress={detail?.progress}
+                      genres={detail?.genres}
+                      mediaType={detail?.mediaType}
+                      seasonsCount={detail?.seasonsCount}
+                      hasSubtitles={detail?.hasSubtitles ?? (detail?.subtitleLanguages?.length ?? 0) > 0}
+                      contentRating={detail?.contentRating}
+                      showProgressBar={false}
+                      onClick={() => onItemClick?.(item)}
+                      onPlay={onPlayClick}
+                      onAddClick={onAddClick ? () => onAddClick(item) : undefined}
+                      isInList={getIsInList?.(item.id)}
+                      onLikeClick={onLikeClick ? () => onLikeClick(item) : undefined}
+                      isLiked={getIsLiked?.(item.id)}
+                    />
+                  )}
                 </div>
               </SwiperSlide>
             );
