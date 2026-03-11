@@ -92,7 +92,7 @@ export function buildCarousels(input: BuildCarouselsInput): BuildCarouselsResult
   // Track which items have been used in the *first 7 slots* across all genre rows (same on Home, Series, Films).
   const usedInTopSlots = new Set<string>([heroId]);
 
-  function buildGenreRow(genre: string, genreItems: CarouselItem[]): CarouselItem[] {
+  function buildGenreRow(_genre: string, genreItems: CarouselItem[]): CarouselItem[] {
     const row: CarouselItem[] = [];
     for (const item of genreItems) {
       if (row.length >= TOP_UNIQUE_PER_ROW) break;

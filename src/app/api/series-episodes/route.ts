@@ -8,6 +8,7 @@ import {
   getTvShowSeasonNumbers,
   getTvSeasonEpisodes,
   buildStillUrl,
+  type TmdbTvSeasonEpisode,
 } from '@/lib/tmdb';
 import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 
@@ -236,7 +237,7 @@ export async function GET(request: NextRequest) {
       for (const seasonNum of seasonNumbers) {
         const localKeysForSeason = [...localMap.keys()].filter((k) => parseInt(k.split('-')[0], 10) === seasonNum);
         const localEpNums = [...new Set(localKeysForSeason.map((k) => parseInt(k.split('-')[1], 10)))].sort((a, b) => a - b);
-        let tmdbEpisodes: { episode_number: number; name?: string; overview?: string; still_path?: string; runtime?: number }[] = [];
+        let tmdbEpisodes: TmdbTvSeasonEpisode[] = [];
         try {
           tmdbEpisodes = await getTvSeasonEpisodes(tv.id, seasonNum);
         } catch {
