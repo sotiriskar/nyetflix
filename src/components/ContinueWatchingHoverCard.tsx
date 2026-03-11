@@ -32,10 +32,9 @@ function parseDurationToMinutes(d: string | undefined): number {
   return 0;
 }
 
-/** Format minutes as "Xm" or "Xh Ym". */
+/** Format minutes as "Xm" only (no hours). */
 function formatMinutes(m: number): string {
-  if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
+  return `${m}m`;
 }
 
 export interface ContinueWatchingHoverCardProps {
