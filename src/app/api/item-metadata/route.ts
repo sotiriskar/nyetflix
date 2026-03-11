@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchTitles, getTitle, titleToMovieDetail, type ImdbTitle } from '@/lib/imdbapi';
 import { getImagesForTitle } from '@/lib/tmdb';
+import { getDurationSecondsForItem } from '@/lib/videoDuration';
 import type { MovieDetail } from '@/types/movie';
 
 /**
@@ -69,20 +70,13 @@ export async function POST(request: NextRequest) {
     // no TMDB key or request failed
   }
 
-  // Fallback: if still no duration (e.g. IMDb/TMDB missed it), get from local file via video-duration API
+  // Fallback: if still no duration (e.g. IMDb/TMDB missed it), get from local file
   if (!patch.duration && id) {
     try {
-      const origin = typeof request.url === 'string' ? new URL(request.url).origin : request.nextUrl?.origin ?? '';
-      if (origin) {
-        const durRes = await fetch(`${origin}/api/video-duration?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
-        if (durRes.ok) {
-          const data = (await durRes.json()) as { durationSeconds?: number };
-          const sec = data?.durationSeconds;
-          if (typeof sec === 'number' && sec > 0) {
-            const minutes = Math.round(sec / 60);
-            patch.duration = `${minutes}m`;
-          }
-        }
+      const sec = await getDurationSecondsForItem(id);
+      if (typeof sec === 'number' && sec > 0) {
+        const minutes = Math.round(sec / 60);
+        patch.duration = `${minutes}m`;
       }
     } catch {
       // ignore

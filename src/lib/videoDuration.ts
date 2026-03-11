@@ -1,4 +1,7 @@
+import { existsSync } from 'fs';
 import { spawn } from 'child_process';
+import { registry, ensureHydrated } from '@/lib/streamRegistry';
+import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
 
 /** Parse "Duration: 01:23:45.67" from ffmpeg stderr into seconds. */
@@ -37,4 +40,24 @@ export async function getDurationSecondsFromFile(filePath: string, timeoutMs = 1
   }
   const sec = parseDuration(stderr);
   return sec != null && sec > 0 ? sec : null;
+}
+
+/**
+ * Get duration in seconds for a library item by id. Resolves file path from registry (or converted MKV) then reads duration.
+ * Returns null if the item is unknown or duration cannot be read.
+ */
+export async function getDurationSecondsForItem(id: string): Promise<number | null> {
+  ensureHydrated();
+  let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id) ?? null;
+  if (!filePath) {
+    const converted = getConvertedPath(id);
+    if (converted && existsSync(converted)) filePath = converted;
+  }
+  if (!filePath) return null;
+  const ext = filePath.includes('.') ? filePath.slice(filePath.lastIndexOf('.')).toLowerCase() : '';
+  if (ext === '.mkv') {
+    const converted = getConvertedPath(id);
+    if (converted && existsSync(converted)) filePath = converted;
+  }
+  return getDurationSecondsFromFile(filePath);
 }
