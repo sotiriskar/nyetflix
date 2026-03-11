@@ -144,16 +144,17 @@ Or: `docker compose up -d`. Open http://localhost:3000. To use your media folder
 
 ### Screenshots
 
-<img width="1900" height="900" alt="Screenshot 2026-03-03 155316" src="https://github.com/user-attachments/assets/9b0a0c36-8653-47b3-8c32-e4d25bd8d05c" />
+<img width="1900" height="900" alt="Home" src="https://github.com/user-attachments/assets/6a9842fe-c740-4c05-93cb-aebf80576f7e" />
 
-<img width="1900" height="900" alt="Screenshot 2026-03-02 233625" src="https://github.com/user-attachments/assets/2ba5fc95-736c-4ca1-8f4a-b1e59964d97e" />
+<img width="1900" height="900" alt="Carousel" src="https://github.com/user-attachments/assets/99421fa2-dd0f-488a-8fab-58205e038160" />
 
-<img width="1900" height="900" alt="Screenshot 2026-03-02 233710" src="https://github.com/user-attachments/assets/2539ce3d-783b-4b91-a345-a31af15ad803" />
+<img width="1900" height="900" alt="Modal" src="https://github.com/user-attachments/assets/195fb117-a9a6-423c-9fc0-62f908e10396" />
 
-<img width="1900" height="900" alt="Screenshot 2026-03-02 235303" src="https://github.com/user-attachments/assets/571d191a-879d-43af-9109-018a5be46e38" />
+<img width="1900" height="900" alt="Video" src="https://github.com/user-attachments/assets/2539ce3d-783b-4b91-a345-a31af15ad803" />
 
-<img width="1900" height="900" alt="Screenshot 2026-03-02 235432" src="https://github.com/user-attachments/assets/d7d43326-6723-4fe5-9b6a-bde298e62513" />
+<img width="1900" height="900" alt="Episode List" src="https://github.com/user-attachments/assets/571d191a-879d-43af-9109-018a5be46e38" />
 
+<img width="1900" height="900" alt="Settings" src="https://github.com/user-attachments/assets/d7d43326-6723-4fe5-9b6a-bde298e62513" />
 
 ### Troubleshooting
 
