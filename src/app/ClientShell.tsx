@@ -7,23 +7,32 @@ import { ProfileProvider, useProfile } from '@/context/ProfileContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { LibraryHandleProvider } from '@/context/LibraryHandleContext';
 import { ProgressProvider } from '@/context/ProgressContext';
+import { LibraryProvider } from '@/context/LibraryContext';
 import { TrailerMuteProvider } from '@/context/TrailerMuteContext';
 import { TrailerResumeProvider } from '@/context/TrailerResumeContext';
+import { MyListProvider } from '@/hooks/useMyList';
+import { LikedProvider } from '@/hooks/useLiked';
 
 function AppWithProviders({ children }: { children: React.ReactNode }) {
   return (
     <SettingsProvider>
       <LibraryHandleProvider>
-        <ProgressProvider>
-          <TrailerMuteProvider>
-          <TrailerResumeProvider>
-          <div className="min-h-screen bg-[#141414]">
-            <TopBar />
-            <main>{children}</main>
-          </div>
-          </TrailerResumeProvider>
-          </TrailerMuteProvider>
-        </ProgressProvider>
+        <LibraryProvider>
+          <ProgressProvider>
+            <MyListProvider>
+              <LikedProvider>
+                <TrailerMuteProvider>
+                  <TrailerResumeProvider>
+                    <div className="min-h-screen bg-[#141414]">
+                      <TopBar />
+                      <main>{children}</main>
+                    </div>
+                  </TrailerResumeProvider>
+                </TrailerMuteProvider>
+              </LikedProvider>
+            </MyListProvider>
+          </ProgressProvider>
+        </LibraryProvider>
       </LibraryHandleProvider>
     </SettingsProvider>
   );

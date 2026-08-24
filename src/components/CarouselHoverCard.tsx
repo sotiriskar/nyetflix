@@ -10,8 +10,10 @@ import VolumeOff from '@mui/icons-material/VolumeOff';
 import VolumeUp from '@mui/icons-material/VolumeUp';
 import Tooltip from '@mui/material/Tooltip';
 import type { CarouselItem } from '../types/movie';
+import { YouTubeTrailerHost } from '@/components/YouTubeTrailerHost';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
+import { buildTrailerPlayerVars, restartTrailerLoop, styleYoutubeTrailerIframe, YT_STATE_ENDED } from '@/lib/youtubeTrailer';
 
 const HOVER_OVERLAY_PLAYER_ID = 'hover-overlay-trailer';
 
@@ -80,7 +82,15 @@ export function CarouselHoverCard({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { setResume } = useTrailerResume();
-  const hoverYtPlayerRef = useRef<{ getCurrentTime: () => number; mute: () => void; unMute: () => void; destroy: () => void } | null>(null);
+  const hoverYtPlayerRef = useRef<{
+    getCurrentTime: () => number;
+    mute: () => void;
+    unMute: () => void;
+    destroy: () => void;
+    getIframe?: () => HTMLIFrameElement;
+    seekTo?: (s: number) => void;
+    playVideo?: () => void;
+  } | null>(null);
   const isMutedRef = useRef(isMuted);
   isMutedRef.current = isMuted;
 
@@ -186,27 +196,21 @@ export function CarouselHoverCard({
       const Player = w.YT.Player;
       const player = new Player(el, {
         videoId: item.trailerYouTubeId,
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          loop: 1,
-          rel: 0,
-          playlist: item.trailerYouTubeId,
-          disablekb: 1,
-          fs: 0,
-          start: 8,
-        },
+        playerVars: buildTrailerPlayerVars(),
         events: {
           onReady: () => {
+            const p = hoverYtPlayerRef.current;
+            const iframe = p?.getIframe?.();
+            if (iframe) styleYoutubeTrailerIframe(iframe);
             setTimeout(() => {
-              if (hoverYtPlayerRef.current?.unMute && !isMutedRef.current) {
-                hoverYtPlayerRef.current.unMute();
-              }
+              if (p?.unMute && !isMutedRef.current) p.unMute();
             }, 100);
           },
+          onStateChange: (e: { data: number }) => {
+            if (e.data === YT_STATE_ENDED) restartTrailerLoop(hoverYtPlayerRef.current);
+          },
         },
-      }) as { getCurrentTime: () => number; mute: () => void; unMute: () => void; destroy: () => void };
+      }) as NonNullable<typeof hoverYtPlayerRef.current>;
       hoverYtPlayerRef.current = player;
     };
     if ((window as Window & { YT?: { Player: unknown } }).YT?.Player) {
@@ -271,13 +275,7 @@ export function CarouselHoverCard({
     >
       <div className="relative aspect-video w-full bg-white/10 overflow-hidden rounded-t-md">
         {showTrailer && item.trailerYouTubeId ? (
-          <div className="absolute inset-0 overflow-hidden">
-            <div
-              id={HOVER_OVERLAY_PLAYER_ID}
-              className="absolute inset-0 w-full h-full pointer-events-none origin-center"
-              style={{ transform: 'scale(1.5)' }}
-            />
-          </div>
+          <YouTubeTrailerHost playerId={HOVER_OVERLAY_PLAYER_ID} />
         ) : (item.backdropUrl ?? item.posterUrl) ? (
           <img
             src={item.backdropUrl ?? item.posterUrl}
@@ -389,7 +387,7 @@ export function CarouselHoverCard({
         <div className="absolute inset-0 rounded-md overflow-hidden ring-1 ring-white/10 bg-white/10">
           {/* Trailer plays only in the overlay portal, not on the thumbnail — avoids double video/sound */}
           {(item.backdropUrl ?? item.posterUrl) ? (
-            <img src={item.backdropUrl ?? item.posterUrl} alt="" className="block size-full object-cover object-top" />
+            <img src={item.backdropUrl ?? item.posterUrl} alt="" loading="lazy" decoding="async" className="block size-full object-cover object-top" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="text-white/40 text-5xl font-bold select-none leading-none" aria-hidden>?</span>

@@ -1,5 +1,4 @@
- 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { useProfile } from '@/context/ProfileContext';
 
 const STORAGE_KEY_PREFIX = 'nyetflix-watch-progress';
@@ -39,19 +38,29 @@ function saveProgress(profileId: number, data: Record<string, ProgressEntry>) {
   }
 }
 
+/** Identity of the Continue Watching row — not the live fraction, so a 5s save doesn't rebuild every carousel. */
+function continueWatchingSignature(map: Record<string, ProgressEntry>): string {
+  return Object.entries(map)
+    .filter(([, entry]) => entry.progress > 0 && entry.progress < CONTINUE_WATCHING_MAX_PROGRESS)
+    .map(([id, entry]) => `${id}:${entry.lastEpisodeId ?? ''}`)
+    .sort()
+    .join('|');
+}
+
 export interface ProgressContextValue {
   getProgress: (itemId: string) => ProgressEntry | undefined;
   setProgress: (itemId: string, progress: number) => void;
   /** Remove item (or series) from continue watching. */
   clearProgress: (itemId: string) => void;
-  progressByItemId: Record<string, ProgressEntry>;
+  /** Changes when an item enters/leaves Continue Watching, not on every progress tick. */
+  continueWatchingRevision: string;
 }
 
 const defaultValue: ProgressContextValue = {
   getProgress: () => undefined,
   setProgress: () => {},
   clearProgress: () => {},
-  progressByItemId: {},
+  continueWatchingRevision: '',
 };
 
 const ProgressContext = createContext<ProgressContextValue>(defaultValue);
@@ -63,6 +72,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   );
   const profileIdRef = useRef(currentProfileId);
   profileIdRef.current = currentProfileId;
+  const progressRef = useRef(progressByItemId);
+  progressRef.current = progressByItemId;
 
   useEffect(() => {
     setProgressByItemId(currentProfileId != null ? loadProgressForProfile(currentProfileId) : {});
@@ -76,15 +87,19 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       lastWatchedAt: Date.now(),
       ...(itemId.startsWith('episode-') ? { lastEpisodeId: itemId } : undefined),
     };
-    setProgressByItemId((prev) => {
-      const next = { ...prev, [itemId]: entry };
-      const seriesMatch = itemId.match(/^episode-(.+)-S\d+-E\d+$/);
-      if (seriesMatch) {
-        const seriesId = seriesMatch[1];
-        next[seriesId] = { progress: p, lastWatchedAt: Date.now(), lastEpisodeId: itemId };
-      }
-      saveProgress(profileIdRef.current!, next);
-      return next;
+    // Writing storage and re-rendering every carousel is fine in the background;
+    // doing it synchronously on Close/Play starves the click that triggered it.
+    startTransition(() => {
+      setProgressByItemId((prev) => {
+        const next = { ...prev, [itemId]: entry };
+        const seriesMatch = itemId.match(/^episode-(.+)-S\d+-E\d+$/);
+        if (seriesMatch) {
+          const seriesId = seriesMatch[1];
+          next[seriesId] = { progress: p, lastWatchedAt: Date.now(), lastEpisodeId: itemId };
+        }
+        saveProgress(profileIdRef.current!, next);
+        return next;
+      });
     });
   }, []);
 
@@ -98,14 +113,16 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const getProgress = useCallback(
-    (itemId: string) => progressByItemId[itemId],
-    [progressByItemId]
+  const getProgress = useCallback((itemId: string) => progressRef.current[itemId], []);
+
+  const continueWatchingRevision = useMemo(
+    () => continueWatchingSignature(progressByItemId),
+    [progressByItemId],
   );
 
   const value = useMemo(
-    () => ({ getProgress, setProgress, clearProgress, progressByItemId }),
-    [getProgress, setProgress, clearProgress, progressByItemId]
+    () => ({ getProgress, setProgress, clearProgress, continueWatchingRevision }),
+    [getProgress, setProgress, clearProgress, continueWatchingRevision],
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;

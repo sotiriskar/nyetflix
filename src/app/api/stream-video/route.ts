@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import { Readable } from 'stream';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
+import { getVideoExt, getVideoMimeType } from '@/lib/videoMime';
 
 const itemIdToPath = registry.itemIdToPath;
 
@@ -12,26 +13,8 @@ export const runtime = 'nodejs';
 
 const statAsync = promisify(stat);
 
-const MIME_BY_EXT: Record<string, string> = {
-  '.mp4': 'video/mp4',
-  '.m4v': 'video/x-m4v',
-  '.webm': 'video/webm',
-  '.mkv': 'video/x-matroska',
-  '.avi': 'video/x-msvideo',
-  '.mov': 'video/quicktime',
-};
-
 /** Formats we allow streaming. MKV is streamed as-is; we convert to MP4+AAC in background for future plays. */
 const BROWSER_SAFE_EXT = new Set(['.mp4', '.m4v', '.webm', '.mov', '.mkv']);
-
-function getMime(path: string): string {
-  const ext = path.includes('.') ? path.slice(path.lastIndexOf('.')).toLowerCase() : '';
-  return MIME_BY_EXT[ext] ?? 'video/mp4';
-}
-
-function getExt(path: string): string {
-  return path.includes('.') ? path.slice(path.lastIndexOf('.')).toLowerCase() : '';
-}
 
 export async function GET(request: NextRequest) {
   let id = request.nextUrl.searchParams.get('id');
@@ -62,7 +45,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unknown or expired item. Rescan the library.' }, { status: 404 });
   }
 
-  const ext = getExt(filePath);
+  const ext = getVideoExt(filePath);
 
   // MKV: if we already have a converted MP4, stream that instead (so user gets sound).
   if (ext === '.mkv') {
@@ -80,7 +63,7 @@ export async function GET(request: NextRequest) {
   }
 
   // MKV with no converted file: must convert first via /api/convert-mkv
-  const effectiveExtNow = getExt(filePath);
+  const effectiveExtNow = getVideoExt(filePath);
   if (effectiveExtNow === '.mkv') {
     return NextResponse.json(
       { error: 'MKV must be converted first. Use /api/convert-mkv.' },
@@ -99,7 +82,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
-  const effectiveExt = getExt(filePath);
+  const effectiveExt = getVideoExt(filePath);
   if (!BROWSER_SAFE_EXT.has(effectiveExt)) {
     return NextResponse.json(
       { error: `Unsupported format .${effectiveExt.slice(1)}. Use MP4, MKV, or WebM.` },
@@ -108,7 +91,7 @@ export async function GET(request: NextRequest) {
   }
 
   const range = request.headers.get('range');
-  const mime = getMime(filePath);
+  const mime = getVideoMimeType(filePath);
 
   const onAbort = (nodeStream: ReturnType<typeof createReadStream>) => {
     if (!nodeStream.destroyed) nodeStream.destroy();

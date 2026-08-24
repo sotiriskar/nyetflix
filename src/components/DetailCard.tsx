@@ -14,11 +14,12 @@ import type { CarouselItem, MovieDetail, SeriesSeason, SeriesEpisode } from '../
 import { getContentRatingDescriptors, getContentRatingRecommendation } from '@/lib/contentRating';
 import { truncateToWords } from '@/lib/description';
 import { useProgress } from '@/context/ProgressContext';
+import { YouTubeTrailerHost } from '@/components/YouTubeTrailerHost';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
+import { buildTrailerPlayerVars, styleYoutubeTrailerIframe, YT_STATE_ENDED } from '@/lib/youtubeTrailer';
 
 const DETAIL_TRAILER_PLAYER_ID = 'detail-modal-trailer';
-const YT_PLAYER_ENDED = 0;
 
 interface DetailCardProps {
   detail: MovieDetail;
@@ -54,6 +55,7 @@ interface YTPlayer {
   unMute: () => void;
   destroy: () => void;
   seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
+  getIframe?: () => HTMLIFrameElement;
 }
 
 export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false, moreLikeThisItems, getDetailForId, onMoreLikeThisPlay, onMoreLikeThisAddClick, getIsInList }: DetailCardProps) {
@@ -122,28 +124,20 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
       const Player = w.YT.Player;
       const player = new Player(el, {
         videoId: trailerId,
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          loop: 0,
-          rel: 0,
-          modestbranding: 1,
-          disablekb: 1,
-          fs: 0,
-          start: 8,
-        },
+        playerVars: buildTrailerPlayerVars(),
         events: {
           onStateChange: (e: { data: number }) => {
-            if (e.data === YT_PLAYER_ENDED) setTrailerEnded(true);
+            if (e.data === YT_STATE_ENDED) setTrailerEnded(true);
           },
           onReady: () => {
             const p = ytPlayerRef.current as (YTPlayer & { unMute?: () => void; seekTo?: (s: number) => void }) | null;
-            if (p?.unMute && !isMutedRef.current) p.unMute();
+            const iframe = p?.getIframe?.();
+            if (iframe) styleYoutubeTrailerIframe(iframe);
             const resume = getAndClearResume();
             if (resume && resume.videoId === trailerId && resume.currentTime > 0 && p?.seekTo) {
               p.seekTo(resume.currentTime);
             }
+            if (p?.unMute && !isMutedRef.current) p.unMute();
           },
         },
       }) as YTPlayer & { getPlayerState?: () => number };
@@ -267,14 +261,7 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
         {/* Top: trailer (when available and not ended) or image / backdrop */}
         <div className="relative flex-shrink-0 aspect-video w-full bg-white/5 border-0 outline-none" style={{ border: 'none', outline: 'none' }}>
           {showTrailer ? (
-            <div className="absolute inset-0 w-full h-full overflow-hidden">
-              <div
-                id={DETAIL_TRAILER_PLAYER_ID}
-                className="absolute inset-0 w-full h-full origin-center"
-                style={{ transform: 'scale(1.5)' }}
-              />
-              <div className="absolute inset-0 w-full h-full z-[2] pointer-events-auto" aria-hidden />
-            </div>
+            <YouTubeTrailerHost playerId={DETAIL_TRAILER_PLAYER_ID} />
           ) : imageUrl ? (
             <img
               src={imageUrl}

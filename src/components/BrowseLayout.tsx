@@ -1,16 +1,6 @@
 'use client';
 
-import { useSettings } from '@/context/SettingsContext';
-import { useLibrary } from '@/hooks/useLibrary';
-import { LibraryContext } from '@/context/LibraryContext';
-
+/** Browse routes share the app-level LibraryProvider; this is just the page chrome wrapper. */
 export function BrowseLayout({ children }: { children: React.ReactNode }) {
-  const { moviesFolderPath } = useSettings();
-  const library = useLibrary(moviesFolderPath ?? '');
-
-  return (
-    <LibraryContext.Provider value={library}>
-      {children}
-    </LibraryContext.Provider>
-  );
+  return <>{children}</>;
 }

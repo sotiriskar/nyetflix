@@ -3,13 +3,10 @@ import { existsSync } from 'fs';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
+import { getVideoExt, getVideoMimeType, DEFAULT_VIDEO_MIME } from '@/lib/videoMime';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-function getExt(path: string): string {
-  return path.includes('.') ? path.slice(path.lastIndexOf('.')).toLowerCase() : '';
-}
 
 /** Returns the best playback URL for an item. MKV with ffmpeg → HLS (seek + correct duration). MP4 or converted → direct stream. */
 export async function GET(request: NextRequest) {
@@ -32,13 +29,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         url: `${request.nextUrl.origin}/api/stream-video?id=${encodeURIComponent(id)}`,
         type: 'video',
+        mimeType: DEFAULT_VIDEO_MIME,
         seekable: true,
       });
     }
     return NextResponse.json({ error: 'Unknown or expired item. Rescan the library.' }, { status: 404 });
   }
 
-  const ext = getExt(filePath);
+  const ext = getVideoExt(filePath);
 
   if (ext === '.mkv') {
     const converted = getConvertedPath(id);
@@ -46,6 +44,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         url: `${request.nextUrl.origin}/api/stream-video?id=${encodeURIComponent(id)}`,
         type: 'video',
+        mimeType: getVideoMimeType(converted),
         seekable: true,
       });
     }
@@ -63,6 +62,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     url: `${request.nextUrl.origin}/api/stream-video?id=${encodeURIComponent(id)}`,
     type: 'video',
+    mimeType: getVideoMimeType(filePath),
     seekable: true,
   });
 }

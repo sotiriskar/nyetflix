@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { VideoPlayerModal } from '@/components/VideoPlayerModal';
-import { useLibrary } from '@/hooks/useLibrary';
+import { useLibraryContext } from '@/context/LibraryContext';
 import { useProgress } from '@/context/ProgressContext';
 import { useSettings } from '@/context/SettingsContext';
 import { buildWatchUrl } from '@/lib/watchUrl';
@@ -12,9 +12,9 @@ export function WatchPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { subtitleLanguage, moviesFolderPath } = useSettings();
-  const { detailsMap } = useLibrary(moviesFolderPath ?? '');
-  const { progressByItemId } = useProgress();
+  const { subtitleLanguage } = useSettings();
+  const { detailsMap } = useLibraryContext();
+  const { getProgress } = useProgress();
 
   const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   let id = rawId;
@@ -36,11 +36,11 @@ export function WatchPage() {
     () => (itemId: string) => {
       const d = detailsMap[itemId];
       if (!d) return d;
-      const prog = progressByItemId[itemId];
+      const prog = getProgress(itemId);
       if (prog == null) return d;
       return { ...d, progress: prog.progress };
     },
-    [detailsMap, progressByItemId]
+    [detailsMap, getProgress]
   );
 
   const title = titleFromQuery ?? (id ? getDetail(id)?.title : undefined);
@@ -63,6 +63,22 @@ export function WatchPage() {
     router.replace(target);
   }, [isSeriesEpisode, router]);
 
+  const getSeriesTitle = useCallback(
+    (seriesItemId: string) => getDetail(seriesItemId)?.title ?? null,
+    [getDetail],
+  );
+
+  const handlePlayEpisode = useCallback(
+    (episodeId: string, episodeTitle?: string, subtitleLangs?: string[], seriesTitleParam?: string) => {
+      router.push(buildWatchUrl(episodeId, {
+        title: episodeTitle ?? undefined,
+        seriesTitle: seriesTitleParam ?? undefined,
+        subs: subtitleLangs,
+      }));
+    },
+    [router],
+  );
+
   if (!id) {
     return (
       <div className="min-h-screen bg-[#141414] flex items-center justify-center">
@@ -79,15 +95,9 @@ export function WatchPage() {
       preferredSubtitleLang={subtitleLanguage}
       message={null}
       onClose={handleClose}
-      onPlayEpisode={(episodeId, episodeTitle, subtitleLangs, seriesTitleParam) => {
-        router.push(buildWatchUrl(episodeId, {
-          title: episodeTitle ?? undefined,
-          seriesTitle: seriesTitleParam ?? undefined,
-          subs: subtitleLangs,
-        }));
-      }}
+      onPlayEpisode={handlePlayEpisode}
       seriesTitle={seriesTitle ?? undefined}
-      getSeriesTitle={(itemId) => getDetail(itemId)?.title ?? null}
+      getSeriesTitle={getSeriesTitle}
     />
   );
 }

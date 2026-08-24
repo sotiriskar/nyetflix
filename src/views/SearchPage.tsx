@@ -7,7 +7,7 @@ import type { MovieDetail } from '@/types/movie';
 import { CarouselHoverCard } from '@/components/CarouselHoverCard';
 import { DetailCard } from '@/components/DetailCard';
 import { LibraryRefreshButton } from '@/components/LibraryRefreshButton';
-import { useLibrary } from '@/hooks/useLibrary';
+import { useLibraryContext } from '@/context/LibraryContext';
 import { useLiked } from '@/hooks/useLiked';
 import { useMyList } from '@/hooks/useMyList';
 import { useSettings } from '@/context/SettingsContext';
@@ -21,10 +21,10 @@ export function SearchPage() {
   const searchParams = useSearchParams();
   const q = (searchParams.get('q') ?? '').trim();
   const { moviesFolderPath } = useSettings();
-  const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibrary(moviesFolderPath);
+  const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibraryContext();
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
-  const { progressByItemId, getProgress } = useProgress();
+  const { getProgress, continueWatchingRevision } = useProgress();
   const [selectedItem, setSelectedItem] = useState<CarouselItem | null>(null);
 
   const handlePlay = useCallback(
@@ -54,13 +54,14 @@ export function SearchPage() {
 
   const getDetail = useMemo(
     () => (id: string): MovieDetail | undefined => {
+      void continueWatchingRevision;
       const d = detailsMap[id];
       if (!d) return d;
-      const prog = progressByItemId[id];
+      const prog = getProgress(id);
       if (prog == null) return d;
       return { ...d, progress: prog.progress };
     },
-    [detailsMap, progressByItemId]
+    [detailsMap, getProgress, continueWatchingRevision]
   );
 
   const results = useMemo(() => {

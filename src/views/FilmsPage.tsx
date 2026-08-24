@@ -76,8 +76,15 @@ export function FilmsPage() {
   const { carousels: libraryCarousels, detailsMap, loading, error, clearError, refresh, updateItemDetail } = useLibraryContext();
   const { toggle: toggleMyList, has: isInMyList } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
-  const { progressByItemId, getProgress, clearProgress } = useProgress();
+  const { getProgress, clearProgress, continueWatchingRevision } = useProgress();
   const [selectedItem, setSelectedItem] = useState<CarouselItem | null>(null);
+
+  const fetchItemDetail = useCallback(async (id: string, title: string) => {
+    const res = await fetch('/api/item-metadata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, title }) });
+    if (!res.ok) return;
+    const patch = (await res.json()) as Partial<MovieDetail>;
+    if (patch && (patch.description ?? patch.tagline ?? patch.backdropUrl ?? patch.posterUrl)) updateItemDetail(id, patch);
+  }, [updateItemDetail]);
 
   const handlePlay = useCallback(
     (item: CarouselItem) => {
@@ -106,13 +113,14 @@ export function FilmsPage() {
 
   const getDetail = useMemo(
     () => (id: string): MovieDetail | undefined => {
+      void continueWatchingRevision;
       const d = detailsMap[id];
       if (!d) return d;
-      const prog = progressByItemId[id];
+      const prog = getProgress(id);
       if (prog == null) return d;
       return { ...d, progress: prog.progress };
     },
-    [detailsMap, progressByItemId]
+    [detailsMap, getProgress, continueWatchingRevision]
   );
 
   const detail: MovieDetail | undefined = selectedItem
@@ -134,6 +142,7 @@ export function FilmsPage() {
 
   const { heroItem, carousels } = useMemo(() => {
     if (movieItems.length === 0) return { heroItem: null as CarouselItem | null, carousels: [] as { title: string; items: CarouselItem[] }[] };
+    void continueWatchingRevision;
     const allItems = libraryCarousels[0]?.items ?? [];
     const homeHeroId = allItems.length >= 2 ? allItems[allItems.length - 2].id : undefined;
     const result = buildCarousels({
@@ -142,7 +151,7 @@ export function FilmsPage() {
         const s = detailsMap[id]?.genres;
         return s ? s.split(',').map((g) => g.trim()).filter(Boolean) : undefined;
       },
-      getProgress: (id) => progressByItemId[id],
+      getProgress: (id) => getProgress(id),
       isContinueWatching: (p) => p > 0 && p < CONTINUE_WATCHING_MAX_PROGRESS,
       heroPosition: 'last',
       excludeHeroId: homeHeroId,
@@ -152,7 +161,7 @@ export function FilmsPage() {
       ? [...result.carousels, { title: 'My List', items: myListItems }]
       : result.carousels;
     return { heroItem: result.heroItem, carousels };
-  }, [movieItems, libraryCarousels, detailsMap, progressByItemId, isInMyList]);
+  }, [movieItems, libraryCarousels, detailsMap, getProgress, continueWatchingRevision, isInMyList]);
 
   const showSkeleton = !hasLibraryData;
 
@@ -200,12 +209,7 @@ export function FilmsPage() {
             onPlay={handlePlay}
             getMovieDetail={getDetail}
             pageTitle="Films"
-            onFetchItemDetail={async (id, title) => {
-              const res = await fetch('/api/item-metadata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, title }) });
-              if (!res.ok) return;
-              const patch = (await res.json()) as Partial<import('@/types/movie').MovieDetail>;
-              if (patch && (patch.description ?? patch.tagline ?? patch.backdropUrl ?? patch.posterUrl)) updateItemDetail(id, patch);
-            }}
+            onFetchItemDetail={fetchItemDetail}
           />
           <div className="relative z-10 -mt-24 pt-0">
             {displayCarousels[0] && (

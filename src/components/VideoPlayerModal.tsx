@@ -12,6 +12,7 @@ import {
   formatTime,
   useMediaState,
   useMediaRemote,
+  useMediaPlayer,
 } from '@vidstack/react';
 import {
   defaultLayoutIcons,
@@ -26,6 +27,24 @@ import { LIBRARY_HANDLE_MODE } from '@/context/LibraryHandleContext';
 import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 import type { ProgressEntry } from '@/context/ProgressContext';
 import { LANG_LABELS as SHARED_LANG_LABELS } from '@/lib/subtitleLabels';
+import { useLibraryContextOrNull } from '@/context/LibraryContext';
+import { playerVolumeStorage, setPersistPlayerMute } from '@/lib/playerVolumeStorage';
+import { CastButton } from './CastButton';
+import { CastingOverlay } from './CastingOverlay';
+import {
+  getCastStatus,
+  initGoogleCast,
+  subscribeToCast,
+  type CastStatus,
+  type CastTextTrack,
+} from '@/lib/googleCast';
+
+/** Video MIME types Vidstack recognises. Everything we stream is one of these containers. */
+type PlayableVideoMime = 'video/mp4' | 'video/webm';
+
+function toPlayableMime(mimeType: string | undefined): PlayableVideoMime {
+  return mimeType === 'video/webm' ? 'video/webm' : 'video/mp4';
+}
 
 const SAVE_INTERVAL_MS = 5000;
 /** Match Vidstack default layout: hide controls after this many ms of no pointer movement. */
@@ -37,12 +56,15 @@ function ProgressSync({
   streamStartOffset,
   onSave,
   overrideDurationSeconds,
+  suppress,
 }: {
   itemId: string;
   initialProgress: number;
   streamStartOffset: number;
   onSave: (itemId: string, progress: number) => void;
   overrideDurationSeconds?: number | null;
+  /** TV owns the clock while casting; don't overwrite that with the paused local time. */
+  suppress?: boolean;
 }) {
   const currentTime = useMediaState('currentTime');
   const duration = useMediaState('duration');
@@ -92,87 +114,131 @@ function ProgressSync({
   }
 
   useEffect(() => {
-    if (fullDuration <= 0) return;
+    if (suppress || fullDuration <= 0) return;
     const progress = effectiveCurrentTime / fullDuration;
     const now = Date.now();
     if (progress > 0 && progress < 1 && now - lastSaved.current >= SAVE_INTERVAL_MS) {
       lastSaved.current = now;
       onSave(itemId, progress);
     }
-  }, [effectiveCurrentTime, fullDuration, itemId, onSave]);
+  }, [effectiveCurrentTime, fullDuration, itemId, onSave, suppress]);
 
   useEffect(() => {
     return () => {
+      if (suppress) return;
       const p = latestProgress.current;
       if (p > 0 && p < 1) onSave(itemId, p);
     };
-  }, [itemId, onSave]);
+  }, [itemId, onSave, suppress]);
 
   return null;
 }
 
-/** Syncs display current time to parent so the layout slot shows 0 at start and advances when stream reports "at end". Runs inside MediaProvider. */
-function DisplayTimeSync({
+/**
+ * Current-time label that lives in the control-bar slot. Must not lift time into the modal:
+ * Vidstack updates currentTime often, and a parent setState re-renders the whole player
+ * (and starves Play / Close clicks for seconds).
+ */
+function DisplayCurrentTime({
   apiDuration,
   streamStartOffset,
-  onDisplayTimeChange,
 }: {
   apiDuration: number | null;
   streamStartOffset: number;
-  onDisplayTimeChange: (t: number) => void;
 }) {
   const currentTime = useMediaState('currentTime');
   const duration = useMediaState('duration');
   const playing = useMediaState('playing');
   const hasSeenLowCurrentTime = useRef(false);
-  const playStartRef = useRef<number>(0);
   const [tick, setTick] = useState(0);
 
   const effectiveCurrentTime = currentTime + streamStartOffset;
   const max = apiDuration ?? (duration > 0 ? duration + streamStartOffset : 0);
 
-  useEffect(() => {
-    if (max > 10 && effectiveCurrentTime > 1 && effectiveCurrentTime < max - 10) hasSeenLowCurrentTime.current = true;
-    const bogusAtEnd = max > 0 && effectiveCurrentTime >= max - 0.5 && !hasSeenLowCurrentTime.current;
+  if (max > 10 && effectiveCurrentTime > 1 && effectiveCurrentTime < max - 10) {
+    hasSeenLowCurrentTime.current = true;
+  }
+  const bogusAtEnd = max > 0 && effectiveCurrentTime >= max - 0.5 && !hasSeenLowCurrentTime.current;
 
-    if (bogusAtEnd) {
-      if (playing && playStartRef.current === 0) playStartRef.current = Date.now();
-      if (!playing) playStartRef.current = 0;
-      const display = playing && playStartRef.current
-        ? Math.min(streamStartOffset + (Date.now() - playStartRef.current) / 1000, max)
-        : streamStartOffset;
-      onDisplayTimeChange(display);
-    } else {
-      playStartRef.current = 0;
-      onDisplayTimeChange(Math.min(Math.max(0, effectiveCurrentTime), max || effectiveCurrentTime || 0));
+  useEffect(() => {
+    if (!playing || !bogusAtEnd) {
+      setTick(0);
+      return;
     }
-  }, [effectiveCurrentTime, duration, apiDuration, playing, streamStartOffset, onDisplayTimeChange, tick, max]);
-
-  useEffect(() => {
-    if (!playing) return;
-    const bogusAtEnd = max > 0 && effectiveCurrentTime >= max - 0.5 && !hasSeenLowCurrentTime.current;
-    if (!bogusAtEnd) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
-  }, [playing, effectiveCurrentTime, duration, apiDuration, max]);
+  }, [playing, bogusAtEnd]);
 
-  return null;
+  let display = Math.min(Math.max(0, effectiveCurrentTime), max || effectiveCurrentTime || 0);
+  if (bogusAtEnd) {
+    display = playing ? Math.min(streamStartOffset + tick, max) : streamStartOffset;
+  }
+
+  return (
+    <span className="vds-time" role="status" aria-label="Current time">
+      {formatTime(display)}
+    </span>
+  );
 }
 
 /** Ensures volume is on and not muted (browser autoplay can force mute). */
-function EnsureUnmuted() {
+function EnsureUnmuted({ silenceLocal }: { silenceLocal?: boolean }) {
   const remote = useMediaRemote();
   const muted = useMediaState('muted');
   const volume = useMediaState('volume');
 
   useEffect(() => {
+    if (silenceLocal) return;
     if (muted || volume < 0.01) {
       remote.unmute();
     }
-  }, [muted, volume, remote]);
+  }, [muted, volume, remote, silenceLocal]);
 
   return null;
 }
+
+/**
+ * While the TV is playing, the browser must not: pause + mute it, and if autoplay fights
+ * back, pause again. When the session ends, seek to the TV's last time and continue.
+ */
+function CastLocalHold({
+  held,
+  getResumeSeconds,
+}: {
+  held: boolean;
+  getResumeSeconds: () => number;
+}) {
+  const remote = useMediaRemote();
+  const player = useMediaPlayer();
+  const playing = useMediaState('playing');
+  const wasHeld = useRef(false);
+
+  useEffect(() => {
+    setPersistPlayerMute(!held);
+    if (held) {
+      wasHeld.current = true;
+      remote.pause();
+      remote.mute();
+      return;
+    }
+    if (!wasHeld.current) return;
+    wasHeld.current = false;
+    const resume = getResumeSeconds();
+    if (resume > 1) remote.seek(resume);
+    remote.unmute();
+    void remote.play();
+  }, [held, remote, getResumeSeconds]);
+
+  useEffect(() => {
+    if (!held || !playing) return;
+    remote.pause();
+    const video = player?.el?.querySelector('video');
+    video?.pause();
+  }, [held, playing, remote, player]);
+
+  return null;
+}
+
 
 /** When preference is "off", disable captions so no subtitles show. */
 function CaptionDisabler() {
@@ -366,11 +432,12 @@ function trackMatchesPreferred(trackLang: string, preferred: string | undefined)
 export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSubtitleLang, message, onClose, onPlayEpisode, seriesTitle, getSeriesTitle }: VideoPlayerModalProps) {
   const [streamUrl, setStreamUrl] = useState('');
   const [streamType, setStreamType] = useState<'video' | 'hls'>('video');
+  /** Container type of the stream. Vidstack needs it to pick a provider and to tell a Cast receiver what it's playing. */
+  const [streamMimeType, setStreamMimeType] = useState<PlayableVideoMime>('video/mp4');
   /** Which itemId the current streamUrl is for – only show player when this matches itemId so we never reuse old stream for new episode. */
   const [streamForItemId, setStreamForItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
-  const [displayCurrentTime, setDisplayCurrentTime] = useState(0);
   const [conversionProgress, setConversionProgress] = useState<number | null>(null);
   // Only the setters are used (for UI), so ignore state values.
   const [, setConversionCurrentTime] = useState(0);
@@ -383,10 +450,27 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const [subtitleTracks, setSubtitleTracks] = useState<Array<{ lang: string; label: string; src: string }> | null>(null);
   /** Sync with player controls: hide close button after same idle delay as DefaultVideoLayout. */
   const [closeButtonVisible, setCloseButtonVisible] = useState(true);
+  /** Live receiver state; null until the Cast SDK reports it can run here. */
+  const [castStatus, setCastStatus] = useState<CastStatus | null>(null);
+  /** True from the cast click until the session ends, including the device-picker wait. */
+  const [castIntent, setCastIntent] = useState(false);
+  /** True only after this session actually loaded media on the TV — cancel must not seek. */
+  const sessionPlayedOnTvRef = useRef(false);
+  const lastCastTimeRef = useRef(0);
+  const lastCastSaveRef = useRef(0);
   const closeButtonIdleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Episodes for a series — survives panel close so reopening doesn't refetch. */
+  const seriesEpisodesCacheRef = useRef(new Map<string, SeriesSeason[]>());
+  const seriesTitleRef = useRef(seriesTitle);
+  const titleRef = useRef(title);
+  const getSeriesTitleRef = useRef(getSeriesTitle);
+  seriesTitleRef.current = seriesTitle;
+  titleRef.current = title;
+  getSeriesTitleRef.current = getSeriesTitle;
   const showModal = !!itemId || !!message;
   const seriesId = itemId ? (itemId.match(/^episode-(.+)-S\d+-E\d+$/) ?? null)?.[1] ?? null : null;
   const { getProgress, setProgress } = useProgress();
+  const library = useLibraryContextOrNull();
   const { moviesFolderPath } = useSettings();
   const { getPlaybackUrl } = useLibraryHandle();
   const isHandleMode = moviesFolderPath === LIBRARY_HANDLE_MODE;
@@ -398,6 +482,73 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     onPlayEpisodeRef.current?.(epId, epTitle, subs, seriesTitle);
   }).current;
   const streamReadyForCurrentItem = !!streamUrl && streamForItemId === itemId;
+
+  const itemIdRef = useRef(itemId);
+  itemIdRef.current = itemId;
+
+  /**
+   * The receiver reports a new status roughly every second. Keeping that in React state, or
+   * saving progress on each one, re-renders the page behind the modal and rewrites stored
+   * progress once a second — enough main-thread work that the next click lands seconds late.
+   * So only session-level changes go to state; the live clock lives in refs and the overlay.
+   */
+  const handleCastStatus = useCallback(
+    (next: CastStatus) => {
+      if (next.currentTime > 0.5) lastCastTimeRef.current = next.currentTime;
+      if (next.mediaLoaded) sessionPlayedOnTvRef.current = true;
+
+      const id = itemIdRef.current;
+      const now = Date.now();
+      if (
+        id &&
+        next.state === 'connected' &&
+        next.duration > 0 &&
+        now - lastCastSaveRef.current >= SAVE_INTERVAL_MS
+      ) {
+        const progress = next.currentTime / next.duration;
+        if (progress > 0 && progress < 1) {
+          lastCastSaveRef.current = now;
+          setProgress(id, progress);
+        }
+      }
+
+      setCastStatus((prev) =>
+        prev &&
+        prev.state === next.state &&
+        prev.deviceName === next.deviceName &&
+        prev.mediaLoaded === next.mediaLoaded
+          ? prev
+          : next,
+      );
+    },
+    [setProgress],
+  );
+
+  useEffect(() => {
+    if (castStatus?.state === 'disconnected' || castStatus?.state === 'unavailable') {
+      setCastIntent(false);
+    }
+  }, [castStatus?.state]);
+
+  // Google Cast needs a LAN-reachable URL, which handle mode (blob URLs) can never provide.
+  useEffect(() => {
+    if (isHandleMode || !showModal) return;
+    let unsubscribe: (() => void) | undefined;
+    let active = true;
+    initGoogleCast().then((ready) => {
+      if (!ready || !active) return;
+      unsubscribe = subscribeToCast(handleCastStatus);
+    });
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [isHandleMode, showModal, handleCastStatus]);
+
+  const getCastResumeSeconds = useCallback(
+    () => (sessionPlayedOnTvRef.current ? lastCastTimeRef.current : 0),
+    [],
+  );
 
   // Fetch combined subtitle tracks (external + embedded). When API returns empty we fall back to subtitleLanguages below.
   useEffect(() => {
@@ -451,12 +602,12 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     setEpisodesPanelOpen(false);
     setSeriesEpisodes(null);
     setDurationSeconds(null);
-    setDisplayCurrentTime(0);
     setConversionProgress(null);
     setConversionError(null);
     setStreamUrl('');
     setStreamForItemId(null);
     setStreamType('video');
+    setStreamMimeType('video/mp4');
     const origin = window.location.origin;
     const fallbackUrl = `${origin}/api/stream-video?id=${encodeURIComponent(itemId)}`;
     const requestedItemId = itemId;
@@ -485,9 +636,10 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           setError(data.error);
           return;
         }
-        const applyUrl = (url: string, type: 'video' | 'hls') => {
+        const applyUrl = (url: string, type: 'video' | 'hls', mimeType?: string) => {
           setStreamUrl(url);
           setStreamType(type);
+          setStreamMimeType(toPlayableMime(mimeType));
           setStreamForItemId(requestedItemId);
         };
         if (data?.needsConversion && data?.convertUrl) {
@@ -507,7 +659,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                   .then((src) => {
                     if (src?.url) {
                       const url = src.url.startsWith('http') ? src.url : `${origin}${src.url.startsWith('/') ? '' : '/'}${src.url}`;
-                      applyUrl(url, (src.type ?? 'video') === 'hls' ? 'hls' : 'video');
+                      applyUrl(url, (src.type ?? 'video') === 'hls' ? 'hls' : 'video', src.mimeType);
                     } else {
                       setConversionError(src?.error ?? 'Could not start playback after conversion.');
                     }
@@ -536,7 +688,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         }
         if (data?.url) {
           const url = data.url.startsWith('http') ? data.url : `${origin}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
-          applyUrl(url, (data.type ?? 'video') === 'hls' ? 'hls' : 'video');
+          applyUrl(url, (data.type ?? 'video') === 'hls' ? 'hls' : 'video', data.mimeType);
         } else {
           applyUrl(fallbackUrl, 'video');
         }
@@ -546,16 +698,24 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         setStreamType('video');
         setStreamForItemId(requestedItemId);
       });
-    fetch(`${origin}/api/video-duration?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => data?.durationSeconds != null && data.durationSeconds > 0 && setDurationSeconds(Number(data.durationSeconds)))
-      .catch(() => {});
+    const durationLabel = library?.detailsMap[itemId]?.duration;
+    const cachedMinutes = durationLabel?.match(/^(\d+)m$/) ? Number(durationLabel.slice(0, -1)) : NaN;
+    if (Number.isFinite(cachedMinutes) && cachedMinutes > 0) {
+      setDurationSeconds(cachedMinutes * 60);
+    } else {
+      fetch(`${origin}/api/video-duration?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => data?.durationSeconds != null && data.durationSeconds > 0 && setDurationSeconds(Number(data.durationSeconds)))
+        .catch(() => {});
+    }
     return () => {
       if (conversionEsRef.current) {
         conversionEsRef.current.close();
         conversionEsRef.current = null;
       }
     };
+    // Duration from the already-loaded library is a one-shot hint; don't re-run this when detailsMap hydrates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId, isHandleMode, getPlaybackUrl]);
 
   // When playing a series episode, fetch next episode so we can show "Next episode" button
@@ -581,19 +741,41 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       .catch(() => setNextEpisode(null));
   }, [itemId]);
 
-  // When episodes panel opens, fetch full series episode list. Only depend on panel open and seriesId
-  // so prop changes (seriesTitle, title, getSeriesTitle) don't clear the list and cause loading flicker.
+  // Fetch once per series when the panel opens. Title props are read from refs so parent
+  // re-renders (unstable getSeriesTitle, progress ticks) don't wipe the list and refetch.
   useEffect(() => {
     if (!episodesPanelOpen || !seriesId || typeof window === 'undefined') return;
+
+    const cached = seriesEpisodesCacheRef.current.get(seriesId);
+    if (cached) {
+      setSeriesEpisodes(cached);
+      return;
+    }
+
+    let cancelled = false;
     setSeriesEpisodes(null);
     const origin = window.location.origin;
-    const showTitle = seriesTitle ?? (seriesId && getSeriesTitle?.(seriesId)) ?? title ?? '';
+    const showTitle =
+      seriesTitleRef.current ??
+      getSeriesTitleRef.current?.(seriesId) ??
+      titleRef.current ??
+      '';
     const titleParam = showTitle ? `&title=${encodeURIComponent(showTitle)}` : '';
     fetch(`${origin}/api/series-episodes?id=${encodeURIComponent(seriesId)}${titleParam}`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => (data?.seasons ? setSeriesEpisodes(data.seasons) : setSeriesEpisodes([])))
-      .catch(() => setSeriesEpisodes([]));
-  }, [episodesPanelOpen, seriesId, getSeriesTitle, seriesTitle, title]);
+      .then((data) => {
+        if (cancelled) return;
+        const seasons: SeriesSeason[] = data?.seasons ?? [];
+        seriesEpisodesCacheRef.current.set(seriesId, seasons);
+        setSeriesEpisodes(seasons);
+      })
+      .catch(() => {
+        if (!cancelled) setSeriesEpisodes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [episodesPanelOpen, seriesId]);
 
   // Reset close button visibility when starting playback; start hide timer to match player controls; clear on cleanup.
   useEffect(() => {
@@ -616,12 +798,14 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   }, []);
 
   const handlePointerMoveForControls = useCallback(() => {
-    setCloseButtonVisible(true);
+    setCloseButtonVisible((visible) => (visible ? visible : true));
     scheduleCloseButtonHide();
   }, [scheduleCloseButtonHide]);
 
   const handleError = () => {
     if (!streamUrl) return;
+    // While casting the TV owns playback; tearing the player down here would end the session.
+    if (castConnected) return;
     fetch(streamUrl, { method: 'GET', headers: { Range: 'bytes=0-0' }, credentials: 'same-origin' })
       .then((r) => {
         if (r.status === 404) {
@@ -670,11 +854,35 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         })
       : rawTracks;
 
+  // Keep the browser on the page origin. Rewriting to a LAN IP when discovery finishes
+  // remounts the media element and makes Play feel like it hung for several seconds.
+  const playerSrc = isHandleMode
+    ? streamUrl
+    : streamType === 'hls'
+      ? { src: streamUrl, type: 'application/vnd.apple.mpegurl' as const }
+      : { src: streamUrl, type: streamMimeType };
+
   // Only enable captions by default when the preferred language track exists; otherwise keep off
   const preferredTrackExists =
     preferredSubtitleLang != null &&
     preferredSubtitleLang !== 'off' &&
     rawTracks.some((t) => trackMatchesPreferred(t.lang, preferredSubtitleLang));
+
+  const castConnected = castStatus?.state === 'connected';
+  const castHeld =
+    castIntent || castStatus?.state === 'connecting' || castStatus?.state === 'connected';
+  const castAvailable = !isHandleMode && !!castStatus && castStatus.state !== 'unavailable' && !!streamUrl;
+  const castTracks: CastTextTrack[] = tracks.map((t, i) => ({
+    id: i + 1,
+    url: t.src,
+    lang: t.lang,
+    label: t.label,
+  }));
+  const castActiveTrackIds = preferredTrackExists && castTracks.length > 0 ? [castTracks[0].id] : [];
+  const resumeSeconds =
+    durationSeconds != null && durationSeconds > 0 && initialProgress > 0 && initialProgress < 1
+      ? initialProgress * durationSeconds
+      : 0;
 
   // In the control bar: for series always "Show Name • S1 E2" (same whether from Play or Episodes list). Only add short episode name, never the long "Show – S1:E1 Episode 1" format from DetailCard.
   const episodeMatch = itemId?.match(/S(\d+)-E(\d+)/);
@@ -772,23 +980,20 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         <div className="relative w-full h-full">
         <MediaPlayer
           key={itemId}
-          src={streamType === 'hls' ? { src: streamUrl, type: 'application/vnd.apple.mpegurl' as const } : streamUrl}
-          autoPlay
+          src={playerSrc}
+          autoPlay={!castHeld}
           playsInline
-          muted={false}
-          volume={1}
+          muted={castHeld}
+          storage={playerVolumeStorage}
+          logLevel="warn"
           duration={durationSeconds ?? undefined}
           className="w-full h-full"
           title={displayTitle}
           onError={handleError}
         >
           <MediaProvider>
-            <EnsureUnmuted />
-            <DisplayTimeSync
-              apiDuration={durationSeconds}
-              streamStartOffset={0}
-              onDisplayTimeChange={setDisplayCurrentTime}
-            />
+            <EnsureUnmuted silenceLocal={castHeld} />
+            <CastLocalHold held={castHeld} getResumeSeconds={getCastResumeSeconds} />
             {itemId && (
               <ProgressSync
                 itemId={itemId}
@@ -796,6 +1001,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                 streamStartOffset={0}
                 onSave={setProgress}
                 overrideDurationSeconds={durationSeconds}
+                suppress={castHeld}
               />
             )}
             {(() => {
@@ -823,9 +1029,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
             colorScheme="dark"
             slots={{
               currentTime: (
-                <span className="vds-time" role="status" aria-label="Current time">
-                  {formatTime(displayCurrentTime)}
-                </span>
+                <DisplayCurrentTime apiDuration={durationSeconds} streamStartOffset={0} />
               ),
               endTime:
                 durationSeconds != null && durationSeconds > 0 ? (
@@ -835,6 +1039,28 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                 ) : (
                   <Time type="duration" />
                 ),
+              // Our own sender, so we control autoplay and start time. Can't use the
+              // googleCastButton slot: the layout looks that one up under a mangled key.
+              beforeFullscreenButton: castAvailable ? (
+                <CastButton
+                  url={streamUrl}
+                  contentType={streamMimeType}
+                  title={displayTitle}
+                  tracks={castTracks}
+                  activeTrackIds={castActiveTrackIds}
+                  resumeSeconds={resumeSeconds}
+                  connected={!!castConnected}
+                  onHandoffStart={() => {
+                    sessionPlayedOnTvRef.current = false;
+                    setCastIntent(true);
+                  }}
+                  onHandoffCancel={() => {
+                    sessionPlayedOnTvRef.current = false;
+                    setCastIntent(false);
+                  }}
+                  onError={setError}
+                />
+              ) : undefined,
               afterMuteButton:
                 seriesId && onPlayEpisode ? (
                   <div className="vds-button-group flex items-center gap-0.5">
@@ -863,6 +1089,16 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
             }}
           />
         </MediaPlayer>
+        {castConnected && (
+          <CastingOverlay
+            title={displayTitle}
+            onStopped={(tvTime) => {
+              if (tvTime > 0.5) lastCastTimeRef.current = tvTime;
+              setCastIntent(false);
+              setCastStatus(getCastStatus());
+            }}
+          />
+        )}
         </div>
       )}
       {/* Episodes list panel (series only) - memoized to avoid flicker from display time updates */}

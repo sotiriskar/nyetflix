@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { CarouselItem } from '@/types/movie';
 import type { MovieDetail } from '@/types/movie';
 import { useProfile } from '@/context/ProfileContext';
@@ -164,10 +164,10 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
       setDetailsMap(cached.detailsMap);
       setLoading(false);
       setError(null);
-    } else {
-      setLoading(true);
-      setError(null);
+      return;
     }
+    setLoading(true);
+    setError(null);
 
     let pathToUse = path;
     if (forceRefresh && currentProfileId != null) {
@@ -236,10 +236,18 @@ export function useLibrary(folderPath: string | undefined): UseLibraryResult {
     setDetailsMap((prev) => {
       const existing = prev[id];
       const next = { ...prev, [id]: { ...(existing ?? { id, title: '' }), ...patch } };
-      if (path) writeCache(path, carousels, next);
+      if (path) {
+        const snapshot = carousels;
+        const persist = () => writeCache(path, snapshot, next);
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(persist);
+        else setTimeout(persist, 0);
+      }
       return next;
     });
   }, [path, carousels]);
 
-  return { carousels, detailsMap, loading, error, refresh, clearError, updateItemDetail };
+  return useMemo(
+    () => ({ carousels, detailsMap, loading, error, refresh, clearError, updateItemDetail }),
+    [carousels, detailsMap, loading, error, refresh, clearError, updateItemDetail],
+  );
 }

@@ -17,3 +17,32 @@ body {
   color: #fff;
   font-family: var(--font-app, "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif);
 }
+
+/* YouTube background trailers: crop iframe to push UI off-screen; shield blocks hover. */
+.yt-trailer-host {
+  pointer-events: none;
+}
+
+.yt-trailer-host .yt-trailer-shield {
+  pointer-events: auto;
+  background: transparent;
+  cursor: default;
+}
+
+/* We ship our own cast button, so hide the player library's. */
+.vds-google-cast-button {
+  display: none !important;
+}
+
+.yt-trailer-host iframe {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 300%;
+  height: 100%;
+  transform: translateX(-50%);
+  border: 0 !important;
+  outline: none !important;
+  pointer-events: none !important;
+  max-width: none;
+}

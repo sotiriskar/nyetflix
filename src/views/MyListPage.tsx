@@ -80,7 +80,7 @@ export function MyListPage() {
   const { carousels: libraryCarousels, detailsMap, loading, error, refresh } = useLibraryContext();
   const { list, toggle, has, getAddedAt } = useMyList();
   const { toggle: toggleLiked, has: isLiked } = useLiked();
-  const { progressByItemId, getProgress } = useProgress();
+  const { getProgress, continueWatchingRevision } = useProgress();
   const [sortBy, setSortBy] = useState<SortBy>('alphabetical');
   const [selectedItem, setSelectedItem] = useState<CarouselItem | null>(null);
 
@@ -111,13 +111,14 @@ export function MyListPage() {
 
   const getDetail = useMemo(
     () => (id: string): MovieDetail | undefined => {
+      void continueWatchingRevision;
       const d = detailsMap[id];
       if (!d) return d;
-      const prog = progressByItemId[id];
+      const prog = getProgress(id);
       if (prog == null) return d;
       return { ...d, progress: prog.progress };
     },
-    [detailsMap, progressByItemId]
+    [detailsMap, getProgress, continueWatchingRevision]
   );
 
   const listIds = useMemo(() => new Set(list.map((e) => e.id)), [list]);

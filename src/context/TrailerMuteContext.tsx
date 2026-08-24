@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 
 type TrailerMuteContextValue = {
   isMuted: boolean;
@@ -14,8 +14,9 @@ export function TrailerMuteProvider({ children }: { children: ReactNode }) {
   const setMuted = useCallback((muted: boolean) => {
     setIsMuted(muted);
   }, []);
+  const value = useMemo(() => ({ isMuted, setMuted }), [isMuted, setMuted]);
   return (
-    <TrailerMuteContext.Provider value={{ isMuted, setMuted }}>
+    <TrailerMuteContext.Provider value={value}>
       {children}
     </TrailerMuteContext.Provider>
   );
