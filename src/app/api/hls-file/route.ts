@@ -39,6 +39,21 @@ function findMarkerPath(id: string): string | null {
   return converted && isHlsMarkerPath(converted) ? converted : null;
 }
 
+/** Validates a user-provided playlist/data relative path. */
+function isSafeRelativeRequestPath(input: string): boolean {
+  if (!input) return false;
+  if (input.includes('\0')) return false;
+
+  const normalized = input.replace(/\\/g, '/');
+  if (normalized.startsWith('/')) return false;
+  if (/^[A-Za-z]:\//.test(normalized)) return false;
+
+  const parts = normalized.split('/');
+  if (parts.some((p) => p.length === 0 || p === '.' || p === '..')) return false;
+
+  return parts.every((p) => /^[A-Za-z0-9._-]+$/.test(p));
+}
+
 /** Joins a playlist-relative URI onto a folder, keeping the result inside it. */
 function resolveWithin(baseDir: string, relativePath: string): string | null {
   const target = resolve(join(baseDir, relativePath));
@@ -137,6 +152,9 @@ export async function GET(request: NextRequest) {
 
   const baseDir = dirname(markerPath);
   const requestedPath = request.nextUrl.searchParams.get('f') || basename(markerPath);
+  if (!isSafeRelativeRequestPath(requestedPath)) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
   const filePath = resolveWithin(baseDir, requestedPath);
   if (!filePath) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
