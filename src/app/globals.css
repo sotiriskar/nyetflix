@@ -18,6 +18,15 @@ body {
   font-family: var(--font-app, "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif);
 }
 
+/* Tailwind preflight leaves buttons on the default arrow; make interactive controls feel clickable. */
+button:not(:disabled),
+[type="button"]:not(:disabled),
+[type="submit"]:not(:disabled),
+[type="reset"]:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 /* YouTube background trailers: crop iframe to push UI off-screen; shield blocks hover. */
 .yt-trailer-host {
   pointer-events: none;

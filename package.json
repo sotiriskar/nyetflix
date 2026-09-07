@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "prod": "next build && next start",
     "lint": "eslint .",
     "test": "echo \"No tests defined\"",
     "clear-db": "node scripts/clear-db.mjs"

@@ -266,8 +266,6 @@ export function SeriesPage() {
       )}
       <Footer
         socialLinks={{
-          facebook: 'https://www.facebook.com/sotiris.karagiannis95/',
-          instagram: 'https://www.instagram.com/sotiris_kar/',
           linkedin: 'https://www.linkedin.com/in/sotiris-kar/',
         }}
       />

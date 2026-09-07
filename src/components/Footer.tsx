@@ -3,17 +3,15 @@ import Instagram from '@mui/icons-material/Instagram';
 import LinkedIn from '@mui/icons-material/LinkedIn';
 
 export interface FooterSocialLinks {
-  facebook?: string;
-  instagram?: string;
   linkedin?: string;
 }
 
 interface FooterProps {
-  /** Replace with your URLs; omit or use # to keep as placeholder */
+  /** LinkedIn URL; omit to use the default */
   socialLinks?: FooterSocialLinks;
 }
 
-const DEFAULT_SOCIAL = { facebook: '#', instagram: '#', linkedin: '#' };
+const DEFAULT_LINKEDIN = 'https://www.linkedin.com/in/sotiris-kar/';
 
 const FOOTER_COLUMNS = [
   ['Audio Description', 'Investor Relations', 'Legal Notices'],
@@ -22,32 +20,26 @@ const FOOTER_COLUMNS = [
 ];
 
 export function Footer({ socialLinks }: FooterProps) {
-  const social = { ...DEFAULT_SOCIAL, ...socialLinks };
+  const linkedin = socialLinks?.linkedin || DEFAULT_LINKEDIN;
 
   return (
     <footer className="bg-[#141414] text-white/70 pt-12 pb-8 pl-20 pr-6 md:pl-36 md:pr-12">
-      {/* Social icons – clickable */}
+      {/* Social icons – Facebook/Instagram decorative only; LinkedIn is the real link */}
       <div className="flex gap-4 mb-8">
-        <a
-          href={social.facebook}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-white/70 hover:text-white transition-colors"
-          aria-label="Facebook"
+        <span
+          className="text-white/70 hover:text-white transition-colors cursor-pointer"
+          aria-hidden="true"
         >
           <Facebook sx={{ fontSize: 28 }} />
-        </a>
-        <a
-          href={social.instagram}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-white/70 hover:text-white transition-colors"
-          aria-label="Instagram"
+        </span>
+        <span
+          className="text-white/70 hover:text-white transition-colors cursor-pointer"
+          aria-hidden="true"
         >
           <Instagram sx={{ fontSize: 28 }} />
-        </a>
+        </span>
         <a
-          href={social.linkedin}
+          href={linkedin}
           target="_blank"
           rel="noopener noreferrer"
           className="text-white/70 hover:text-white transition-colors"

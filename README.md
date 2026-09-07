@@ -73,7 +73,7 @@ Open http://localhost:3000. Mount your media with `-v /path/to/Movies:/media:ro`
 
 | | |
 |---|---|
-| Production | `npm run build` then `npm start` |
+| Production | `npm run prod` (build + start), or `npm run build` then `npm start` |
 | Clear app data | `npm run clear-db` |
 | Different port | `npm run dev -- -p 3001` |
 
