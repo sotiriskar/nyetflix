@@ -22,6 +22,8 @@ Open **http://localhost:3000**. Leave the terminal open while you use the app.
 2. Set **Media library folder** to the full path of your library (e.g. `C:\Users\You\Videos\Movies` or `/Users/you/Movies`)
 3. Go to **Home** (or Films / Series). The app scans that folder. Use refresh if nothing appears.
 
+The library can live on a **NAS** or network share. Run Nyetflix on your PC (or Pi), then set the folder to a mapped drive like `Z:\Movies` or a UNC path like `\\NAS\media\Movies`. The share must be reachable and signed in when the app runs.
+
 ### ffmpeg
 
 Needed for reliable MKV playback and multi-audio packaging.
@@ -90,7 +92,7 @@ Good fits: playback / MKV, library scanning, profiles, UI polish, docs. Follow e
 ## Troubleshooting
 
 - **`node` / `npm` not found:** reinstall Node with “Add to PATH”, open a new terminal
-- **Empty library:** use a full absolute path; mount external drives first
+- **Empty library:** use a full absolute path; mount external drives / NAS shares first and keep them online
 - **No posters / trailers:** add a TMDB key to `.env.local`, restart, rescan
 - **MKV no audio on Windows:** install ffmpeg; the app can convert and package multi-audio titles when needed
 
