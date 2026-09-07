@@ -1,6 +1,8 @@
 
 <img width="1024" height="247" alt="NyETFLIX-02-03-2026" src="https://github.com/user-attachments/assets/0d1914b6-182c-4b40-ae02-c5318e5bbe1f" />
 
+**[Project showcase (GitHub Pages)](https://sotiriskar.github.io/nyetflix/)** — Netflix-style landing with screenshots of the UI.
+
 ---
 
 ### Table of contents

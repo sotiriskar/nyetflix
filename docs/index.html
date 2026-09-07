@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nyetflix — Your library. Netflix style.</title>
+  <meta name="description" content="Local Netflix-style app for your own movies and series. Profiles, trailers, Chromecast, multi-audio, subtitles — all on your machine." />
+  <meta property="og:title" content="Nyetflix" />
+  <meta property="og:description" content="Your files. Your browser. Netflix-style." />
+  <meta property="og:image" content="./assets/art/nyetflix-product-hero.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <a class="brand" href="./" aria-label="Nyetflix home">NYETFLIX</a>
+    <nav class="top-nav" aria-label="Page">
+      <a href="#features">Features</a>
+      <a href="#look">Look</a>
+      <a class="btn btn-ghost" href="https://github.com/sotiriskar/nyetflix">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-label="Introduction">
+      <div class="hero-media" aria-hidden="true">
+        <img
+          src="./assets/art/nyetflix-product-hero.png"
+          alt=""
+          width="1920"
+          height="1080"
+          fetchpriority="high"
+        />
+        <div class="hero-shade"></div>
+      </div>
+      <div class="hero-copy">
+        <p class="brand-mark" aria-hidden="true">NYETFLIX</p>
+        <h1>Your library.<br />Netflix style.</h1>
+        <p class="lede">Browse and stream the movies and series already on your machine — posters, trailers, profiles, and a player that feels like the real thing.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/sotiriskar/nyetflix">View on GitHub</a>
+          <a class="btn btn-ghost" href="https://github.com/sotiriskar/nyetflix#run-the-app">Run it locally</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="feature feature-split reveal">
+      <div class="feature-text">
+        <p class="eyebrow">Browse</p>
+        <h2>Rows, hover cards, and trailers</h2>
+        <p>Home, Films, Series, My List, and Continue Watching. Hover a title for the trailer and the quick actions you expect.</p>
+      </div>
+      <figure class="feature-shot">
+        <img
+          src="./assets/art/nyetflix-product-browse.png"
+          alt="Nyetflix browse rows with hover card"
+          width="1920"
+          height="1080"
+          loading="lazy"
+        />
+      </figure>
+    </section>
+
+    <section class="feature feature-split feature-flip reveal">
+      <div class="feature-text">
+        <p class="eyebrow">Details</p>
+        <h2>The big title card</h2>
+        <p>Backdrop, cast, rating, and play — plus episode lists for series, with unavailable episodes clearly dimmed.</p>
+      </div>
+      <figure class="feature-shot">
+        <img
+          src="./assets/art/nyetflix-product-detail.png"
+          alt="Nyetflix title detail modal"
+          width="1920"
+          height="1080"
+          loading="lazy"
+        />
+      </figure>
+    </section>
+
+    <section class="feature feature-split reveal">
+      <div class="feature-text">
+        <p class="eyebrow">Player</p>
+        <h2>Built for long nights</h2>
+        <p>Resume where you left off, switch audio and subtitles, cast to the TV, and keep watching episodes without leaving fullscreen.</p>
+      </div>
+      <figure class="feature-shot">
+        <img
+          src="./assets/art/nyetflix-product-player.png"
+          alt="Nyetflix video player with captions"
+          width="1920"
+          height="1080"
+          loading="lazy"
+        />
+      </figure>
+    </section>
+
+    <section class="feature feature-split feature-flip reveal">
+      <div class="feature-text">
+        <p class="eyebrow">Series</p>
+        <h2>Seasons and episodes</h2>
+        <p>Season folders and S01E01 naming turn into a proper episode rail — stills, titles, and next-episode when you’re ready.</p>
+      </div>
+      <figure class="feature-shot">
+        <img
+          src="./assets/art/nyetflix-product-episodes.png"
+          alt="Nyetflix episodes panel"
+          width="1920"
+          height="1080"
+          loading="lazy"
+        />
+      </figure>
+    </section>
+
+    <section id="look" class="strip reveal">
+      <div class="strip-inner">
+        <p class="eyebrow">Local-first</p>
+        <h2>No accounts. No cloud library.<br />Your disk, your browser.</h2>
+        <ul class="pillars">
+          <li>
+            <strong>Profiles</strong>
+            <span>Who’s watching, My List, and progress per person.</span>
+          </li>
+          <li>
+            <strong>MKV ready</strong>
+            <span>Converts and packages multi-audio titles so every track stays selectable.</span>
+          </li>
+          <li>
+            <strong>Subtitles</strong>
+            <span>Sidecar and embedded tracks, including Forced and SDH, labeled cleanly.</span>
+          </li>
+          <li>
+            <strong>Chromecast</strong>
+            <span>Hand off to the TV and resume on the browser when you stop.</span>
+          </li>
+          <li>
+            <strong>TMDB polish</strong>
+            <span>Optional posters, backdrops, and episode metadata.</span>
+          </li>
+          <li>
+            <strong>Self-hosted</strong>
+            <span>Run on your PC or NAS — GitHub Pages is only this showcase.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="feature feature-split reveal">
+      <div class="feature-text">
+        <p class="eyebrow">Setup</p>
+        <h2>Point it at a folder</h2>
+        <p>Set your media path, optional TMDB key, and you’re browsing. Docker works too if you prefer a container.</p>
+      </div>
+      <figure class="feature-shot">
+        <img
+          src="./assets/art/nyetflix-product-settings.png"
+          alt="Nyetflix preferences and media folder setup"
+          width="1920"
+          height="1080"
+          loading="lazy"
+        />
+      </figure>
+    </section>
+
+    <section class="finale reveal">
+      <div class="finale-bg" aria-hidden="true">
+        <img src="./assets/art/nyetflix-art-finale.png" alt="" width="1920" height="1080" loading="lazy" />
+        <div class="finale-shade"></div>
+      </div>
+      <div class="finale-copy">
+        <p class="brand-mark">NYETFLIX</p>
+        <h2>Clone it. Point it at your movies. Press play.</h2>
+        <a class="btn btn-primary" href="https://github.com/sotiriskar/nyetflix">Open the repository</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p><span class="brand-inline">NYETFLIX</span> is open source. Not affiliated with Netflix.</p>
+    <a href="https://github.com/sotiriskar/nyetflix">github.com/sotiriskar/nyetflix</a>
+  </footer>
+
+  <script src="./script.js" defer></script>
+</body>
+</html>
