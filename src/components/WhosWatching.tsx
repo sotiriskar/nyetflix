@@ -5,11 +5,19 @@ import { useRouter } from 'next/navigation';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import { useProfile } from '@/context/ProfileContext';
 import { AddProfileModal } from '@/components/AddProfileModal';
+import type { ProfileId } from '@/lib/profiles';
 
 export function WhosWatching() {
   const router = useRouter();
   const { profiles, confirmProfileChoice, canAddProfile } = useProfile();
   const [addModalOpen, setAddModalOpen] = useState(false);
+
+  const enterAs = (id: ProfileId) => {
+    confirmProfileChoice(id);
+    // Always land on Home — without this we keep whatever URL was under the gate
+    // (e.g. /search, /watch/…) and nothing useful loads, with no nav highlight.
+    router.replace('/browse');
+  };
 
   return (
     <div className="min-h-screen bg-[#141414] flex flex-col items-center justify-center px-6 py-16">
@@ -22,7 +30,7 @@ export function WhosWatching() {
           <button
             key={p.id}
             type="button"
-            onClick={() => confirmProfileChoice(p.id as import('@/lib/profiles').ProfileId)}
+            onClick={() => enterAs(p.id as ProfileId)}
             className="flex flex-col items-center gap-4 group"
           >
             <div className="w-32 h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 rounded-lg overflow-hidden bg-white/10 border-2 border-transparent group-hover:border-4 group-hover:border-white transition-all duration-200 shrink-0">

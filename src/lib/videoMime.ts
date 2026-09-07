@@ -14,6 +14,17 @@ const MIME_BY_EXT: Record<string, string> = {
 
 export const DEFAULT_VIDEO_MIME = 'video/mp4';
 
+/** Marker playlist of a converted multi-audio title (see hlsPackage.ts). */
+export const HLS_MARKER_EXT = '.m3u8' as const;
+export const HLS_MIME_TYPE = 'application/vnd.apple.mpegurl' as const;
+/** Google Cast's own spelling of the HLS content type. */
+export const HLS_CAST_MIME_TYPE = 'application/x-mpegurl' as const;
+
+export function isHlsMimeType(mimeType: string | undefined): boolean {
+  const value = mimeType?.toLowerCase();
+  return value === HLS_MIME_TYPE || value === HLS_CAST_MIME_TYPE;
+}
+
 export function getVideoExt(path: string): string {
   return path.includes('.') ? path.slice(path.lastIndexOf('.')).toLowerCase() : '';
 }

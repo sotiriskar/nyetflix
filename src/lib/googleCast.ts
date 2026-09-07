@@ -8,6 +8,8 @@
  * Cast SDK types come from the ambient declarations shipped with @vidstack/react.
  */
 
+import { isHlsMimeType } from './videoMime';
+
 const SENDER_SDK_URL = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
 const SUBTITLE_CONTENT_TYPE = 'text/vtt';
 
@@ -150,6 +152,24 @@ export function getCastStatus(): CastStatus {
   return status;
 }
 
+/**
+ * Multi-audio titles are cast as HLS with fMP4 renditions. The receiver assumes MPEG-TS
+ * segments unless told otherwise and then fails to play anything, so spell it out. These two
+ * fields are missing from the bundled Cast type definitions.
+ */
+function applyHlsSegmentFormat(mediaInfo: chrome.cast.media.MediaInfo, contentType: string): void {
+  if (!isHlsMimeType(contentType)) return;
+  const media = chrome.cast.media as unknown as {
+    HlsSegmentFormat?: Record<string, string>;
+    HlsVideoSegmentFormat?: Record<string, string>;
+  };
+  const target = mediaInfo as unknown as Record<string, string>;
+  if (media.HlsSegmentFormat?.FMP4) target.hlsSegmentFormat = media.HlsSegmentFormat.FMP4;
+  if (media.HlsVideoSegmentFormat?.FMP4) {
+    target.hlsVideoSegmentFormat = media.HlsVideoSegmentFormat.FMP4;
+  }
+}
+
 /** Opens the device picker if needed, then loads the media so it starts playing at `startTime`. */
 export async function castMedia(request: CastMediaRequest): Promise<void> {
   if (!ready) throw new Error('Google Cast is not available.');
@@ -164,6 +184,7 @@ export async function castMedia(request: CastMediaRequest): Promise<void> {
 
   const mediaInfo = new chrome.cast.media.MediaInfo(request.url, request.contentType);
   mediaInfo.streamType = chrome.cast.media.StreamType.BUFFERED;
+  applyHlsSegmentFormat(mediaInfo, request.contentType);
 
   const metadata = new chrome.cast.media.GenericMediaMetadata();
   metadata.title = request.title ?? '';

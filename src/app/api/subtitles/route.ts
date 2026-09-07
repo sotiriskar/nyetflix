@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
+import { join, dirname, basename } from 'path';
 import { spawn } from 'child_process';
 import iconv from 'iconv-lite';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
+import { findSidecarSubtitles } from '@/lib/sidecarSubtitles';
+import { parseSubtitleKey } from '@/lib/subtitleTrackKeys';
 
 const itemIdToSubtitlePath = registry.itemIdToSubtitlePath;
 
@@ -92,22 +96,38 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // External subtitle file
+  // External subtitle file. `lang` is a track key: a language code, or `en.forced` style for
+  // the extra tracks a file can hold in the same language.
   const byLang = itemIdToSubtitlePath.get(id) ?? registry.episodeIdToSubtitlePath.get(id);
-  const filePath =
+  let filePath =
     typeof byLang === 'string'
       ? (lang === 'en' ? byLang : undefined)
       : (byLang && typeof byLang === 'object' ? byLang[lang] : undefined);
+  // Registry may predate the file (fresh restart, or a rescan that only matched simple names),
+  // or still point at a sidecar that was deleted with a previous conversion package.
+  if (!filePath || !existsSync(filePath)) {
+    const videoPath = getOriginalVideoPath(id);
+    if (videoPath) {
+      const onDisk = await findSidecarSubtitles(videoPath);
+      filePath = onDisk[lang];
+      // HLS marker deleted but MKV restored: look next to the MKV.
+      if (!filePath && /\.m3u8$/i.test(videoPath)) {
+        const mkv = join(dirname(videoPath), basename(videoPath).replace(/\.m3u8$/i, '.mkv'));
+        filePath = (await findSidecarSubtitles(mkv))[lang];
+      }
+    }
+  }
   if (!filePath) {
     return NextResponse.json({ error: 'No subtitles for this title' }, { status: 404 });
   }
+  const baseLang = parseSubtitleKey(lang).lang;
 
   const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
   const isVtt = ext === '.vtt';
 
   try {
     const buffer = await readFile(filePath);
-    const content = decodeSubtitle(buffer, lang);
+    const content = decodeSubtitle(buffer, baseLang);
     return new NextResponse(isVtt ? content : srtToVtt(content), {
       headers: {
         'Content-Type': 'text/vtt; charset=utf-8',

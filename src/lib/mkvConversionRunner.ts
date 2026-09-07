@@ -1,6 +1,11 @@
 /**
- * Runs MKV → MP4 conversion with progress tracking.
- * For re-encode (DTS/TrueHD → AAC): uses parallel segment encoding to use all CPU cores.
+ * Runs MKV → MP4/HLS conversion with progress tracking.
+ *
+ * Files with a single audio track become one MP4 (re-encoding DTS/TrueHD to AAC in parallel
+ * segments so every CPU core is used). Files with more than one audio track are packaged as
+ * HLS instead, because a browser cannot switch between audio tracks inside an MP4 — see
+ * hlsPackage.ts. Either way, embedded text subtitles are extracted to sidecar .vtt files
+ * before the original is deleted.
  */
 
 import { spawn } from 'child_process';
@@ -9,13 +14,23 @@ import { unlink, writeFileSync } from 'fs';
 import { cpus } from 'os';
 import { getFfmpegPath } from './ffmpegPath';
 import {
+  getConvertedPath,
   setConvertedPathAndFlush,
   isConversionInProgress,
   hasAnyConversionInProgress,
   markConversionStarted,
   markConversionFinished,
 } from './convertedMkvStore';
-import { extractEmbeddedSubtitlesToSidecar } from './extractEmbeddedSubtitles';
+import { planSubtitleExtraction, runSubtitleExtraction } from './extractEmbeddedSubtitles';
+import { probeMediaStreams, canCopyAudioCodec, type StreamInfo } from './ffprobeStreams';
+import {
+  planHlsPackage,
+  prepareHlsDataDir,
+  removeHlsPackage,
+  writeHlsInfo,
+  writeHlsMarker,
+  type HlsBuildPlan,
+} from './hlsPackage';
 import { registry, persistRegistry } from './streamRegistry';
 
 export type ConversionProgress = {
@@ -61,22 +76,6 @@ export function subscribeToProgress(itemId: string, cb: (p: ConversionProgress) 
 function notifyProgress(itemId: string, p: ConversionProgress): void {
   progressMap.set(itemId, p);
   listeners.get(itemId)?.forEach((cb) => cb(p));
-}
-
-/** Get first audio stream codec (e.g. 'aac', 'dts') so we can copy if already AAC. */
-function getFirstAudioCodec(ffmpegBin: string, mkvPath: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    const proc = spawn(ffmpegBin, ['-i', mkvPath], { stdio: ['ignore', 'ignore', 'pipe'] });
-    let stderr = '';
-    proc.stderr?.setEncoding('utf-8');
-    proc.stderr?.on('data', (chunk: string) => { stderr += chunk; });
-    proc.on('close', () => {
-      const m = stderr.match(/Stream\s+#?\d+:\d+.*?Audio:\s+(\w+)/);
-      resolve(m ? m[1].toLowerCase() : null);
-    });
-    proc.on('error', () => resolve(null));
-    setTimeout(() => { proc.kill('SIGKILL'); resolve(null); }, 8000);
-  });
 }
 
 /** True if ffmpeg has libfdk_aac (faster AAC encoder when re-encoding). */
@@ -244,6 +243,65 @@ function runParallelConversion(
   });
 }
 
+/** Runs ffmpeg once, reporting progress from its `time=` output. Rejects with ffmpeg's own error text. */
+function runWithProgress(
+  itemId: string,
+  ffmpegBin: string,
+  args: string[],
+  durationSeconds: number,
+  abortSignal?: AbortSignal | null
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+
+    const onAbort = (): void => {
+      abortSignal?.removeEventListener('abort', onAbort);
+      ffmpeg.kill('SIGKILL');
+      reject(new Error('Conversion cancelled (page closed or navigated away)'));
+    };
+    if (abortSignal?.aborted) {
+      onAbort();
+      return;
+    }
+    abortSignal?.addEventListener('abort', onAbort);
+
+    let stderrBuf = '';
+    const maxBuf = 65536;
+    ffmpeg.stderr?.setEncoding('utf-8');
+    ffmpeg.stderr?.on('data', (chunk: string) => {
+      stderrBuf += chunk;
+      if (stderrBuf.length > maxBuf) stderrBuf = stderrBuf.slice(-maxBuf);
+      const t = parseLastTime(stderrBuf);
+      if (t != null && durationSeconds > 0) {
+        const progress = Math.min(0.99, t / durationSeconds);
+        const eta = progress > 0.01 ? (t / progress) * (1 - progress) : undefined;
+        notifyProgress(itemId, { progress, currentTime: t, durationSeconds, etaSeconds: eta });
+      }
+    });
+
+    ffmpeg.on('error', () => {
+      abortSignal?.removeEventListener('abort', onAbort);
+      reject(new Error('ffmpeg error'));
+    });
+
+    ffmpeg.on('close', (code) => {
+      abortSignal?.removeEventListener('abort', onAbort);
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      const snippet = stderrBuf.trim().slice(-600).replace(/\s+/g, ' ');
+      reject(new Error(snippet ? `Conversion failed (code ${code}): ${snippet}` : `ffmpeg exited with code ${code}`));
+    });
+  });
+}
+
+/** Audio arguments for the single-track MP4 path: copy AAC, otherwise downmix to stereo AAC. */
+function singleTrackAudioArgs(stream: StreamInfo | undefined, useFdk: boolean): string[] {
+  if (stream && canCopyAudioCodec(stream.codec)) return ['-c:a', 'copy'];
+  return ['-ac', '2', '-c:a', useFdk ? 'libfdk_aac' : 'aac', '-b:a', '192k'];
+}
+
 export function runMkvConversion(
   itemId: string,
   mkvPath: string,
@@ -251,17 +309,18 @@ export function runMkvConversion(
   abortSignal?: AbortSignal | null
 ): Promise<string> {
   if (isConversionInProgress(itemId)) {
+    // The output is an MP4 or an HLS marker depending on the file, so read the recorded path.
+    const outputPath = (): string =>
+      getConvertedPath(itemId) ?? join(dirname(mkvPath), basename(mkvPath, '.mkv') + '.mp4');
     const p = progressMap.get(itemId);
     if (p && p.progress >= 1) {
-      const converted = join(dirname(mkvPath), basename(mkvPath, '.mkv') + '.mp4');
-      return Promise.resolve(converted);
+      return Promise.resolve(outputPath());
     }
     return new Promise((resolve, reject) => {
       const unsub = subscribeToProgress(itemId, (prog) => {
         if (prog.progress >= 1) {
           unsub();
-          const converted = join(dirname(mkvPath), basename(mkvPath, '.mkv') + '.mp4');
-          resolve(converted);
+          resolve(outputPath());
         }
       });
       setTimeout(() => {
@@ -284,9 +343,14 @@ export function runMkvConversion(
     return Promise.reject(new Error('Another conversion is already in progress. Please wait for it to finish.'));
   }
 
-  /** Extract embedded subtitles to sidecar .vtt and register – we show files only, never embedded. */
-  async function extractAndRegisterSubtitles(): Promise<void> {
-    const extracted = await extractEmbeddedSubtitlesToSidecar(mkvPath, dir, base);
+  /**
+   * Extract embedded text subtitles to sidecar .vtt and register them – we show files only,
+   * never embedded streams. Runs before the source file is deleted.
+   */
+  async function extractAndRegisterSubtitles(subtitleStreams: StreamInfo[]): Promise<void> {
+    const planned = planSubtitleExtraction(subtitleStreams, dir, base);
+    if (planned.length === 0) return;
+    const extracted = await runSubtitleExtraction(mkvPath, planned, { overwrite: true });
     if (Object.keys(extracted).length === 0) return;
     const r = registry;
     const isEpisode = /^episode-.+-S\d+-E\d+$/.test(itemId);
@@ -299,135 +363,106 @@ export function runMkvConversion(
     persistRegistry();
   }
 
+  /** Shared tail for both paths: record the output, save subtitles, drop the source file. */
+  async function finish(outputPath: string, subtitleStreams: StreamInfo[]): Promise<string> {
+    await setConvertedPathAndFlush(itemId, outputPath);
+    // Point the registry at the playable file so a rescan isn't required after conversion.
+    if (registry.episodeIdToPath.has(itemId)) registry.episodeIdToPath.set(itemId, outputPath);
+    else if (registry.itemIdToPath.has(itemId)) registry.itemIdToPath.set(itemId, outputPath);
+    persistRegistry();
+    await extractAndRegisterSubtitles(subtitleStreams);
+    notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
+    unlink(mkvPath, () => {}); // Remove original MKV now that the converted output plays
+    progressMap.delete(itemId);
+    listeners.delete(itemId);
+    markConversionFinished(itemId);
+    return outputPath;
+  }
+
+  function fail(err: unknown): Promise<never> {
+    markConversionFinished(itemId);
+    progressMap.delete(itemId);
+    listeners.delete(itemId);
+    return Promise.reject(err instanceof Error ? err : new Error(String(err)));
+  }
+
   markConversionStarted(itemId);
   notifyProgress(itemId, { progress: 0, currentTime: 0, durationSeconds });
 
-  return Promise.all([
-    getFirstAudioCodec(ffmpegBin, mkvPath),
-    hasLibfdkAac(ffmpegBin),
-  ]).then(([audioCodec, useFdk]) => {
-    const copyAudio = audioCodec === 'aac';
-    const audioArgs = copyAudio
-      ? ['-c:a', 'copy']
-      : ['-ac', '2', '-c:a', useFdk ? 'libfdk_aac' : 'aac', '-b:a', '192k'];
-
-    // Re-encode (DTS/TrueHD etc.): use parallel segments for long files to use all CPU cores
-    const useParallel = !copyAudio && durationSeconds >= 120;
-    if (useParallel) {
-      return runParallelConversion(
-        itemId,
-        ffmpegBin,
-        mkvPath,
-        mp4Path,
-        durationSeconds,
-        audioArgs,
-        abortSignal
-      )
-        .then(async () => {
-          await setConvertedPathAndFlush(itemId, mp4Path);
-          await extractAndRegisterSubtitles();
-          notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
-          unlink(mkvPath, () => {});
-          progressMap.delete(itemId);
-          listeners.delete(itemId);
-          markConversionFinished(itemId);
-          return mp4Path;
-        })
-        .catch((err) => {
-          markConversionFinished(itemId);
-          progressMap.delete(itemId);
-          listeners.delete(itemId);
-          return Promise.reject(err);
-        });
-    }
-
-    return new Promise<string>((resolve, reject) => {
-      const ffmpeg = spawn(ffmpegBin, [
-        '-threads', '0',
-        '-i', mkvPath,
-        '-map', '0:v:0',
-        '-map', '0:a:0?',
-        '-stats_period', '1',
-        '-c:v', 'copy',
-        ...audioArgs,
-        '-movflags', '+faststart',
-        '-y', mp4Path,
-      ], { stdio: ['ignore', 'ignore', 'pipe'] });
-
-      const cleanupAbort = (): void => {
-        if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
-      };
-      const onAbort = (): void => {
-        cleanupAbort();
-        ffmpeg.kill('SIGKILL');
-        markConversionFinished(itemId);
-        progressMap.delete(itemId);
-        listeners.delete(itemId);
-        reject(new Error('Conversion cancelled (page closed or navigated away)'));
-        // Partial file is deleted in ffmpeg 'close' handler once process exits
-      };
-      if (abortSignal?.aborted) {
-        onAbort();
-        return;
+  return Promise.all([probeMediaStreams(mkvPath), hasLibfdkAac(ffmpegBin)]).then(
+    async ([probed, useFdk]) => {
+      // More than one audio track: package as HLS so all of them stay selectable.
+      if (probed.audio.length > 1) {
+        const plan: HlsBuildPlan = planHlsPackage(mkvPath, base, probed.audio);
+        try {
+          await prepareHlsDataDir(plan.dataDir);
+          await runWithProgress(itemId, ffmpegBin, plan.args, durationSeconds, abortSignal);
+          await writeHlsMarker(plan);
+          await writeHlsInfo(plan, durationSeconds);
+          return await finish(plan.markerPath, probed.subtitles);
+        } catch (err) {
+          await removeHlsPackage(plan.markerPath);
+          return fail(err);
+        }
       }
-      abortSignal?.addEventListener('abort', onAbort);
 
-    let stderrBuf = '';
-    const maxBuf = 65536;
-    ffmpeg.stderr?.setEncoding('utf-8');
-    ffmpeg.stderr?.on('data', (chunk: string) => {
-      stderrBuf += chunk;
-      if (stderrBuf.length > maxBuf) stderrBuf = stderrBuf.slice(-maxBuf);
-      const t = parseLastTime(stderrBuf);
-      if (t != null && durationSeconds > 0) {
-        const progress = Math.min(1, t / durationSeconds);
-        const eta = progress > 0.01 ? (t / progress) * (1 - progress) : undefined;
-        notifyProgress(itemId, {
-          progress,
-          currentTime: t,
+      const audioArgs = singleTrackAudioArgs(probed.audio[0], useFdk);
+      const copyAudio = audioArgs[0] === '-c:a' && audioArgs[1] === 'copy';
+      const languageArgs =
+        probed.audio[0] && probed.audio[0].lang !== 'und'
+          ? ['-metadata:s:a:0', `language=${probed.audio[0].lang}`]
+          : [];
+
+      // Re-encode (DTS/TrueHD etc.): use parallel segments for long files to use all CPU cores
+      if (!copyAudio && durationSeconds >= 120) {
+        try {
+          await runParallelConversion(
+            itemId,
+            ffmpegBin,
+            mkvPath,
+            mp4Path,
+            durationSeconds,
+            audioArgs,
+            abortSignal
+          );
+          return await finish(mp4Path, probed.subtitles);
+        } catch (err) {
+          return fail(err);
+        }
+      }
+
+      try {
+        await runWithProgress(
+          itemId,
+          ffmpegBin,
+          [
+            '-threads', '0',
+            '-i', mkvPath,
+            '-map', '0:v:0',
+            '-map', '0:a:0?',
+            '-stats_period', '1',
+            '-c:v', 'copy',
+            ...audioArgs,
+            ...languageArgs,
+            '-movflags', '+faststart',
+            '-y', mp4Path,
+          ],
           durationSeconds,
-          etaSeconds: eta,
-        });
-      }
-    });
-
-    ffmpeg.on('error', () => {
-      markConversionFinished(itemId);
-      progressMap.delete(itemId);
-      unlink(mp4Path, () => {});
-      reject(new Error('ffmpeg error'));
-    });
-
-    ffmpeg.on('close', (code) => {
-      cleanupAbort();
-      markConversionFinished(itemId);
-      if (code === 0) {
-        setConvertedPathAndFlush(itemId, mp4Path)
-          .then(() => extractAndRegisterSubtitles())
-          .then(() => {
-            notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
-            unlink(mkvPath, () => {}); // Remove original MKV now that MP4 plays
-            resolve(mp4Path);
-          })
-          .catch(reject);
-      } else {
+          abortSignal
+        );
+        return await finish(mp4Path, probed.subtitles);
+      } catch (err) {
+        // Leave no half-written file behind; it can hold a lock for a moment on Windows.
         const deletePartial = (): void => {
-          unlink(mp4Path, (err) => {
-            if (err && (err as NodeJS.ErrnoException).code === 'EBUSY') {
-              setTimeout(deletePartial, 200);
-            }
+          unlink(mp4Path, (e) => {
+            if (e && (e as NodeJS.ErrnoException).code === 'EBUSY') setTimeout(deletePartial, 200);
           });
         };
         setTimeout(deletePartial, 100);
-        const errSnippet = stderrBuf.trim().slice(-600).replace(/\s+/g, ' ') || '';
-        const errMsg = errSnippet
-          ? `Conversion failed (code ${code}): ${errSnippet}`
-          : `ffmpeg exited with code ${code}`;
-        reject(new Error(errMsg));
+        return fail(err);
       }
-      progressMap.delete(itemId);
-      listeners.delete(itemId);
-    });
-  });
-  });
+    },
+    // Never leave the item marked as converting if probing itself blows up.
+    (err) => fail(err),
+  );
 }

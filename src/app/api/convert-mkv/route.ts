@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server';
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
-import { registry, ensureHydrated } from '@/lib/streamRegistry';
-import { getConvertedPath } from '@/lib/convertedMkvStore';
+import { basename, dirname, join } from 'path';
+import { registry, ensureHydrated, persistRegistry } from '@/lib/streamRegistry';
+import { getConvertedPath, clearConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
 import { runMkvConversion, subscribeToProgress } from '@/lib/mkvConversionRunner';
+import { isHlsMarkerPath } from '@/lib/hlsPackage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -53,8 +55,22 @@ export async function GET(request: NextRequest) {
   }
 
   ensureHydrated();
-  const filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
-  if (!filePath || getExt(filePath) !== '.mkv') {
+  let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
+  // Registry may still point at a deleted HLS marker after the MKV was restored.
+  if (filePath && (!existsSync(filePath) || isHlsMarkerPath(filePath))) {
+    const mkv = join(
+      dirname(filePath),
+      basename(filePath).replace(/\.(m3u8|mkv)$/i, '.mkv'),
+    );
+    if (existsSync(mkv)) {
+      clearConvertedPath(id);
+      if (registry.episodeIdToPath.has(id)) registry.episodeIdToPath.set(id, mkv);
+      else registry.itemIdToPath.set(id, mkv);
+      persistRegistry();
+      filePath = mkv;
+    }
+  }
+  if (!filePath || getExt(filePath) !== '.mkv' || !existsSync(filePath)) {
     return new Response(JSON.stringify({ error: 'Unknown or not MKV' }), { status: 404 });
   }
 

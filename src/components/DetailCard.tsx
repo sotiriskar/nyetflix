@@ -462,48 +462,50 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                 return (
                 <ul className="min-w-0">
                   {episodes.map((ep, index) => {
-                    const isCurrentEpisode = ep.id != null && ep.id === currentEpisodeId;
-                    const isFirstAndNoProgress = index === 0 && !currentEpisodeId;
+                    const available = !!(ep.hasFile && ep.id);
+                    const isCurrentEpisode = available && ep.id === currentEpisodeId;
+                    const isFirstAndNoProgress = available && index === 0 && !currentEpisodeId;
                     const isHighlighted = isCurrentEpisode || isFirstAndNoProgress;
                     return (
                     <li
                       key={ep.id ?? `s${ep.seasonNumber}e${ep.episodeNumber}`}
-                      className={`group flex items-start gap-4 min-w-0 overflow-hidden py-4 cursor-pointer border-b border-white/10 last:border-b-0 ${isHighlighted ? 'bg-[#2e2e2e] rounded-md' : ''}`}
+                      className={`group flex items-start gap-4 min-w-0 overflow-hidden py-4 border-b border-white/10 last:border-b-0 ${
+                        available
+                          ? `cursor-pointer ${isHighlighted ? 'bg-[#2e2e2e] rounded-md' : ''}`
+                          : 'opacity-45 cursor-default'
+                      }`}
                       onClick={() => {
-                        if (ep.hasFile && ep.id && onPlayEpisode) {
-                          onPlayEpisode(ep.id, `${detail.title} – S${ep.seasonNumber}:E${ep.episodeNumber} ${ep.title}`, ep.subtitleLanguages, detail.title);
-                        } else if (onPlayUnavailable) {
-                          onPlayUnavailable('This episode is not in your library. Add the file and rescan.');
-                        }
+                        if (!available || !onPlayEpisode) return;
+                        onPlayEpisode(ep.id!, `${detail.title} – S${ep.seasonNumber}:E${ep.episodeNumber} ${ep.title}`, ep.subtitleLanguages, detail.title);
                       }}
-                      role="button"
-                      tabIndex={0}
+                      role={available ? 'button' : undefined}
+                      tabIndex={available ? 0 : -1}
+                      aria-disabled={!available}
                       onKeyDown={(e) => {
+                        if (!available || !onPlayEpisode) return;
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
-                          if (ep.hasFile && ep.id && onPlayEpisode) {
-                            onPlayEpisode(ep.id, `${detail.title} – S${ep.seasonNumber}:E${ep.episodeNumber} ${ep.title}`, ep.subtitleLanguages, detail.title);
-                          } else if (onPlayUnavailable) {
-                            onPlayUnavailable('This episode is not in your library. Add the file and rescan.');
-                          }
+                          onPlayEpisode(ep.id!, `${detail.title} – S${ep.seasonNumber}:E${ep.episodeNumber} ${ep.title}`, ep.subtitleLanguages, detail.title);
                         }
                       }}
-                      aria-label={ep.hasFile ? `Play ${ep.title}` : `${ep.title} (not in library)`}
+                      aria-label={available ? `Play ${ep.title}` : `${ep.title} (not available)`}
                     >
                       <div className="flex-shrink-0 w-10 flex items-center justify-center self-stretch">
                         <span className={`text-2xl font-bold tabular-nums ${isHighlighted ? 'text-white' : 'text-white/70'}`}>{ep.episodeNumber}</span>
                       </div>
                       <div className="relative flex-shrink-0 w-40 aspect-video bg-white/10 flex items-center justify-center overflow-hidden rounded pointer-events-none">
                         {ep.posterUrl ? (
-                          <img src={ep.posterUrl} alt="" className="w-full h-full object-cover" />
+                          <img src={ep.posterUrl} alt="" className={`w-full h-full object-cover ${available ? '' : 'grayscale'}`} />
                         ) : (
                           <span className={`text-2xl font-bold ${isHighlighted ? 'text-white' : 'text-white/50'}`}>{ep.episodeNumber}</span>
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <span className="w-13 h-13 rounded-full border-2 border-white flex items-center justify-center bg-black/40">
-                            <PlayArrow sx={{ fontSize: 32, color: 'white' }} />
-                          </span>
-                        </div>
+                        {available && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <span className="w-13 h-13 rounded-full border-2 border-white flex items-center justify-center bg-black/40">
+                              <PlayArrow sx={{ fontSize: 32, color: 'white' }} />
+                            </span>
+                          </div>
+                        )}
                         {ep.id != null && (() => {
                           const p = Math.min(1, getProgress(ep.id)?.progress ?? 0);
                           if (p <= 0) return null;
@@ -521,6 +523,11 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                           </span>
                           {ep.durationMinutes != null && (
                             <span className={`text-sm shrink-0 ${isHighlighted ? 'text-white font-semibold' : 'text-white/50'}`}>{ep.durationMinutes}m</span>
+                          )}
+                          {!available && (
+                            <span className="text-xs shrink-0 text-white/50 border border-white/20 rounded px-1.5 py-0.5">
+                              Unavailable
+                            </span>
                           )}
                         </div>
                         <p className={`text-sm mt-1 line-clamp-2 break-words ${isHighlighted ? 'text-white' : 'text-white/70'}`}>

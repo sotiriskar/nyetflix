@@ -29,6 +29,7 @@ import type { ProgressEntry } from '@/context/ProgressContext';
 import { LANG_LABELS as SHARED_LANG_LABELS } from '@/lib/subtitleLabels';
 import { useLibraryContextOrNull } from '@/context/LibraryContext';
 import { playerVolumeStorage, setPersistPlayerMute } from '@/lib/playerVolumeStorage';
+import { HLS_CAST_MIME_TYPE, HLS_MIME_TYPE } from '@/lib/videoMime';
 import { CastButton } from './CastButton';
 import { CastingOverlay } from './CastingOverlay';
 import {
@@ -240,18 +241,22 @@ function CastLocalHold({
 }
 
 
-/** When preference is "off", disable captions so no subtitles show. */
+/** When preference is "off", disable captions once on load — not on every track update
+ * (that would fight the user the moment they pick a language from the menu). */
 function CaptionDisabler() {
   const remote = useMediaRemote();
   const textTracks = useMediaState('textTracks');
+  const didDisableRef = useRef(false);
 
   useEffect(() => {
+    if (didDisableRef.current) return;
     const list = textTracks;
     const length = Array.isArray(list) ? list.length : (list as { length?: number })?.length ?? 0;
     if (length === 0) return;
     const r = remote as { disableCaptions?: () => void };
     if (typeof r.disableCaptions === 'function') {
       r.disableCaptions();
+      didDisableRef.current = true;
     }
   }, [textTracks, remote]);
 
@@ -326,7 +331,7 @@ const EpisodesPanel = memo(function EpisodesPanel({
                               ? 'ring-2 ring-red-500 bg-white/10'
                               : hasFile
                                 ? 'hover:bg-white/10'
-                                : 'opacity-60 cursor-not-allowed'
+                                : 'opacity-60'
                           }`}
                         >
                           <div className="w-32 shrink-0 aspect-video bg-white/10 rounded overflow-hidden relative">
@@ -334,7 +339,7 @@ const EpisodesPanel = memo(function EpisodesPanel({
                               <img
                                 src={ep.posterUrl}
                                 alt=""
-                                className="w-full h-full object-cover"
+                                className={`w-full h-full object-cover ${hasFile ? '' : 'grayscale'}`}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-white/40 text-xs">
@@ -365,6 +370,11 @@ const EpisodesPanel = memo(function EpisodesPanel({
                               {ep.durationMinutes != null && (
                                 <span className="text-xs text-white/50">
                                   {ep.durationMinutes}m
+                                </span>
+                              )}
+                              {!hasFile && (
+                                <span className="text-[10px] shrink-0 text-white/50 border border-white/20 rounded px-1.5 py-0.5">
+                                  Unavailable
                                 </span>
                               )}
                             </div>
@@ -447,7 +457,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const [episodesPanelOpen, setEpisodesPanelOpen] = useState(false);
   const [seriesEpisodes, setSeriesEpisodes] = useState<SeriesSeason[] | null>(null);
   /** Combined external + embedded subtitle tracks from /api/subtitle-tracks (when set, used instead of subtitleLanguages). */
-  const [subtitleTracks, setSubtitleTracks] = useState<Array<{ lang: string; label: string; src: string }> | null>(null);
+  const [subtitleTracks, setSubtitleTracks] = useState<Array<{ key?: string; lang: string; label: string; src: string }> | null>(null);
   /** Sync with player controls: hide close button after same idle delay as DefaultVideoLayout. */
   const [closeButtonVisible, setCloseButtonVisible] = useState(true);
   /** Live receiver state; null until the Cast SDK reports it can run here. */
@@ -560,7 +570,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     const origin = window.location.origin;
     fetch(`${origin}/api/subtitle-tracks?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { tracks?: Array<{ lang: string; label: string; src: string }> } | null) => {
+      .then((data: { tracks?: Array<{ key?: string; lang: string; label: string; src: string }> } | null) => {
         setSubtitleTracks(data?.tracks ?? []);
       })
       .catch(() => setSubtitleTracks([]));
@@ -832,9 +842,15 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const rawTracks =
     itemId && origin && !isHandleMode
       ? (subtitleTracks != null && subtitleTracks.length > 0)
-        ? subtitleTracks.map((t) => ({ lang: t.lang, src: origin + t.src, label: t.label }))
+        ? subtitleTracks.map((t) => ({
+            key: t.key ?? t.lang,
+            lang: t.lang,
+            src: origin + t.src,
+            label: t.label,
+          }))
         : (subtitleLanguages?.length
           ? subtitleLanguages.map((lang) => ({
+              key: lang,
               lang,
               src: `${origin}/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
               label: LANG_LABELS[lang] ?? lang,
@@ -842,7 +858,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           : [])
       : [];
 
-  // Preferred language first in the list so it's first in the menu and gets default selection
+  // Preferred language first; within that language, bare keys (full dialogue) beat Forced/SDH.
   const tracks =
     preferredSubtitleLang != null && preferredSubtitleLang !== 'off' && rawTracks.length > 0
       ? [...rawTracks].sort((a, b) => {
@@ -850,6 +866,9 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           const bMatch = trackMatchesPreferred(b.lang, preferredSubtitleLang);
           if (aMatch && !bMatch) return -1;
           if (!aMatch && bMatch) return 1;
+          const aForced = /\.forced$/i.test(a.key) || /\(Forced\)/i.test(a.label);
+          const bForced = /\.forced$/i.test(b.key) || /\(Forced\)/i.test(b.label);
+          if (aMatch && bMatch && aForced !== bForced) return aForced ? 1 : -1;
           return 0;
         })
       : rawTracks;
@@ -859,8 +878,9 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const playerSrc = isHandleMode
     ? streamUrl
     : streamType === 'hls'
-      ? { src: streamUrl, type: 'application/vnd.apple.mpegurl' as const }
+      ? { src: streamUrl, type: HLS_MIME_TYPE }
       : { src: streamUrl, type: streamMimeType };
+  const castContentType = streamType === 'hls' ? HLS_CAST_MIME_TYPE : streamMimeType;
 
   // Only enable captions by default when the preferred language track exists; otherwise keep off
   const preferredTrackExists =
@@ -984,6 +1004,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
           autoPlay={!castHeld}
           playsInline
           muted={castHeld}
+          crossOrigin
           storage={playerVolumeStorage}
           logLevel="warn"
           duration={durationSeconds ?? undefined}
@@ -1012,8 +1033,9 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
                   {tracks.length > 0 && !wantCaptions && <CaptionDisabler />}
                   {tracks.map((t, i) => (
                     <Track
-                      key={t.src}
+                      key={t.key}
                       kind="subtitles"
+                      type="vtt"
                       src={t.src}
                       lang={t.lang}
                       label={t.label}
@@ -1044,7 +1066,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
               beforeFullscreenButton: castAvailable ? (
                 <CastButton
                   url={streamUrl}
-                  contentType={streamMimeType}
+                  contentType={castContentType}
                   title={displayTitle}
                   tracks={castTracks}
                   activeTrackIds={castActiveTrackIds}

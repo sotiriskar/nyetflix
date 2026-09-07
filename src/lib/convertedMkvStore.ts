@@ -58,6 +58,12 @@ export function getConvertedPath(itemId: string): string | undefined {
   return getStore().map.get(itemId);
 }
 
+/** Drop a stale converted path (e.g. the HLS package was deleted and the MKV reappeared). */
+export function clearConvertedPath(itemId: string): void {
+  if (!getStore().map.delete(itemId)) return;
+  save();
+}
+
 export function setConvertedPath(itemId: string, path: string): void {
   getStore().map.set(itemId, path);
   save();

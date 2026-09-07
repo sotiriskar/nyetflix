@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import { Readable } from 'stream';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
-import { getVideoExt, getVideoMimeType } from '@/lib/videoMime';
+import { getVideoExt, getVideoMimeType, HLS_MARKER_EXT } from '@/lib/videoMime';
 
 const itemIdToPath = registry.itemIdToPath;
 
@@ -83,6 +83,13 @@ export async function GET(request: NextRequest) {
   }
 
   const effectiveExt = getVideoExt(filePath);
+  // Multi-audio titles are HLS packages; those are served (and byte-ranged) by /api/hls-file.
+  if (effectiveExt === HLS_MARKER_EXT) {
+    return NextResponse.json(
+      { error: 'This title streams as HLS. Use /api/hls-file.' },
+      { status: 400 }
+    );
+  }
   if (!BROWSER_SAFE_EXT.has(effectiveExt)) {
     return NextResponse.json(
       { error: `Unsupported format .${effectiveExt.slice(1)}. Use MP4, MKV, or WebM.` },

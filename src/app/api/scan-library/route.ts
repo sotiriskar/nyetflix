@@ -33,8 +33,13 @@ const itemIdToPath = registry.itemIdToPath;
 const itemIdToSubtitlePath = registry.itemIdToSubtitlePath;
 const folderPathByItemId = registry.folderPathByItemId;
 
+/**
+ * `.m3u8` is the marker playlist of a converted multi-audio title (see hlsPackage.ts) and
+ * stands in for the original file, which conversion deleted. Its rendition playlists use
+ * `.hlsp` so only the marker shows up here.
+ */
 const VIDEO_EXT = new Set(
-  ['.mp4', '.mkv', '.avi', '.webm', '.mov', '.m4v'].map((e) => e.toLowerCase())
+  ['.mp4', '.m3u8', '.mkv', '.avi', '.webm', '.mov', '.m4v'].map((e) => e.toLowerCase())
 );
 
 function isVideoFile(name: string): boolean {
@@ -288,12 +293,14 @@ export async function GET(request: NextRequest) {
 
     if (subVideoFiles.length > 0) {
       // Direct videos in folder: treat as movie (or flat series)
+      // Prefer formats that play as-is over an MKV that would need converting again.
+      const playsDirectly = (name: string): number => {
+        const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
+        return ext === '.mp4' || ext === '.m3u8' ? 0 : 1;
+      };
       subVideoFiles.sort((a, b) => {
-        const aExt = a.name.slice(a.name.lastIndexOf('.')).toLowerCase();
-        const bExt = b.name.slice(b.name.lastIndexOf('.')).toLowerCase();
-        if (aExt === '.mp4' && bExt !== '.mp4') return -1;
-        if (aExt !== '.mp4' && bExt === '.mp4') return 1;
-        return a.name.localeCompare(b.name);
+        const rank = playsDirectly(a.name) - playsDirectly(b.name);
+        return rank !== 0 ? rank : a.name.localeCompare(b.name);
       });
       const chosen = subVideoFiles[0]!;
       const fileNamesInFolder = new Set(subFiles.map((f) => f.name));

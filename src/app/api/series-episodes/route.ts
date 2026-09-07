@@ -15,8 +15,9 @@ import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/** `.m3u8` is the marker playlist left by converting a multi-audio episode (see hlsPackage.ts). */
 const VIDEO_EXT = new Set(
-  ['.mp4', '.mkv', '.avi', '.webm', '.mov', '.m4v'].map((e) => e.toLowerCase())
+  ['.mp4', '.m3u8', '.mkv', '.avi', '.webm', '.mov', '.m4v'].map((e) => e.toLowerCase())
 );
 const SUBTITLE_EXT = ['.vtt', '.srt'];
 const LANG_SUFFIX = /\.([a-z]{2,3})\.(vtt|srt)$/i;

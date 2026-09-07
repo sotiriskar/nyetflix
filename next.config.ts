@@ -13,6 +13,7 @@ const MEDIA_CORS_HEADERS = [
 
 const CAST_REACHABLE_ROUTES = [
   '/api/stream-video',
+  '/api/hls-file',
   '/api/subtitles',
   '/api/subtitle-tracks',
   '/api/hls-manifest',

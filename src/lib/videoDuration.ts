@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
+import { getHlsDurationSeconds, isHlsMarkerPath } from '@/lib/hlsPackage';
 
 /** Parse "Duration: 01:23:45.67" from ffmpeg stderr into seconds. */
 function parseDuration(stderr: string): number | null {
@@ -16,6 +17,11 @@ function parseDuration(stderr: string): number | null {
  * Get duration in seconds for a video file by running ffmpeg -i. Returns null if ffmpeg fails or duration cannot be parsed.
  */
 export async function getDurationSecondsFromFile(filePath: string, timeoutMs = 12000): Promise<number | null> {
+  // An HLS package records its duration when it is built, so nothing has to demux the playlist.
+  if (isHlsMarkerPath(filePath)) {
+    const fromInfo = getHlsDurationSeconds(filePath);
+    if (fromInfo != null) return fromInfo;
+  }
   const ffmpegBin = getFfmpegPath();
   let stderr: string;
   try {
