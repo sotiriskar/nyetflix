@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createReadStream } from 'fs';
-import { readFile, stat } from 'fs/promises';
+import { readFile, realpath, stat } from 'fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'path';
 import { Readable } from 'stream';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
@@ -142,21 +142,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
   }
 
-  // Only the marker and the files inside its own data folder are readable through here.
-  const dataDir = resolve(dataDirFor(markerPath));
-  const isMarker = filePath === resolve(markerPath);
-  if (!isMarker && !filePath.startsWith(dataDir + sep)) {
+  let realFilePath: string;
+  let realMarkerPath: string;
+  let realDataDir: string;
+  try {
+    realFilePath = await realpath(filePath);
+    realMarkerPath = await realpath(markerPath);
+    realDataDir = await realpath(dataDirFor(markerPath));
+  } catch {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
   }
 
-  const ext = extensionOf(filePath);
+  // Only the marker and the files inside its own data folder are readable through here.
+  const isMarker = realFilePath === realMarkerPath;
+  if (!isMarker && !realFilePath.startsWith(realDataDir + sep)) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
+
+  const ext = extensionOf(realFilePath);
   if (!PLAYLIST_EXTS.has(ext) && !DATA_EXTS.has(ext)) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
   }
 
   let size: number;
   try {
-    const st = await stat(filePath);
+    const st = await stat(realFilePath);
     if (!st.isFile()) return NextResponse.json({ error: 'Not a file' }, { status: 404 });
     size = st.size;
   } catch {
@@ -164,8 +174,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (PLAYLIST_EXTS.has(ext)) {
-    const body = await readFile(filePath, 'utf-8');
-    return new NextResponse(rewritePlaylist(body, id, baseDir, dirname(filePath)), {
+    const body = await readFile(realFilePath, 'utf-8');
+    return new NextResponse(rewritePlaylist(body, id, baseDir, dirname(realFilePath)), {
       headers: {
         'Content-Type': HLS_MIME_TYPE,
         'Cache-Control': 'no-store',
@@ -173,5 +183,5 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return rangeResponse(filePath, size, request.headers.get('range'), request);
+  return rangeResponse(realFilePath, size, request.headers.get('range'), request);
 }
