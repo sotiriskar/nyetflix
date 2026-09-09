@@ -15,6 +15,7 @@ import type { CarouselItem } from '@/types/movie';
 import { YouTubeTrailerHost } from '@/components/YouTubeTrailerHost';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
+import { useItemConversionStatus } from '@/context/ConversionStatusContext';
 import { buildTrailerPlayerVars, restartTrailerLoop, styleYoutubeTrailerIframe, YT_STATE_ENDED } from '@/lib/youtubeTrailer';
 
 const HOVER_OVERLAY_PLAYER_ID = 'hover-overlay-continue-trailer';
@@ -65,6 +66,7 @@ export function ContinueWatchingHoverCard({
   onRemoveFromContinueWatching,
 }: ContinueWatchingHoverCardProps) {
   const progressPercent = Math.min(1, Math.max(0, progress ?? 0)) * 100;
+  const conversion = useItemConversionStatus(item.id);
   const totalMinutes = parseDurationToMinutes(duration);
   const currentMinutes = totalMinutes > 0 ? Math.floor((progress ?? 0) * totalMinutes) : 0;
   const progressLabel =
@@ -408,6 +410,16 @@ export function ContinueWatchingHoverCard({
         {progressPercent > 0 && (
           <div className="absolute left-0 right-0 bottom-0 h-1 rounded-b-md overflow-hidden bg-white/30 pointer-events-none z-10" aria-hidden>
             <div className="h-full bg-[#E50914] rounded-b-md transition-[width] duration-300" style={{ width: `${progressPercent}%` }} />
+          </div>
+        )}
+        {conversion?.status === 'converting' && (
+          <div className="absolute top-2 left-2 z-20 rounded bg-black/80 px-2 py-1 text-[11px] font-semibold text-white pointer-events-none">
+            Converting… {Math.round((conversion.progress ?? 0) * 100)}%
+          </div>
+        )}
+        {conversion?.status === 'incomplete' && (
+          <div className="absolute top-2 left-2 z-20 rounded bg-amber-700/90 px-2 py-1 text-[11px] font-semibold text-white pointer-events-none">
+            Convert incomplete
           </div>
         )}
       </div>

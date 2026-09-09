@@ -10,17 +10,11 @@
 
 import { spawn } from 'child_process';
 import { join, dirname, basename } from 'path';
-import { unlink, writeFileSync } from 'fs';
+import { unlink, writeFileSync, existsSync } from 'fs';
 import { cpus } from 'os';
 import { getFfmpegPath } from './ffmpegPath';
-import {
-  getConvertedPath,
-  setConvertedPathAndFlush,
-  isConversionInProgress,
-  hasAnyConversionInProgress,
-  markConversionStarted,
-  markConversionFinished,
-} from './convertedMkvStore';
+import { setConvertedPathAndFlush } from './convertedMkvStore';
+import { getAppConfig } from './appConfig';
 import { planSubtitleExtraction, runSubtitleExtraction } from './extractEmbeddedSubtitles';
 import { probeMediaStreams, canCopyAudioCodec, type StreamInfo } from './ffprobeStreams';
 import {
@@ -29,6 +23,8 @@ import {
   removeHlsPackage,
   writeHlsInfo,
   writeHlsMarker,
+  isHlsMarkerPath,
+  isHlsPackageComplete,
   type HlsBuildPlan,
 } from './hlsPackage';
 import { registry, persistRegistry } from './streamRegistry';
@@ -40,8 +36,28 @@ export type ConversionProgress = {
   etaSeconds?: number; // estimated time remaining
 };
 
-const progressMap = new Map<string, ConversionProgress>();
-const listeners = new Map<string, Set<(p: ConversionProgress) => void>>();
+/**
+ * Survives Next.js HMR. Module-level Maps were wiped on every save, which orphaned a still-
+ * running ffmpeg and made the next play hit "already in progress" / a frozen 0% bar.
+ */
+type InFlightConversion = { promise: Promise<string> };
+type ConversionRuntime = {
+  progress: Map<string, ConversionProgress>;
+  listeners: Map<string, Set<(p: ConversionProgress) => void>>;
+  inFlight: Map<string, InFlightConversion>;
+};
+const runtimeKey = Symbol.for('nyetflix-mkv-conversion-runtime');
+function runtime(): ConversionRuntime {
+  const g = globalThis as unknown as Record<symbol, ConversionRuntime>;
+  if (!g[runtimeKey]) {
+    g[runtimeKey] = {
+      progress: new Map(),
+      listeners: new Map(),
+      inFlight: new Map(),
+    };
+  }
+  return g[runtimeKey];
+}
 
 /** Parse last "time=00:01:23.45" from ffmpeg stderr (ffmpeg uses \\r to overwrite same line). */
 function parseLastTime(stderr: string): number | null {
@@ -55,17 +71,35 @@ function parseLastTime(stderr: string): number | null {
 }
 
 export function getConversionProgress(itemId: string): ConversionProgress | undefined {
-  return progressMap.get(itemId);
+  return runtime().progress.get(itemId);
+}
+
+/** Snapshot of every in-flight encode (for card badges / status polling). */
+export function listInFlightConversions(): { itemId: string; progress: ConversionProgress }[] {
+  const { inFlight, progress } = runtime();
+  const out: { itemId: string; progress: ConversionProgress }[] = [];
+  for (const itemId of inFlight.keys()) {
+    out.push({
+      itemId,
+      progress: progress.get(itemId) ?? { progress: 0, currentTime: 0, durationSeconds: 0 },
+    });
+  }
+  return out;
+}
+
+export function isItemConversionInFlight(itemId: string): boolean {
+  return runtime().inFlight.has(itemId);
 }
 
 export function subscribeToProgress(itemId: string, cb: (p: ConversionProgress) => void): () => void {
+  const { listeners, progress } = runtime();
   let set = listeners.get(itemId);
   if (!set) {
     set = new Set();
     listeners.set(itemId, set);
   }
   set.add(cb);
-  const p = progressMap.get(itemId);
+  const p = progress.get(itemId);
   if (p) cb(p);
   return () => {
     set?.delete(cb);
@@ -74,7 +108,8 @@ export function subscribeToProgress(itemId: string, cb: (p: ConversionProgress) 
 }
 
 function notifyProgress(itemId: string, p: ConversionProgress): void {
-  progressMap.set(itemId, p);
+  const { progress, listeners } = runtime();
+  progress.set(itemId, p);
   listeners.get(itemId)?.forEach((cb) => cb(p));
 }
 
@@ -100,6 +135,7 @@ function runSegment(
   startSec: number,
   durationSec: number,
   segmentPath: string,
+  videoArgs: string[],
   audioArgs: string[],
   abortSignal?: AbortSignal | null
 ): Promise<void> {
@@ -110,7 +146,7 @@ function runSegment(
       '-i', mkvPath,
       '-map', '0:v:0',
       '-map', '0:a:0?',
-      '-c:v', 'copy',
+      ...videoArgs,
       ...audioArgs,
       '-movflags', '+faststart',
       '-y', segmentPath,
@@ -143,17 +179,18 @@ function runSegment(
 function runParallelConversion(
   itemId: string,
   ffmpegBin: string,
-  mkvPath: string,
+  sourcePath: string,
   mp4Path: string,
   durationSeconds: number,
+  videoArgs: string[],
   audioArgs: string[],
   abortSignal?: AbortSignal | null
 ): Promise<void> {
   const numCpus = Math.max(1, cpus().length);
   const numSegments = Math.min(24, Math.max(8, numCpus * 3));
   const segmentDuration = durationSeconds / numSegments;
-  const dir = dirname(mkvPath);
-  const base = basename(mkvPath, '.mkv');
+  const dir = dirname(sourcePath);
+  const base = sourceStem(sourcePath);
   const segmentPaths: string[] = [];
   for (let i = 0; i < numSegments; i++) {
     segmentPaths.push(join(dir, `${base}.seg${i}.mp4`));
@@ -179,7 +216,7 @@ function runParallelConversion(
     segmentPaths.map((segPath, i) => {
       const start = i * segmentDuration;
       const duration = i === numSegments - 1 ? durationSeconds - start : segmentDuration;
-      return runSegment(ffmpegBin, mkvPath, start, duration, segPath, audioArgs, abortSignal)
+      return runSegment(ffmpegBin, sourcePath, start, duration, segPath, videoArgs, audioArgs, abortSignal)
         .then(() => allSegmentsDone());
     })
   ).then(() => {
@@ -302,44 +339,47 @@ function singleTrackAudioArgs(stream: StreamInfo | undefined, useFdk: boolean): 
   return ['-ac', '2', '-c:a', useFdk ? 'libfdk_aac' : 'aac', '-b:a', '192k'];
 }
 
+function sourceStem(filePath: string): string {
+  return basename(filePath).replace(/\.(mkv|mp4|m4v|mov)$/i, '');
+}
+
+/** Output next to the source. MKV → .mp4; already-MP4 → .nyetflix.mp4 so we don't overwrite. */
+function outputMp4Path(sourcePath: string): string {
+  const dir = dirname(sourcePath);
+  const stem = sourceStem(sourcePath);
+  const ext = sourcePath.includes('.') ? sourcePath.slice(sourcePath.lastIndexOf('.')).toLowerCase() : '';
+  if (ext === '.mkv') return join(dir, stem + '.mp4');
+  return join(dir, stem + '.nyetflix.mp4');
+}
+
+/**
+ * One shared conversion per item. Extra EventSource clients (React Strict Mode remounts,
+ * reconnects, a second tab) join the same promise instead of starting a rival encode.
+ *
+ * Intentionally NOT cancelled when the HTTP client disconnects: closing the watch page /
+ * remounting the player used to abort ffmpeg immediately, which left the UI frozen at 0%.
+ * The encode keeps running; the next subscriber picks up live progress.
+ */
 export function runMkvConversion(
   itemId: string,
   mkvPath: string,
   durationSeconds: number,
-  abortSignal?: AbortSignal | null
+  _abortSignal?: AbortSignal | null
 ): Promise<string> {
-  if (isConversionInProgress(itemId)) {
-    // The output is an MP4 or an HLS marker depending on the file, so read the recorded path.
-    const outputPath = (): string =>
-      getConvertedPath(itemId) ?? join(dirname(mkvPath), basename(mkvPath, '.mkv') + '.mp4');
-    const p = progressMap.get(itemId);
-    if (p && p.progress >= 1) {
-      return Promise.resolve(outputPath());
-    }
-    return new Promise((resolve, reject) => {
-      const unsub = subscribeToProgress(itemId, (prog) => {
-        if (prog.progress >= 1) {
-          unsub();
-          resolve(outputPath());
-        }
-      });
-      setTimeout(() => {
-        unsub();
-        reject(new Error('Conversion timeout'));
-      }, 3600000);
-    });
-  }
+  const { inFlight, progress, listeners } = runtime();
+  const running = inFlight.get(itemId);
+  if (running) return running.promise;
 
   const dir = dirname(mkvPath);
-  const base = basename(mkvPath, '.mkv');
-  const mp4Path = join(dir, base + '.mp4');
+  const base = sourceStem(mkvPath);
+  const mp4Path = outputMp4Path(mkvPath);
   const ffmpegBin = getFfmpegPath();
 
   if (!/[\\/]/.test(ffmpegBin)) {
     return Promise.reject(new Error('ffmpeg not found'));
   }
 
-  if (hasAnyConversionInProgress()) {
+  if (inFlight.size > 0) {
     return Promise.reject(new Error('Another conversion is already in progress. Please wait for it to finish.'));
   }
 
@@ -365,104 +405,130 @@ export function runMkvConversion(
 
   /** Shared tail for both paths: record the output, save subtitles, drop the source file. */
   async function finish(outputPath: string, subtitleStreams: StreamInfo[]): Promise<string> {
+    // Never delete the source until the playable output is actually on disk. A cancelled or
+    // half-written HLS package used to leave users with neither the MKV nor a working encode.
+    const outputOk = isHlsMarkerPath(outputPath)
+      ? isHlsPackageComplete(outputPath)
+      : existsSync(outputPath);
+    if (!outputOk) {
+      return fail(new Error('Conversion finished but the output file is missing or incomplete'));
+    }
+
     await setConvertedPathAndFlush(itemId, outputPath);
     // Point the registry at the playable file so a rescan isn't required after conversion.
-    if (registry.episodeIdToPath.has(itemId)) registry.episodeIdToPath.set(itemId, outputPath);
-    else if (registry.itemIdToPath.has(itemId)) registry.itemIdToPath.set(itemId, outputPath);
-    persistRegistry();
+    if (outputPath !== mkvPath) {
+      if (registry.episodeIdToPath.has(itemId)) registry.episodeIdToPath.set(itemId, outputPath);
+      else if (registry.itemIdToPath.has(itemId)) registry.itemIdToPath.set(itemId, outputPath);
+      persistRegistry();
+    }
     await extractAndRegisterSubtitles(subtitleStreams);
     notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
-    unlink(mkvPath, () => {}); // Remove original MKV now that the converted output plays
-    progressMap.delete(itemId);
+    if (!getAppConfig().keepSourceMkv) {
+      unlink(mkvPath, () => {}); // Remove original MKV only when the user opted to free disk space
+    }
+    progress.delete(itemId);
     listeners.delete(itemId);
-    markConversionFinished(itemId);
+    inFlight.delete(itemId);
     return outputPath;
   }
 
   function fail(err: unknown): Promise<never> {
-    markConversionFinished(itemId);
-    progressMap.delete(itemId);
+    progress.delete(itemId);
     listeners.delete(itemId);
+    inFlight.delete(itemId);
     return Promise.reject(err instanceof Error ? err : new Error(String(err)));
   }
 
-  markConversionStarted(itemId);
-  notifyProgress(itemId, { progress: 0, currentTime: 0, durationSeconds });
-
-  return Promise.all([probeMediaStreams(mkvPath), hasLibfdkAac(ffmpegBin)]).then(
-    async ([probed, useFdk]) => {
-      // More than one audio track: package as HLS so all of them stay selectable.
-      if (probed.audio.length > 1) {
-        const plan: HlsBuildPlan = planHlsPackage(mkvPath, base, probed.audio);
-        try {
-          await prepareHlsDataDir(plan.dataDir);
-          await runWithProgress(itemId, ffmpegBin, plan.args, durationSeconds, abortSignal);
-          await writeHlsMarker(plan);
-          await writeHlsInfo(plan, durationSeconds);
-          return await finish(plan.markerPath, probed.subtitles);
-        } catch (err) {
-          await removeHlsPackage(plan.markerPath);
-          return fail(err);
+  function convert(): Promise<string> {
+    return Promise.all([probeMediaStreams(mkvPath), hasLibfdkAac(ffmpegBin)]).then(
+      async ([probed, useFdk]) => {
+        // More than one audio track: package as HLS so all of them stay selectable.
+        if (probed.audio.length > 1) {
+          const plan: HlsBuildPlan = planHlsPackage(mkvPath, base, probed.audio);
+          try {
+            await prepareHlsDataDir(plan.dataDir);
+            // Leave 0% behind as soon as ffmpeg is about to start (probe can take a few seconds).
+            notifyProgress(itemId, { progress: 0.01, currentTime: 0, durationSeconds });
+            await runWithProgress(itemId, ffmpegBin, plan.args, durationSeconds, null);
+            await writeHlsMarker(plan);
+            await writeHlsInfo(plan, durationSeconds);
+            return await finish(plan.markerPath, probed.subtitles);
+          } catch (err) {
+            await removeHlsPackage(plan.markerPath);
+            return fail(err);
+          }
         }
-      }
 
-      const audioArgs = singleTrackAudioArgs(probed.audio[0], useFdk);
-      const copyAudio = audioArgs[0] === '-c:a' && audioArgs[1] === 'copy';
-      const languageArgs =
-        probed.audio[0] && probed.audio[0].lang !== 'und'
-          ? ['-metadata:s:a:0', `language=${probed.audio[0].lang}`]
-          : [];
+        const audioArgs = singleTrackAudioArgs(probed.audio[0], useFdk);
+        const copyAudio = audioArgs[0] === '-c:a' && audioArgs[1] === 'copy';
+        const languageArgs =
+          probed.audio[0] && probed.audio[0].lang !== 'und'
+            ? ['-metadata:s:a:0', `language=${probed.audio[0].lang}`]
+            : [];
 
-      // Re-encode (DTS/TrueHD etc.): use parallel segments for long files to use all CPU cores
-      if (!copyAudio && durationSeconds >= 120) {
+        // Re-encode DTS/TrueHD/AC3 to AAC in parallel segments so a movie finishes in about a minute.
+        // Video is always stream-copied — a full H.264 encode is what made this take forever.
+        if (!copyAudio && durationSeconds >= 120) {
+          try {
+            await runParallelConversion(
+              itemId,
+              ffmpegBin,
+              mkvPath,
+              mp4Path,
+              durationSeconds,
+              ['-c:v', 'copy'],
+              audioArgs,
+              null
+            );
+            return await finish(mp4Path, probed.subtitles);
+          } catch (err) {
+            return fail(err);
+          }
+        }
+
         try {
-          await runParallelConversion(
+          notifyProgress(itemId, { progress: 0.01, currentTime: 0, durationSeconds });
+          await runWithProgress(
             itemId,
             ffmpegBin,
-            mkvPath,
-            mp4Path,
+            [
+              '-threads', '0',
+              '-i', mkvPath,
+              '-map', '0:v:0',
+              '-map', '0:a:0?',
+              '-stats_period', '1',
+              '-c:v', 'copy',
+              ...audioArgs,
+              ...languageArgs,
+              '-movflags', '+faststart',
+              '-y', mp4Path,
+            ],
             durationSeconds,
-            audioArgs,
-            abortSignal
+            null
           );
           return await finish(mp4Path, probed.subtitles);
         } catch (err) {
+          // Leave no half-written file behind; it can hold a lock for a moment on Windows.
+          const deletePartial = (): void => {
+            unlink(mp4Path, (e) => {
+              if (e && (e as NodeJS.ErrnoException).code === 'EBUSY') setTimeout(deletePartial, 200);
+            });
+          };
+          setTimeout(deletePartial, 100);
           return fail(err);
         }
-      }
+      },
+      // Never leave the item marked as converting if probing itself blows up.
+      (err) => fail(err),
+    );
+  }
 
-      try {
-        await runWithProgress(
-          itemId,
-          ffmpegBin,
-          [
-            '-threads', '0',
-            '-i', mkvPath,
-            '-map', '0:v:0',
-            '-map', '0:a:0?',
-            '-stats_period', '1',
-            '-c:v', 'copy',
-            ...audioArgs,
-            ...languageArgs,
-            '-movflags', '+faststart',
-            '-y', mp4Path,
-          ],
-          durationSeconds,
-          abortSignal
-        );
-        return await finish(mp4Path, probed.subtitles);
-      } catch (err) {
-        // Leave no half-written file behind; it can hold a lock for a moment on Windows.
-        const deletePartial = (): void => {
-          unlink(mp4Path, (e) => {
-            if (e && (e as NodeJS.ErrnoException).code === 'EBUSY') setTimeout(deletePartial, 200);
-          });
-        };
-        setTimeout(deletePartial, 100);
-        return fail(err);
-      }
-    },
-    // Never leave the item marked as converting if probing itself blows up.
-    (err) => fail(err),
-  );
+  notifyProgress(itemId, { progress: 0, currentTime: 0, durationSeconds });
+
+  const entry: InFlightConversion = {
+    promise: undefined as unknown as Promise<string>,
+  };
+  inFlight.set(itemId, entry);
+  entry.promise = convert();
+  return entry.promise;
 }

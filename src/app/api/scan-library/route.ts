@@ -4,9 +4,11 @@ import { join, resolve, sep, isAbsolute, dirname } from 'path';
 import { homedir, platform } from 'os';
 import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
+import { resolveSearchYear } from '@/lib/titleYear';
 import {
   searchTitles,
   getTitle,
+  pickBestTitle,
   titleToMovieDetail,
   type ImdbTitle,
 } from '@/lib/imdbapi';
@@ -294,9 +296,12 @@ export async function GET(request: NextRequest) {
     if (subVideoFiles.length > 0) {
       // Direct videos in folder: treat as movie (or flat series)
       // Prefer formats that play as-is over an MKV that would need converting again.
+      // Prefer Nyetflix-converted MP4s over the original when both exist (HEVC/AC3 sources).
       const playsDirectly = (name: string): number => {
-        const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
-        return ext === '.mp4' || ext === '.m3u8' ? 0 : 1;
+        const lower = name.toLowerCase();
+        if (lower.endsWith('.nyetflix.mp4') || lower.endsWith('.m3u8')) return 0;
+        const ext = lower.slice(lower.lastIndexOf('.'));
+        return ext === '.mp4' || ext === '.m3u8' ? 1 : 2;
       };
       subVideoFiles.sort((a, b) => {
         const rank = playsDirectly(a.name) - playsDirectly(b.name);
@@ -409,7 +414,16 @@ export async function GET(request: NextRequest) {
         : (source === 'folder' && candidates[i].folderName ? String(candidates[i].folderName) : null);
       if (!nameForTitle) continue;
 
-      const searchTitle = titleFromPath(source === 'folder' && candidates[i].folderName ? String(candidates[i].folderName) : videoName);
+      const nameForSearch =
+        source === 'folder' && candidates[i].folderName
+          ? String(candidates[i].folderName)
+          : videoName;
+      const searchTitle = titleFromPath(nameForSearch);
+      // Prefer folder year ("Hercules (1997)") over a mismatched remux year in the filename.
+      const searchYear = resolveSearchYear(
+        source === 'folder' ? candidates[i].folderName : null,
+        videoName
+      );
       if (!searchTitle || seenTitles.has(searchTitle.toLowerCase())) continue;
       seenTitles.add(searchTitle.toLowerCase());
 
@@ -417,12 +431,12 @@ export async function GET(request: NextRequest) {
       let imdbTitle: ImdbTitle | null = null;
 
       try {
-        const searchResults = await searchTitles(searchTitle, 3);
-        if (searchResults.length > 0) {
-          const first = searchResults[0];
-          const titleId = first.id ?? '';
-          imdbTitle = titleId ? await getTitle(titleId) : first;
-          if (!imdbTitle) imdbTitle = first;
+        const searchResults = await searchTitles(searchTitle, 5);
+        const match = pickBestTitle(searchResults, searchTitle, searchYear);
+        if (match) {
+          const titleId = match.id ?? '';
+          imdbTitle = titleId ? await getTitle(titleId) : match;
+          if (!imdbTitle) imdbTitle = match;
         }
       } catch {
         // use filename-only detail
@@ -452,7 +466,7 @@ export async function GET(request: NextRequest) {
         };
       }
       try {
-        const tmdb = await getImagesForTitle(searchTitle);
+        const tmdb = await getImagesForTitle(searchTitle, { year: searchYear });
         if (tmdb.posterUrl) detail.posterUrl = tmdb.posterUrl;
         if (tmdb.backdropUrl) detail.backdropUrl = tmdb.backdropUrl;
         if (tmdb.titleLogoUrl) detail.titleLogoUrl = tmdb.titleLogoUrl;
@@ -465,8 +479,13 @@ export async function GET(request: NextRequest) {
         if (candidates[i].isSeries) {
           detail.mediaType = 'series';
           detail.seasonsCount = candidates[i].seasonCount ?? tmdb.seasonsCount ?? 1;
-        } else if (tmdb.seasonsCount != null && tmdb.seasonsCount > 0) {
-          // TMDB matched a TV show; trust it so we don't flip between series/movie (e.g. Adolescence)
+        } else if (
+          tmdb.seasonsCount != null &&
+          tmdb.seasonsCount > 0 &&
+          // Trust a TV match so we don't flip between series/movie (e.g. Adolescence), but
+          // not when the year says this is the film of a same-named show.
+          (searchYear == null || tmdb.year == null || Math.abs(tmdb.year - searchYear) <= 1)
+        ) {
           detail.mediaType = 'series';
           detail.seasonsCount = tmdb.seasonsCount;
         }

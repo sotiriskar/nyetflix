@@ -96,6 +96,7 @@ export function planHlsPackage(
   sourcePath: string,
   baseName: string,
   audioStreams: StreamInfo[],
+  options?: { reencodeVideo?: boolean },
 ): HlsBuildPlan {
   const markerPath = markerPathFor(sourcePath, baseName);
   const dataDir = dataDirFor(markerPath);
@@ -108,7 +109,9 @@ export function planHlsPackage(
   }));
 
   const mapArgs = ['-map', '0:v:0'];
-  const codecArgs: string[] = ['-c:v', 'copy'];
+  const codecArgs: string[] = options?.reencodeVideo
+    ? ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p']
+    : ['-c:v', 'copy'];
   audioStreams.forEach((stream, i) => {
     mapArgs.push('-map', `0:${stream.index}`);
     if (canCopyAudioCodec(stream.codec)) {

@@ -28,6 +28,7 @@ import type { SeriesSeason, SeriesEpisode } from '@/types/movie';
 import type { ProgressEntry } from '@/context/ProgressContext';
 import { LANG_LABELS as SHARED_LANG_LABELS } from '@/lib/subtitleLabels';
 import { useLibraryContextOrNull } from '@/context/LibraryContext';
+import { useConversionStatus } from '@/context/ConversionStatusContext';
 import { playerVolumeStorage, setPersistPlayerMute } from '@/lib/playerVolumeStorage';
 import { HLS_CAST_MIME_TYPE, HLS_MIME_TYPE } from '@/lib/videoMime';
 import { CastButton } from './CastButton';
@@ -45,6 +46,18 @@ type PlayableVideoMime = 'video/mp4' | 'video/webm';
 
 function toPlayableMime(mimeType: string | undefined): PlayableVideoMime {
   return mimeType === 'video/webm' ? 'video/webm' : 'video/mp4';
+}
+
+/** Keep media URLs on this page's origin. Absolute localhost URLs hang forever on other PCs. */
+function toSameOriginPath(url: string): string {
+  if (!url) return url;
+  if (url.startsWith('/')) return url;
+  try {
+    const parsed = new URL(url, typeof window !== 'undefined' ? window.location.href : 'http://local/');
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url.startsWith('/') ? url : `/${url}`;
+  }
 }
 
 const SAVE_INTERVAL_MS = 5000;
@@ -481,11 +494,13 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   const seriesId = itemId ? (itemId.match(/^episode-(.+)-S\d+-E\d+$/) ?? null)?.[1] ?? null : null;
   const { getProgress, setProgress } = useProgress();
   const library = useLibraryContextOrNull();
+  const { refresh: refreshConversionStatus, reportProgress, clearProgress } = useConversionStatus();
   const { moviesFolderPath } = useSettings();
   const { getPlaybackUrl } = useLibraryHandle();
   const isHandleMode = moviesFolderPath === LIBRARY_HANDLE_MODE;
   const initialProgress = itemId ? (getProgress(itemId)?.progress ?? 0) : 0;
   const conversionEsRef = useRef<EventSource | null>(null);
+  const conversionCloseIntentionalRef = useRef(false);
   const onPlayEpisodeRef = useRef(onPlayEpisode);
   onPlayEpisodeRef.current = onPlayEpisode;
   const stableOnPlayEpisode = useRef((epId: string, epTitle?: string, subs?: string[], seriesTitle?: string) => {
@@ -578,9 +593,71 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (episodesPanelOpen) setEpisodesPanelOpen(false);
-      else onClose();
+      if (e.key === 'Escape') {
+        if (episodesPanelOpen) setEpisodesPanelOpen(false);
+        else onClose();
+        return;
+      }
+      // Don't steal typing from focused inputs / menus
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+      const media = document.querySelector('media-player') as HTMLElement & {
+        mediaPlay?: () => void;
+        mediaPause?: () => void;
+        mediaPaused?: boolean;
+        mediaCurrentTime?: number;
+        mediaVolume?: number;
+        mediaMuted?: boolean;
+      } | null;
+      if (e.key === ' ' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        // Prefer clicking the play button so Vidstack state stays in sync
+        const btn = document.querySelector('[data-media-play-button], media-play-button') as HTMLElement | null;
+        btn?.click();
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const video = document.querySelector('video') as HTMLVideoElement | null;
+        if (video) video.currentTime = Math.max(0, video.currentTime - 10);
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const video = document.querySelector('video') as HTMLVideoElement | null;
+        if (video) video.currentTime = Math.min(video.duration || 1e9, video.currentTime + 10);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const video = document.querySelector('video') as HTMLVideoElement | null;
+        if (video) video.volume = Math.min(1, video.volume + 0.05);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const video = document.querySelector('video') as HTMLVideoElement | null;
+        if (video) video.volume = Math.max(0, video.volume - 0.05);
+        return;
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        const video = document.querySelector('video') as HTMLVideoElement | null;
+        if (video) video.muted = !video.muted;
+        return;
+      }
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        const root = document.querySelector('[data-media-player], media-player') as HTMLElement | null;
+        if (!document.fullscreenElement) {
+          void (root ?? document.documentElement).requestFullscreen?.();
+        } else {
+          void document.exitFullscreen?.();
+        }
+      }
+      void media;
     };
     document.addEventListener('keydown', onKeyDown);
     if (showModal) document.body.style.overflow = 'hidden';
@@ -593,6 +670,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
   useEffect(() => {
     if (!itemId || typeof window === 'undefined') {
       if (conversionEsRef.current) {
+        conversionCloseIntentionalRef.current = true;
         conversionEsRef.current.close();
         conversionEsRef.current = null;
       }
@@ -618,92 +696,137 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     setStreamForItemId(null);
     setStreamType('video');
     setStreamMimeType('video/mp4');
-    const origin = window.location.origin;
-    const fallbackUrl = `${origin}/api/stream-video?id=${encodeURIComponent(itemId)}`;
+    const fallbackUrl = `/api/stream-video?id=${encodeURIComponent(itemId)}`;
     const requestedItemId = itemId;
+    let cancelled = false;
 
     if (isHandleMode) {
       getPlaybackUrl(itemId)
         .then((url) => {
-          if (url && requestedItemId === itemId) {
+          if (cancelled || requestedItemId !== itemId) return;
+          if (url) {
             setStreamUrl(url);
             setStreamType('video');
             setStreamForItemId(requestedItemId);
-          } else if (!url && requestedItemId === itemId) {
+          } else {
             setError('This file is not available. Rescan the library.');
           }
         })
         .catch(() => {
-          if (requestedItemId === itemId) setError('Could not load video from chosen folder.');
+          if (!cancelled && requestedItemId === itemId) setError('Could not load video from chosen folder.');
         });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    fetch(`${origin}/api/video-src?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
+    fetch(`/api/video-src?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
       .then((r) => r.json().catch(() => null))
       .then((data) => {
+        if (cancelled || requestedItemId !== itemId) return;
         if (data?.error && !data?.url) {
           setError(data.error);
           return;
         }
         const applyUrl = (url: string, type: 'video' | 'hls', mimeType?: string) => {
-          setStreamUrl(url);
+          setStreamUrl(toSameOriginPath(url));
           setStreamType(type);
           setStreamMimeType(toPlayableMime(mimeType));
           setStreamForItemId(requestedItemId);
         };
         if (data?.needsConversion && data?.convertUrl) {
           setConversionProgress(0);
-          const convertUrl = data.convertUrl.startsWith('http') ? data.convertUrl : `${origin}${data.convertUrl.startsWith('/') ? '' : '/'}${data.convertUrl}`;
-          const es = new EventSource(convertUrl);
-          conversionEsRef.current = es;
-          es.onmessage = (e) => {
-            try {
-              const d = JSON.parse(e.data);
-              if (d.done) {
-                es.close();
-                conversionEsRef.current = null;
-                setConversionProgress(null);
-                fetch(`${origin}/api/video-src?id=${encodeURIComponent(requestedItemId)}`, { credentials: 'same-origin' })
-                  .then((r) => r.json().catch(() => null))
-                  .then((src) => {
-                    if (src?.url) {
-                      const url = src.url.startsWith('http') ? src.url : `${origin}${src.url.startsWith('/') ? '' : '/'}${src.url}`;
-                      applyUrl(url, (src.type ?? 'video') === 'hls' ? 'hls' : 'video', src.mimeType);
-                    } else {
-                      setConversionError(src?.error ?? 'Could not start playback after conversion.');
-                    }
-                  })
-                  .catch(() => setConversionError('Could not load video after conversion.'));
+          reportProgress(requestedItemId, 0);
+          const convertUrl = toSameOriginPath(data.convertUrl);
+
+          let attempts = 0;
+          const maxAttempts = 8;
+          const attachEventSource = () => {
+            if (cancelled || requestedItemId !== itemId) return;
+            attempts += 1;
+            const es = new EventSource(convertUrl);
+            conversionCloseIntentionalRef.current = false;
+            conversionEsRef.current = es;
+            const closeEs = () => {
+              conversionCloseIntentionalRef.current = true;
+              es.close();
+              if (conversionEsRef.current === es) conversionEsRef.current = null;
+            };
+            es.onmessage = (e) => {
+              try {
+                const d = JSON.parse(e.data);
+                if (d.done) {
+                  closeEs();
+                  setConversionProgress(null);
+                  clearProgress(requestedItemId);
+                  void refreshConversionStatus([requestedItemId]);
+                  fetch(`/api/video-src?id=${encodeURIComponent(requestedItemId)}`, { credentials: 'same-origin' })
+                    .then((r) => r.json().catch(() => null))
+                    .then(async (src) => {
+                      if (cancelled) return;
+                      const trySrc = async (attempt: number): Promise<void> => {
+                        if (cancelled) return;
+                        const data = attempt === 0 ? src : await fetch(`/api/video-src?id=${encodeURIComponent(requestedItemId)}`, { credentials: 'same-origin' }).then((r) => r.json().catch(() => null));
+                        if (data?.url) {
+                          applyUrl(data.url, (data.type ?? 'video') === 'hls' ? 'hls' : 'video', data.mimeType);
+                          return;
+                        }
+                        if (attempt < 4) {
+                          await new Promise((r) => window.setTimeout(r, 400));
+                          return trySrc(attempt + 1);
+                        }
+                        setConversionError(data?.error ?? 'Could not start playback after conversion.');
+                      };
+                      await trySrc(0);
+                    })
+                    .catch(() => {
+                      if (!cancelled) setConversionError('Could not load video after conversion.');
+                    });
+                  return;
+                }
+                if (d.error) {
+                  closeEs();
+                  setConversionProgress(null);
+                  clearProgress(requestedItemId);
+                  setConversionError(d.error);
+                  return;
+                }
+                const p = d.progress ?? 0;
+                setConversionProgress(p);
+                setConversionCurrentTime(d.currentTime ?? 0);
+                setConversionDuration(d.durationSeconds ?? 0);
+                reportProgress(requestedItemId, p, {
+                  currentTime: d.currentTime,
+                  durationSeconds: d.durationSeconds,
+                  etaSeconds: d.etaSeconds,
+                });
+              } catch { /* ignore parse errors */ }
+            };
+            es.onerror = () => {
+              if (conversionCloseIntentionalRef.current) return;
+              es.close();
+              if (conversionEsRef.current === es) conversionEsRef.current = null;
+              if (cancelled || requestedItemId !== itemId) return;
+              if (attempts < maxAttempts) {
+                window.setTimeout(attachEventSource, 1000);
                 return;
               }
-              if (d.error) {
-                es.close();
-                conversionEsRef.current = null;
-                setConversionProgress(null);
-                setConversionError(d.error);
-                return;
-              }
-              setConversionProgress(d.progress ?? 0);
-              setConversionCurrentTime(d.currentTime ?? 0);
-              setConversionDuration(d.durationSeconds ?? 0);
-            } catch { /* ignore parse errors */ }
+              setConversionProgress(null);
+              clearProgress(requestedItemId);
+              setConversionError('Connection lost');
+            };
           };
-          es.onerror = () => {
-            es.close();
-            conversionEsRef.current = null;
-            setConversionError('Connection lost');
-          };
+          attachEventSource();
           return;
         }
         if (data?.url) {
-          const url = data.url.startsWith('http') ? data.url : `${origin}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
-          applyUrl(url, (data.type ?? 'video') === 'hls' ? 'hls' : 'video', data.mimeType);
+          applyUrl(data.url, (data.type ?? 'video') === 'hls' ? 'hls' : 'video', data.mimeType);
         } else {
           applyUrl(fallbackUrl, 'video');
         }
       })
       .catch(() => {
+        if (cancelled) return;
         setStreamUrl(fallbackUrl);
         setStreamType('video');
         setStreamForItemId(requestedItemId);
@@ -713,16 +836,23 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
     if (Number.isFinite(cachedMinutes) && cachedMinutes > 0) {
       setDurationSeconds(cachedMinutes * 60);
     } else {
-      fetch(`${origin}/api/video-duration?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
+      fetch(`/api/video-duration?id=${encodeURIComponent(itemId)}`, { credentials: 'same-origin' })
         .then((r) => (r.ok ? r.json() : null))
-        .then((data) => data?.durationSeconds != null && data.durationSeconds > 0 && setDurationSeconds(Number(data.durationSeconds)))
+        .then((data) => {
+          if (!cancelled && data?.durationSeconds != null && data.durationSeconds > 0) {
+            setDurationSeconds(Number(data.durationSeconds));
+          }
+        })
         .catch(() => {});
     }
     return () => {
+      cancelled = true;
       if (conversionEsRef.current) {
+        conversionCloseIntentionalRef.current = true;
         conversionEsRef.current.close();
         conversionEsRef.current = null;
       }
+      if (requestedItemId) clearProgress(requestedItemId);
     };
     // Duration from the already-loaded library is a one-shot hint; don't re-run this when detailsMap hydrates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -845,14 +975,14 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
         ? subtitleTracks.map((t) => ({
             key: t.key ?? t.lang,
             lang: t.lang,
-            src: origin + t.src,
+            src: toSameOriginPath(t.src.startsWith('http') || t.src.startsWith('/') ? t.src : origin + t.src),
             label: t.label,
           }))
         : (subtitleLanguages?.length
           ? subtitleLanguages.map((lang) => ({
               key: lang,
               lang,
-              src: `${origin}/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
+              src: `/api/subtitles?id=${encodeURIComponent(itemId)}&lang=${encodeURIComponent(lang)}`,
               label: LANG_LABELS[lang] ?? lang,
             }))
           : [])
@@ -969,7 +1099,7 @@ export function VideoPlayerModal({ itemId, title, subtitleLanguages, preferredSu
       ) : conversionProgress !== null ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8 bg-black">
           <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin" role="status" aria-label="Converting" />
-          <p className="text-white text-lg font-medium">Converting MKV to MP4…</p>
+          <p className="text-white text-lg font-medium">Converting for playback…</p>
           <p className="text-white/70 text-sm">This might take a while. Don&apos;t close this window.</p>
           <div className="w-full max-w-md">
             <div className="h-2 bg-white/20 rounded-full overflow-hidden">

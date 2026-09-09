@@ -7,6 +7,8 @@ import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { dataDirFor, isHlsMarkerPath } from '@/lib/hlsPackage';
 import { HLS_MIME_TYPE } from '@/lib/videoMime';
+import { parseBytesRange } from '@/lib/byteRange';
+import { MEDIA_CORS_HEADERS, mediaOptionsResponse } from '@/lib/mediaCors';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -95,6 +97,7 @@ function rewritePlaylist(body: string, id: string, baseDir: string, playlistDir:
 
 function rangeResponse(filePath: string, size: number, range: string | null, request: NextRequest) {
   const headers: Record<string, string> = {
+    ...MEDIA_CORS_HEADERS,
     'Content-Type': 'video/mp4',
     'Accept-Ranges': 'bytes',
     // Segments never change once written, so let the browser reuse them while seeking.
@@ -117,12 +120,14 @@ function rangeResponse(filePath: string, size: number, range: string | null, req
     });
   }
 
-  const [startRaw, endRaw] = range.replace(/^bytes=/, '').split('-');
-  const requestedStart = startRaw ? parseInt(startRaw, 10) : 0;
-  const requestedEnd = endRaw ? parseInt(endRaw, 10) : NaN;
-  const start = Math.min(Math.max(0, requestedStart), Math.max(0, size - 1));
-  const end = Math.min(Number.isNaN(requestedEnd) ? size - 1 : requestedEnd, size - 1);
-  const safeEnd = Math.max(start, end);
+  const parsed = parseBytesRange(range, size);
+  if (!parsed) {
+    return new Response(null, {
+      status: 416,
+      headers: { ...headers, 'Content-Range': `bytes */${size}` },
+    });
+  }
+  const { start, end: safeEnd } = parsed;
 
   return new Response(openStream(start, safeEnd), {
     status: 206,
@@ -132,6 +137,10 @@ function rangeResponse(filePath: string, size: number, range: string | null, req
       'Content-Range': `bytes ${start}-${safeEnd}/${size}`,
     },
   });
+}
+
+export async function OPTIONS() {
+  return mediaOptionsResponse();
 }
 
 export async function GET(request: NextRequest) {
@@ -195,6 +204,7 @@ export async function GET(request: NextRequest) {
     const body = await readFile(realFilePath, 'utf-8');
     return new NextResponse(rewritePlaylist(body, id, baseDir, dirname(realFilePath)), {
       headers: {
+        ...MEDIA_CORS_HEADERS,
         'Content-Type': HLS_MIME_TYPE,
         'Cache-Control': 'no-store',
       },

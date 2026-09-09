@@ -12,39 +12,42 @@ import {
   HLS_MIME_TYPE,
 } from '@/lib/videoMime';
 import { isHlsMarkerPath, isHlsPackageComplete } from '@/lib/hlsPackage';
+import { fileNeedsBrowserConversion } from '@/lib/browserPlayable';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-/** Multi-audio MKVs are converted to an HLS package; the player needs its marker playlist. */
-function hlsResponse(request: NextRequest, id: string) {
+const DIRECT_PLAY_EXT = new Set(['.mp4', '.m4v', '.mov', '.webm']);
+
+/** Relative API paths so LAN clients (phone/TV/other PC) don't get stuck on localhost URLs. */
+function hlsResponse(_request: NextRequest, id: string) {
   return NextResponse.json({
-    url: `${request.nextUrl.origin}/api/hls-file?id=${encodeURIComponent(id)}`,
+    url: `/api/hls-file?id=${encodeURIComponent(id)}`,
     type: 'hls',
     mimeType: HLS_MIME_TYPE,
     seekable: true,
-  });
+  }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
-function streamResponse(request: NextRequest, id: string, mimeType: string) {
+function streamResponse(_request: NextRequest, id: string, mimeType: string) {
   return NextResponse.json({
-    url: `${request.nextUrl.origin}/api/stream-video?id=${encodeURIComponent(id)}`,
+    url: `/api/stream-video?id=${encodeURIComponent(id)}`,
     type: 'video',
     mimeType,
     seekable: true,
-  });
+  }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
-function needsConversionResponse(request: NextRequest, id: string) {
+function needsConversionResponse(_request: NextRequest, id: string) {
   const ffmpegBin = getFfmpegPath();
   if (/[\\/]/.test(ffmpegBin)) {
     return NextResponse.json({
       needsConversion: true,
-      convertUrl: `${request.nextUrl.origin}/api/convert-mkv?id=${encodeURIComponent(id)}`,
-    });
+      convertUrl: `/api/convert-mkv?id=${encodeURIComponent(id)}`,
+    }, { headers: { 'Cache-Control': 'no-store' } });
   }
   return NextResponse.json(
-    { error: 'ffmpeg not found. Install ffmpeg to convert MKV for playback.' },
+    { error: 'ffmpeg not found. Install ffmpeg to convert video for playback.' },
     { status: 503 },
   );
 }
@@ -108,17 +111,41 @@ export async function GET(request: NextRequest) {
 
   if (ext === '.mkv') {
     const converted = getConvertedPath(id);
-    if (converted && existsSync(converted)) {
+    if (converted && converted !== filePath && existsSync(converted)) {
       if (getVideoExt(converted) === HLS_MARKER_EXT) {
         if (isHlsPackageComplete(converted)) return hlsResponse(request, id);
         clearConvertedPath(id);
       } else {
         return streamResponse(request, id, getVideoMimeType(converted));
       }
+    } else if (converted && converted === filePath) {
+      clearConvertedPath(id);
     } else if (converted) {
       clearConvertedPath(id);
     }
     return needsConversionResponse(request, id);
+  }
+
+  // MP4/MOV can still be HEVC or DTS — those hang forever in Chrome. Convert first.
+  if (DIRECT_PLAY_EXT.has(ext) && ext !== '.webm') {
+    const converted = getConvertedPath(id);
+    if (converted && converted !== filePath && existsSync(converted)) {
+      if (getVideoExt(converted) === HLS_MARKER_EXT) {
+        if (isHlsPackageComplete(converted)) return hlsResponse(request, id);
+        clearConvertedPath(id);
+      } else {
+        return streamResponse(request, id, getVideoMimeType(converted));
+      }
+    }
+    if (converted && converted === filePath) {
+      clearConvertedPath(id);
+    }
+    if (filePath.toLowerCase().endsWith('.nyetflix.mp4')) {
+      return streamResponse(request, id, getVideoMimeType(filePath));
+    }
+    if (await fileNeedsBrowserConversion(filePath)) {
+      return needsConversionResponse(request, id);
+    }
   }
 
   return streamResponse(request, id, getVideoMimeType(filePath));

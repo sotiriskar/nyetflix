@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import { useProfile } from '@/context/ProfileContext';
 import { AddProfileModal } from '@/components/AddProfileModal';
@@ -9,14 +9,20 @@ import type { ProfileId } from '@/lib/profiles';
 
 export function WhosWatching() {
   const router = useRouter();
+  const pathname = usePathname();
   const { profiles, confirmProfileChoice, canAddProfile } = useProfile();
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const enterAs = (id: ProfileId) => {
     confirmProfileChoice(id);
-    // Always land on Home — without this we keep whatever URL was under the gate
-    // (e.g. /search, /watch/…) and nothing useful loads, with no nav highlight.
-    router.replace('/browse');
+    // Already on Home: swapping the gate for the app shell is enough. Calling
+    // router.replace here races Next's App Router and throws
+    // "Rendered more hooks than during the previous render".
+    if (pathname === '/browse') return;
+    // Land on Home from /search, /watch, etc. Defer so profile state commits first.
+    queueMicrotask(() => {
+      router.replace('/browse');
+    });
   };
 
   return (

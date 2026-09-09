@@ -58,6 +58,13 @@ export function getConvertedPath(itemId: string): string | undefined {
   return getStore().map.get(itemId);
 }
 
+/** True when we have a converted file that is not the original source. */
+export function isDistinctConvertedOutput(itemId: string, sourcePath: string): boolean {
+  const converted = getConvertedPath(itemId);
+  if (!converted || converted === sourcePath) return false;
+  return existsSync(converted);
+}
+
 /** Drop a stale converted path (e.g. the HLS package was deleted and the MKV reappeared). */
 export function clearConvertedPath(itemId: string): void {
   if (!getStore().map.delete(itemId)) return;

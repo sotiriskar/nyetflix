@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start",
-    "prod": "next build && next start",
+    "start": "next start --hostname 0.0.0.0",
+    "prod": "next build && next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "test": "echo \"No tests defined\"",
     "clear-db": "node scripts/clear-db.mjs"

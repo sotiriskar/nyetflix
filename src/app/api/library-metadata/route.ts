@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   searchTitles,
   getTitle,
+  pickBestTitle,
   titleToMovieDetail,
   type ImdbTitle,
 } from '@/lib/imdbapi';
 import { getImagesForTitle } from '@/lib/tmdb';
 import { titleFromPath } from '@/lib/titleFromPath';
+import { resolveSearchYear } from '@/lib/titleYear';
 import type { CarouselItem, MovieDetail } from '@/types/movie';
 
 const SUBTITLE_EXTS = ['.vtt', '.srt'];
@@ -82,9 +84,9 @@ export async function POST(request: NextRequest) {
             : null;
       if (!nameForTitle) continue;
 
-      const searchTitle = titleFromPath(
-        source === 'folder' && folderName ? String(folderName) : videoName
-      );
+      const nameForSearch = source === 'folder' && folderName ? String(folderName) : videoName;
+      const searchTitle = titleFromPath(nameForSearch);
+      const searchYear = resolveSearchYear(source === 'folder' ? folderName : null, videoName);
       if (!searchTitle || seenTitles.has(searchTitle.toLowerCase())) continue;
       seenTitles.add(searchTitle.toLowerCase());
 
@@ -93,12 +95,12 @@ export async function POST(request: NextRequest) {
 
       let imdbTitle: ImdbTitle | null = null;
       try {
-        const searchResults = await searchTitles(searchTitle, 3);
-        if (searchResults.length > 0) {
-          const first = searchResults[0]!;
-          const titleId = first.id ?? '';
-          imdbTitle = titleId ? await getTitle(titleId) : first;
-          if (!imdbTitle) imdbTitle = first;
+        const searchResults = await searchTitles(searchTitle, 5);
+        const match = pickBestTitle(searchResults, searchTitle, searchYear);
+        if (match) {
+          const titleId = match.id ?? '';
+          imdbTitle = titleId ? await getTitle(titleId) : match;
+          if (!imdbTitle) imdbTitle = match;
         }
       } catch {
         // use filename-only detail
@@ -130,7 +132,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const tmdb = await getImagesForTitle(searchTitle);
+        const tmdb = await getImagesForTitle(searchTitle, { year: searchYear });
         if (tmdb.posterUrl) detail.posterUrl = tmdb.posterUrl;
         if (tmdb.backdropUrl) detail.backdropUrl = tmdb.backdropUrl;
         if (tmdb.titleLogoUrl) detail.titleLogoUrl = tmdb.titleLogoUrl;
@@ -140,7 +142,11 @@ export async function POST(request: NextRequest) {
         if (tmdb.genres) detail.genres = tmdb.genres;
         if (tmdb.trailerYouTubeId) detail.trailerYouTubeId = tmdb.trailerYouTubeId;
         if (tmdb.englishTitle?.trim()) detail.title = tmdb.englishTitle.trim();
-        if (tmdb.seasonsCount != null && tmdb.seasonsCount > 0) {
+        if (
+          tmdb.seasonsCount != null &&
+          tmdb.seasonsCount > 0 &&
+          (searchYear == null || tmdb.year == null || Math.abs(tmdb.year - searchYear) <= 1)
+        ) {
           detail.mediaType = 'series';
           detail.seasonsCount = tmdb.seasonsCount;
         }

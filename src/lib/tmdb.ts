@@ -70,6 +70,10 @@ export interface TmdbImages {
   contentRating: string | null;
   /** Movie runtime in minutes (for duration display when IMDb has none). */
   runtimeMinutes?: number | null;
+  /** What TMDB actually matched, so callers can tell a film from a same-named series. */
+  mediaType?: 'movie' | 'tv' | null;
+  /** Release / first-air year of the matched result. */
+  year?: number | null;
 }
 
 /** Normalized age rating for display (replaces PG, R, etc. with simple buckets). */
@@ -428,9 +432,9 @@ function scoreResultMatch(
   if (q === t) score = 100;
   else {
     if (part === 2 && has2) score = 80;
-    else if (part === 2 && !has2) score = 0;
+    else if (part === 2 && !has2) return 0;
     else if (part === 1 && !has2) score = 80;
-    else if (part === 1 && has2) score = 0;
+    else if (part === 1 && has2) return 0;
     else {
       const qWords = q.replace(YEAR_IN_QUERY, ' ').split(/\s+/).filter(Boolean);
       const allIn = qWords.length > 0 && qWords.every((w) => /^\d{4}$/.test(w) || t.includes(w));
@@ -440,21 +444,30 @@ function scoreResultMatch(
       else score = 50;
     }
   }
-  if (queryYear != null && resultYear != null && queryYear === resultYear) score += 25;
-  else if (queryYear != null && resultYear != null && Math.abs((queryYear ?? 0) - (resultYear ?? 0)) > 2) score -= 40;
+  // Year is the tie-breaker between same-named titles (e.g. the 1997 Hercules film
+  // vs the 1998 series), so it has to outweigh the title score above.
+  if (queryYear != null && resultYear != null) {
+    const diff = Math.abs(queryYear - resultYear);
+    if (diff === 0) score += 60;
+    else if (diff === 1) score += 10;
+    else score -= 20 + 10 * Math.min(diff, 6);
+  }
   return score;
 }
 
-/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, overview, tagline, contentRating (ALL/7+/13+/16+/18+), runtimeMinutes (movies), and (for TV) seasons count. Pass raw folder/video name (e.g. "Zootopia (2016)" or "Zootopia 2 (2025)") so year and part number are used to pick the right result. */
-export async function getImagesForTitle(title: string): Promise<TmdbImages> {
-  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, director: null, writer: null, genres: null, trailerYouTubeId: null, englishTitle: null, overview: null, tagline: null, contentRating: null };
+/** Search TMDB by title and return poster, backdrop, title logo, cast, genres, trailer YouTube id, English title, overview, tagline, contentRating (ALL/7+/13+/16+/18+), runtimeMinutes (movies), and (for TV) seasons count. Pass raw folder/video name (e.g. "Zootopia (2016)" or "Zootopia 2 (2025)") so year and part number are used to pick the right result, or pass the year separately when the title has already been cleaned. */
+export async function getImagesForTitle(
+  title: string,
+  options?: { year?: number | null }
+): Promise<TmdbImages> {
+  const out: TmdbImages = { posterUrl: null, backdropUrl: null, titleLogoUrl: null, cast: null, director: null, writer: null, genres: null, trailerYouTubeId: null, englishTitle: null, overview: null, tagline: null, contentRating: null, mediaType: null, year: null };
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey?.trim()) return out;
 
   const query = title.trim();
   if (!query) return out;
 
-  const queryYear = yearFromQuery(query);
+  const queryYear = options?.year ?? yearFromQuery(query);
   const url = `${TMDB_BASE}/search/multi?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&language=en-US`;
   const res = await fetch(url);
   if (!res.ok) return out;
@@ -476,6 +489,8 @@ export async function getImagesForTitle(title: string): Promise<TmdbImages> {
   if (!first) return out;
 
   out.englishTitle = (first.title ?? first.name ?? null) || null;
+  out.mediaType = first.media_type === 'tv' ? 'tv' : first.media_type === 'movie' ? 'movie' : null;
+  out.year = yearFromResult(first);
   out.posterUrl = buildImageUrl(first.poster_path, POSTER_SIZE);
   out.backdropUrl = buildImageUrl(first.backdrop_path, BACKDROP_SIZE);
   if (first.id != null && first.media_type) {

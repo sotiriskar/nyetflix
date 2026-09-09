@@ -29,8 +29,35 @@ export interface StreamInfo {
 export interface ProbedStreams {
   audio: StreamInfo[];
   subtitles: StreamInfo[];
+  /** First video stream codec (h264, hevc, …), when present. */
+  videoCodec: string | null;
   /** False when neither ffprobe nor ffmpeg could read the file, so callers can fall back. */
   ok: boolean;
+}
+
+/** Video codecs Chrome/Edge can usually play inside MP4 without converting. */
+const BROWSER_SAFE_VIDEO = new Set(['h264', 'avc', 'avc1']);
+/** Audio codecs safe for direct browser playback in MP4. */
+const BROWSER_SAFE_AUDIO = new Set(['aac', 'mp3', 'opus']);
+
+export function isBrowserSafeVideoCodec(codec: string | null | undefined): boolean {
+  return !!codec && BROWSER_SAFE_VIDEO.has(codec.toLowerCase());
+}
+
+export function isBrowserSafeAudioCodec(codec: string | null | undefined): boolean {
+  return !!codec && BROWSER_SAFE_AUDIO.has(codec.toLowerCase());
+}
+
+/**
+ * True when the file should go through convert-mkv before play (HEVC, DTS/AC3, multi-audio, …).
+ * If probing failed, we leave it alone and let the player try.
+ */
+export function needsBrowserConversion(probed: ProbedStreams): boolean {
+  if (!probed.ok) return false;
+  if (probed.audio.length > 1) return true;
+  if (!isBrowserSafeVideoCodec(probed.videoCodec)) return true;
+  if (probed.audio.length === 1 && !isBrowserSafeAudioCodec(probed.audio[0]?.codec)) return true;
+  return false;
 }
 
 /** Subtitle codecs that can be converted to WebVTT. Everything else is bitmap (PGS, VobSub, DVB). */
@@ -109,11 +136,14 @@ function parseProbeJson(json: string): ProbedStreams | null {
     if (streams.length === 0) return null;
     const audio: StreamInfo[] = [];
     const subtitles: StreamInfo[] = [];
+    let videoCodec: string | null = null;
     for (const raw of streams) {
-      if (raw.codec_type === 'audio') audio.push(toStreamInfo(raw, audio.length));
+      if (raw.codec_type === 'video' && videoCodec == null) {
+        videoCodec = (raw.codec_name ?? '').toLowerCase() || null;
+      } else if (raw.codec_type === 'audio') audio.push(toStreamInfo(raw, audio.length));
       else if (raw.codec_type === 'subtitle') subtitles.push(toStreamInfo(raw, subtitles.length));
     }
-    return { audio, subtitles, ok: true };
+    return { audio, subtitles, videoCodec, ok: true };
   } catch {
     return null;
   }
@@ -123,10 +153,15 @@ function parseProbeJson(json: string): ProbedStreams | null {
 function parseFfmpegStderr(stderr: string): ProbedStreams {
   const audio: StreamInfo[] = [];
   const subtitles: StreamInfo[] = [];
-  const regex = /Stream #0:(\d+)(?:\[[^\]]*\])?(?:\(([^)]+)\))?: (Audio|Subtitle): (\w+)/g;
+  let videoCodec: string | null = null;
+  const regex = /Stream #0:(\d+)(?:\[[^\]]*\])?(?:\(([^)]+)\))?: (Video|Audio|Subtitle): (\w+)/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(stderr)) !== null) {
     const [, indexRaw, langRaw, kind, codec] = match;
+    if (kind === 'Video') {
+      if (videoCodec == null) videoCodec = codec!.toLowerCase();
+      continue;
+    }
     const list = kind === 'Audio' ? audio : subtitles;
     list.push({
       index: parseInt(indexRaw!, 10),
@@ -140,7 +175,7 @@ function parseFfmpegStderr(stderr: string): ProbedStreams {
       isCommentary: false,
     });
   }
-  return { audio, subtitles, ok: audio.length > 0 || subtitles.length > 0 };
+  return { audio, subtitles, videoCodec, ok: audio.length > 0 || subtitles.length > 0 || videoCodec != null };
 }
 
 function run(bin: string, args: string[], timeoutMs: number): Promise<{ stdout: string; stderr: string }> {

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { TopBar } from '@/components/TopBar';
 import { WhosWatching } from '@/components/WhosWatching';
@@ -10,6 +11,7 @@ import { ProgressProvider } from '@/context/ProgressContext';
 import { LibraryProvider } from '@/context/LibraryContext';
 import { TrailerMuteProvider } from '@/context/TrailerMuteContext';
 import { TrailerResumeProvider } from '@/context/TrailerResumeContext';
+import { ConversionStatusProvider } from '@/context/ConversionStatusContext';
 import { MyListProvider } from '@/hooks/useMyList';
 import { LikedProvider } from '@/hooks/useLiked';
 
@@ -19,18 +21,22 @@ function AppWithProviders({ children }: { children: React.ReactNode }) {
       <LibraryHandleProvider>
         <LibraryProvider>
           <ProgressProvider>
-            <MyListProvider>
-              <LikedProvider>
-                <TrailerMuteProvider>
-                  <TrailerResumeProvider>
-                    <div className="min-h-screen bg-[#141414]">
-                      <TopBar />
-                      <main>{children}</main>
-                    </div>
-                  </TrailerResumeProvider>
-                </TrailerMuteProvider>
-              </LikedProvider>
-            </MyListProvider>
+            <ConversionStatusProvider>
+              <MyListProvider>
+                <LikedProvider>
+                  <TrailerMuteProvider>
+                    <TrailerResumeProvider>
+                      <div className="min-h-screen bg-[#141414]">
+                        <Suspense fallback={null}>
+                          <TopBar />
+                        </Suspense>
+                        <main>{children}</main>
+                      </div>
+                    </TrailerResumeProvider>
+                  </TrailerMuteProvider>
+                </LikedProvider>
+              </MyListProvider>
+            </ConversionStatusProvider>
           </ProgressProvider>
         </LibraryProvider>
       </LibraryHandleProvider>

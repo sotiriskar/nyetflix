@@ -36,6 +36,39 @@ export async function searchTitles(query: string, limit = 5): Promise<ImdbTitle[
   return data.titles ?? [];
 }
 
+/**
+ * Pick the search hit that actually matches the file, using the year from the folder/file
+ * name. Without this, "Hercules (1997)" takes whatever IMDb ranks first, which is often a
+ * same-named series from another year.
+ */
+export function pickBestTitle(
+  results: ImdbTitle[],
+  searchTitle: string,
+  year: number | null
+): ImdbTitle | null {
+  if (results.length === 0) return null;
+  const q = searchTitle.trim().toLowerCase();
+  let best = results[0]!;
+  let bestScore = -Infinity;
+  for (const t of results) {
+    const name = (t.primaryTitle ?? t.originalTitle ?? '').trim().toLowerCase();
+    let score = 0;
+    if (name === q) score += 50;
+    else if (name.includes(q)) score += 20;
+    if (year != null && t.startYear != null) {
+      const diff = Math.abs(t.startYear - year);
+      if (diff === 0) score += 60;
+      else if (diff === 1) score += 10;
+      else score -= 20 + 10 * Math.min(diff, 6);
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+  return best;
+}
+
 export async function getTitle(titleId: string): Promise<ImdbTitle | null> {
   const url = `${BASE}/titles/${encodeURIComponent(titleId)}`;
   const res = await fetch(url);

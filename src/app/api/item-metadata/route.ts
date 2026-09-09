@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchTitles, getTitle, titleToMovieDetail, type ImdbTitle } from '@/lib/imdbapi';
+import { searchTitles, getTitle, pickBestTitle, titleToMovieDetail, type ImdbTitle } from '@/lib/imdbapi';
 import { getImagesForTitle } from '@/lib/tmdb';
+import { yearFromPath } from '@/lib/titleFromPath';
 import { getDurationSecondsForItem } from '@/lib/videoDuration';
 import type { MovieDetail } from '@/types/movie';
 
@@ -21,16 +22,17 @@ export async function POST(request: NextRequest) {
   }
 
   const searchTitle = title.trim();
+  const searchYear = yearFromPath(searchTitle);
   const patch: Partial<MovieDetail> = { id };
 
   let imdbTitle: ImdbTitle | null = null;
   try {
-    const searchResults = await searchTitles(searchTitle, 3);
-    if (searchResults.length > 0) {
-      const first = searchResults[0]!;
-      const titleId = first.id ?? '';
-      imdbTitle = titleId ? await getTitle(titleId) : first;
-      if (!imdbTitle) imdbTitle = first;
+    const searchResults = await searchTitles(searchTitle, 5);
+    const match = pickBestTitle(searchResults, searchTitle, searchYear);
+    if (match) {
+      const titleId = match.id ?? '';
+      imdbTitle = titleId ? await getTitle(titleId) : match;
+      if (!imdbTitle) imdbTitle = match;
     }
   } catch {
     // continue without IMDb
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const tmdb = await getImagesForTitle(searchTitle);
+    const tmdb = await getImagesForTitle(searchTitle, { year: searchYear });
     if (tmdb.overview && !patch.description) patch.description = tmdb.overview;
     if (tmdb.tagline) patch.tagline = tmdb.tagline;
     if (tmdb.contentRating) patch.contentRating = tmdb.contentRating;

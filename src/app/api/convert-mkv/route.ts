@@ -3,10 +3,11 @@ import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { basename, dirname, join } from 'path';
 import { registry, ensureHydrated, persistRegistry } from '@/lib/streamRegistry';
-import { getConvertedPath, clearConvertedPath } from '@/lib/convertedMkvStore';
+import { getConvertedPath, clearConvertedPath, isDistinctConvertedOutput } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
 import { runMkvConversion, subscribeToProgress } from '@/lib/mkvConversionRunner';
-import { isHlsMarkerPath } from '@/lib/hlsPackage';
+import { isHlsMarkerPath, isHlsPackageComplete } from '@/lib/hlsPackage';
+import { MEDIA_CORS_HEADERS } from '@/lib/mediaCors';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -70,26 +71,32 @@ export async function GET(request: NextRequest) {
       filePath = mkv;
     }
   }
-  if (!filePath || getExt(filePath) !== '.mkv' || !existsSync(filePath)) {
-    return new Response(JSON.stringify({ error: 'Unknown or not MKV' }), { status: 404 });
+  const ext = filePath ? getExt(filePath) : '';
+  const CONVERTIBLE = new Set(['.mkv', '.mp4', '.m4v', '.mov']);
+  if (!filePath || !CONVERTIBLE.has(ext) || !existsSync(filePath)) {
+    return new Response(JSON.stringify({ error: 'Unknown or unsupported source file' }), { status: 404 });
   }
 
-  const converted = getConvertedPath(id);
-  if (converted && existsSync(converted)) {
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
-        controller.close();
-      },
-    });
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    });
+  if (isDistinctConvertedOutput(id, filePath)) {
+    const converted = getConvertedPath(id)!;
+    if (!isHlsMarkerPath(converted) || isHlsPackageComplete(converted)) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          ...MEDIA_CORS_HEADERS,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        },
+      });
+    }
   }
 
   const ffmpegBin = getFfmpegPath();
@@ -97,17 +104,31 @@ export async function GET(request: NextRequest) {
     return new Response(JSON.stringify({ error: 'ffmpeg not found' }), { status: 503 });
   }
 
-  const { duration: durationSeconds, error: durationError } = await getDurationSecondsWithError(filePath);
-  if (durationSeconds <= 0) {
-    return new Response(JSON.stringify({ error: durationError || 'Could not get duration' }), { status: 500 });
-  }
-
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      // The client may already be gone (page closed); enqueueing then throws.
       const send = (data: object) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          // nothing to report to
+        }
       };
+
+      // Flush headers + a 0% tick immediately so EventSource doesn't hang during ffprobe.
+      send({ progress: 0, currentTime: 0, durationSeconds: 0 });
+
+      const { duration: durationSeconds, error: durationError } = await getDurationSecondsWithError(filePath);
+      if (durationSeconds <= 0) {
+        send({ error: durationError || 'Could not get duration' });
+        try {
+          controller.close();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
 
       const unsub = subscribeToProgress(id, (p) => {
         send({
@@ -119,22 +140,31 @@ export async function GET(request: NextRequest) {
       });
 
       try {
-        await runMkvConversion(id, filePath, durationSeconds, request.signal);
+        // Do not pass request.signal: React Strict Mode / player remounts close the EventSource
+        // and would abort ffmpeg mid-encode, freezing the UI at 0%. Conversion runs to completion;
+        // a fresh EventSource rejoins via subscribeToProgress + the shared in-flight promise.
+        await runMkvConversion(id, filePath, durationSeconds, null);
         send({ done: true });
       } catch (err) {
         send({ error: String(err) });
       } finally {
         unsub();
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // already closed by the client disconnecting
+        }
       }
     },
   });
 
   return new Response(stream, {
     headers: {
+      ...MEDIA_CORS_HEADERS,
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   });
 }

@@ -14,6 +14,7 @@ import type { CarouselItem, MovieDetail, SeriesSeason, SeriesEpisode } from '../
 import { getContentRatingDescriptors, getContentRatingRecommendation } from '@/lib/contentRating';
 import { truncateToWords } from '@/lib/description';
 import { useProgress } from '@/context/ProgressContext';
+import { useItemConversionStatus, useConversionStatus } from '@/context/ConversionStatusContext';
 import { YouTubeTrailerHost } from '@/components/YouTubeTrailerHost';
 import { useTrailerMute } from '@/context/TrailerMuteContext';
 import { useTrailerResume } from '@/context/TrailerResumeContext';
@@ -60,6 +61,8 @@ interface YTPlayer {
 
 export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnavailable, onAddClick, isInList = false, onLikeClick, isLiked = false, moreLikeThisItems, getDetailForId, onMoreLikeThisPlay, onMoreLikeThisAddClick, getIsInList }: DetailCardProps) {
   const { getProgress } = useProgress();
+  const conversion = useItemConversionStatus(detail.id);
+  const { restoreOriginal, cleanupIncomplete } = useConversionStatus();
   const { isMuted, setMuted } = useTrailerMute();
   const { getAndClearResume } = useTrailerResume();
   const [seasons, setSeasons] = useState<SeriesSeason[]>([]);
@@ -67,6 +70,8 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
   const [seasonDropdownOpen, setSeasonDropdownOpen] = useState(false);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [episodesError, setEpisodesError] = useState<string | null>(null);
+  const [conversionActionError, setConversionActionError] = useState<string | null>(null);
+  const [conversionBusy, setConversionBusy] = useState(false);
   const seasonDropdownRef = useRef<HTMLDivElement>(null);
 
   const [trailerEnded, setTrailerEnded] = useState(false);
@@ -177,7 +182,10 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
   }, [isMuted]);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      onClose();
+    };
     document.addEventListener('keydown', onKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -372,6 +380,70 @@ export function DetailCard({ detail, onClose, onPlay, onPlayEpisode, onPlayUnava
                   <span className="inline-flex items-center text-white/80"><SubtitlesOutlined sx={{ fontSize: 22 }} /></span>
                 )}
               </Box>
+              {conversion?.status === 'converting' && (
+                <p className="text-sm text-white/80 mt-1">
+                  Converting… {Math.round((conversion.progress ?? 0) * 100)}%
+                </p>
+              )}
+              {conversion?.status === 'incomplete' && (
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <span className="text-sm text-amber-300">Conversion incomplete.</span>
+                  <button
+                    type="button"
+                    disabled={conversionBusy}
+                    onClick={() => {
+                      setConversionBusy(true);
+                      setConversionActionError(null);
+                      void cleanupIncomplete(detail.id).then((r) => {
+                        if (!r.ok) setConversionActionError(r.error ?? 'Cleanup failed');
+                        setConversionBusy(false);
+                      });
+                    }}
+                    className="text-sm px-2 py-1 rounded border border-white/30 text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Clean up
+                  </button>
+                  {conversion.canRestoreOriginal && (
+                    <button
+                      type="button"
+                      disabled={conversionBusy}
+                      onClick={() => {
+                        setConversionBusy(true);
+                        setConversionActionError(null);
+                        void restoreOriginal(detail.id).then((r) => {
+                          if (!r.ok) setConversionActionError(r.error ?? 'Restore failed');
+                          setConversionBusy(false);
+                        });
+                      }}
+                      className="text-sm px-2 py-1 rounded border border-white/30 text-white hover:bg-white/10 disabled:opacity-50"
+                    >
+                      Restore original
+                    </button>
+                  )}
+                </div>
+              )}
+              {conversion?.status === 'ready' && conversion.canRestoreOriginal && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    disabled={conversionBusy}
+                    onClick={() => {
+                      setConversionBusy(true);
+                      setConversionActionError(null);
+                      void restoreOriginal(detail.id).then((r) => {
+                        if (!r.ok) setConversionActionError(r.error ?? 'Restore failed');
+                        setConversionBusy(false);
+                      });
+                    }}
+                    className="text-sm text-white/70 hover:text-white underline disabled:opacity-50"
+                  >
+                    Restore original MKV
+                  </button>
+                </div>
+              )}
+              {conversionActionError && (
+                <p className="text-sm text-red-400 mt-1">{conversionActionError}</p>
+              )}
               {detail.contentRating && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1 }}>
                   <span className="inline-block border border-white/70 rounded px-1.5 py-0.5 text-white/90">{detail.contentRating}</span>

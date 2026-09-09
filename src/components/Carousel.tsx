@@ -52,13 +52,28 @@ export function Carousel({ title, items, onItemClick, onPlayClick, getMovieDetai
     if (!stillOverSlide) setIsCardHovered(false);
   };
 
+  const handleRowKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      swiperRef.current?.slidePrev();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      swiperRef.current?.slideNext();
+    }
+  };
+
   return (
-    <section className="w-full pt-6 pb-4 overflow-x-clip overflow-y-visible">
+    <section
+      className="w-full pt-6 pb-4 overflow-x-clip overflow-y-visible"
+      onKeyDown={handleRowKeyDown}
+    >
       <h2 className="text-xl md:text-2xl font-semibold text-white mb-3 px-20">{title}</h2>
       {/* Wider side margins; prev/next sit at edges of the carousel area */}
       <div
         ref={wrapperRef}
         className="relative w-[calc(100vw-160px)] max-w-none left-1/2 -translate-x-1/2"
+        tabIndex={0}
+        aria-label={`${title} row. Use left and right arrows to scroll.`}
       >
         {hasEnoughToScroll && !isBeginning && (
           <button

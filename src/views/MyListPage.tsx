@@ -160,8 +160,10 @@ export function MyListPage() {
     : undefined;
 
   const moreLikeThisItems = useMemo(() => {
-    if (!selectedItem) return [];
-    const all = [...movies, ...series];
+    // Use the full library (same as Home), not just My List — otherwise a short list
+    // leaves "More like this" empty or limited to what's already saved.
+    if (!selectedItem || libraryCarousels.length === 0) return [];
+    const all = libraryCarousels[0].items ?? [];
     const currentGenres = detailsMap[selectedItem.id]?.genres
       ? detailsMap[selectedItem.id].genres!.split(',').map((g) => g.trim()).filter(Boolean)
       : undefined;
@@ -172,7 +174,7 @@ export function MyListPage() {
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [movies, series, selectedItem, detailsMap]);
+  }, [libraryCarousels, selectedItem, detailsMap]);
 
   const hasPath = moviesFolderPath.trim() !== '';
   const hasLibraryData = hasPath && !error && libraryCarousels.length > 0;

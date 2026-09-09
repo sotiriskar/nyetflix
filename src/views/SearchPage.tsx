@@ -75,18 +75,21 @@ export function SearchPage() {
   }, [q, libraryCarousels, detailsMap]);
 
   const moreLikeThisItems = useMemo(() => {
-    if (!selectedItem || results.length === 0) return [];
+    // Use the full library (same as Home), not just the search hits — otherwise a
+    // single-result search leaves "More like this" empty.
+    if (!selectedItem || libraryCarousels.length === 0) return [];
+    const all = libraryCarousels[0].items ?? [];
     const currentGenres = detailsMap[selectedItem.id]?.genres
       ? detailsMap[selectedItem.id].genres!.split(',').map((g) => g.trim()).filter(Boolean)
       : undefined;
     return pickMoreLikeThis(
       selectedItem.id,
       currentGenres,
-      results,
+      all,
       (id) => detailsMap[id]?.genres?.split(',').map((g) => g.trim()).filter(Boolean),
       6
     );
-  }, [results, selectedItem, detailsMap]);
+  }, [libraryCarousels, selectedItem, detailsMap]);
 
   const detail: MovieDetail | undefined = selectedItem
     ? (getDetail?.(selectedItem.id) ?? {

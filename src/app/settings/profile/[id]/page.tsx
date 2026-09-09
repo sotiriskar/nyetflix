@@ -8,8 +8,10 @@ import EditOutlined from '@mui/icons-material/EditOutlined';
 import FolderOutlined from '@mui/icons-material/FolderOutlined';
 import Translate from '@mui/icons-material/Translate';
 import SubtitlesOutlined from '@mui/icons-material/SubtitlesOutlined';
+import VideoFileOutlined from '@mui/icons-material/VideoFileOutlined';
 import { useProfile } from '@/context/ProfileContext';
 import { useSettings } from '@/context/SettingsContext';
+import { useConversionStatus } from '@/context/ConversionStatusContext';
 import { AVATAR_PATHS } from '@/lib/profiles';
 import type { AppLanguage, SubtitlePreference } from '@/context/SettingsContext';
 import type { Profile } from '@/context/ProfileContext';
@@ -59,6 +61,7 @@ export default function SettingsProfilePage() {
   const profileId = (id >= 1 && id <= 5 ? id : null) as ProfileId | null;
   const { currentProfileId, refetchProfiles, deleteProfile, profiles } = useProfile();
   const { setSubtitleLanguage: setContextSubtitleLang, setLanguage: setContextLanguage, setMoviesFolderPath: setContextPath } = useSettings();
+  const { keepSourceMkv, setKeepSourceMkv } = useConversionStatus();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [language, setLanguage] = useState<AppLanguage>('en');
@@ -333,6 +336,35 @@ export default function SettingsProfilePage() {
                 Clear
               </button>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 py-4 px-4">
+            <div className="flex items-center gap-3">
+              <VideoFileOutlined sx={{ fontSize: 24, color: 'rgba(255,255,255,0.6)' }} />
+              <div>
+                <p className="font-medium text-white">Keep original MKV after convert</p>
+                <p className="text-sm text-white/60">
+                  Leaves the source file next to the converted package so you can Restore original. Uses more disk space.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={keepSourceMkv}
+              onClick={() => void setKeepSourceMkv(!keepSourceMkv)}
+              className={
+                'relative w-12 h-7 rounded-full transition-colors shrink-0 ' +
+                (keepSourceMkv ? 'bg-[#e50914]' : 'bg-white/20')
+              }
+            >
+              <span
+                className={
+                  'absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white transition-transform ' +
+                  (keepSourceMkv ? 'translate-x-5' : '')
+                }
+              />
+            </button>
           </div>
         </div>
       </section>
