@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
         // Do not pass request.signal: React Strict Mode / player remounts close the EventSource
         // and would abort ffmpeg mid-encode, freezing the UI at 0%. Conversion runs to completion;
         // a fresh EventSource rejoins via subscribeToProgress + the shared in-flight promise.
-        await runMkvConversion(id, filePath, durationSeconds, null);
+        await runMkvConversion(id, filePath, durationSeconds);
         send({ done: true });
       } catch (err) {
         send({ error: String(err) });

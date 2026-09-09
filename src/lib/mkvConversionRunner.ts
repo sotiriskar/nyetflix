@@ -363,8 +363,7 @@ function outputMp4Path(sourcePath: string): string {
 export function runMkvConversion(
   itemId: string,
   mkvPath: string,
-  durationSeconds: number,
-  _abortSignal?: AbortSignal | null
+  durationSeconds: number
 ): Promise<string> {
   const { inFlight, progress, listeners } = runtime();
   const running = inFlight.get(itemId);
