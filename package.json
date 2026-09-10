@@ -25,7 +25,7 @@
     "next": "^16.3.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.4",
     "swiper": "^12.1.2"
   },
   "devDependencies": {
