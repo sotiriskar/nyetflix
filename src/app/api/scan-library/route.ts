@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, realpath, stat } from 'fs/promises';
-import { join, resolve, sep, isAbsolute, dirname } from 'path';
+import { realpath } from 'fs/promises';
+import { resolve, sep, isAbsolute } from 'path';
 import { homedir, platform } from 'os';
-import type { Dirent } from 'fs';
 import { titleFromPath } from '@/lib/titleFromPath';
 import { resolveSearchYear } from '@/lib/titleYear';
 import {
@@ -16,6 +15,18 @@ import { getImagesForTitle } from '@/lib/tmdb';
 import { getDurationSecondsFromFile } from '@/lib/videoDuration';
 import type { CarouselItem, MovieDetail } from '@/types/movie';
 import { registry, persistRegistry, getOrCreateShortId } from '@/lib/streamRegistry';
+import {
+  listDir,
+  mediaStat,
+  mediaJoin,
+  mediaDirname,
+  isRemotePath,
+  parseRemotePath,
+  formatRemotePath,
+  type MediaDirEntry,
+} from '@/lib/storage';
+import { getSource } from '@/lib/storage/sources';
+import { ensureSmbSession } from '@/lib/storage/smbSession';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours – library rarely changes
 const scanCache = new Map<
@@ -75,6 +86,14 @@ function getSafePath(pathParam: string): SafePathResult | null {
   const isWin = platform() === 'win32';
   const expanded = trimmed.startsWith('~') ? home + trimmed.slice(1).replace(/^\//, sep) : trimmed;
   const normalizedInput = isWin ? expanded.replace(/\//g, sep) : expanded;
+
+  // Windows network share: \\HOST\Share is the root, the rest is sanitized like any other path.
+  const unc = isWin ? /^\\\\([^\\]+)\\([^\\]+)(?:\\(.*))?$/.exec(normalizedInput) : null;
+  if (unc) {
+    const segments = (unc[3] ?? '').split(sep).filter((s) => s.length > 0 && s !== '..');
+    return { rootPath: `\\\\${unc[1]}\\${unc[2]}`, relative: segments.join(sep) };
+  }
+
   const roots = getAllowedRoots();
 
   for (const root of roots) {
@@ -120,6 +139,34 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const forceRefresh = request.nextUrl.searchParams.get('refresh') === '1' || request.nextUrl.searchParams.get('refresh') === 'true';
+
+  const remote = isRemotePath(pathParam.trim());
+  let canonicalResolved: string;
+  if (remote) {
+    const parsed = parseRemotePath(pathParam.trim());
+    const source = parsed ? getSource(parsed.sourceId) : undefined;
+    if (!parsed || !source) {
+      return NextResponse.json(
+        { error: 'This storage source no longer exists. Pick another one in App Settings → Storage.' },
+        { status: 400 }
+      );
+    }
+    canonicalResolved = formatRemotePath(parsed.sourceId, parsed.key);
+  } else {
+    const resolved = await resolveLocalLibraryPath(pathParam);
+    if (resolved instanceof NextResponse) return resolved;
+    canonicalResolved = resolved;
+  }
+
+  /** `.m3u8` markers only exist where Nyetflix converted in place, which never happens remotely. */
+  const isVideo = (name: string) => isVideoFile(name) && !(remote && name.toLowerCase().endsWith('.m3u8'));
+
+  return scanLibrary(canonicalResolved, { forceRefresh, remote, isVideo });
+}
+
+/** Validates a local library path. Returns the canonical folder, or an error response. */
+async function resolveLocalLibraryPath(pathParam: string): Promise<string | NextResponse> {
   const pathToUse = toLinuxPathIfNeeded(pathParam);
   const safePath = getSafePath(pathToUse);
   if (safePath === null) {
@@ -129,15 +176,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const forceRefresh = request.nextUrl.searchParams.get('refresh') === '1' || request.nextUrl.searchParams.get('refresh') === 'true';
-
   const { rootPath, relative: safeRelative } = safePath;
   let canonicalRoot: string;
   let canonicalResolved: string;
   try {
+    // A share whose media source has a login is signed in to before it is touched.
+    await ensureSmbSession(rootPath);
     // On Windows, realpath("C:") resolves to the CWD on that drive, not the drive root. Use "C:\" so we get the actual root.
     const rootForResolve =
-      platform() === 'win32' && /^[A-Z]:$/i.test(rootPath) ? rootPath + sep : rootPath;
+      platform() === 'win32' && (/^[A-Z]:$/i.test(rootPath) || rootPath.startsWith('\\\\')) ? rootPath + sep : rootPath;
     canonicalRoot = await realpath(rootForResolve);
     // Build absolute path relative to canonical root (resolve normalizes . and ..); then resolve symlinks.
     const absolutePath = safeRelative ? resolve(canonicalRoot, safeRelative) : canonicalRoot;
@@ -177,7 +224,13 @@ export async function GET(request: NextRequest) {
     const message = err instanceof Error ? err.message : 'Invalid path';
     return NextResponse.json({ error: message, attemptedPath: absolutePath }, { status: 400 });
   }
+  return canonicalResolved;
+}
 
+async function scanLibrary(
+  canonicalResolved: string,
+  { forceRefresh, remote, isVideo }: { forceRefresh: boolean; remote: boolean; isVideo: (name: string) => boolean }
+): Promise<NextResponse> {
   // All filesystem operations below use only the validated canonical path (canonicalResolved).
   try {
   if (!forceRefresh) {
@@ -199,9 +252,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  let entries: Dirent[];
+  let entries: MediaDirEntry[];
   try {
-    entries = await readdir(canonicalResolved, { withFileTypes: true });
+    entries = await listDir(canonicalResolved);
   } catch (err) {
     const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
     let message: string;
@@ -217,7 +270,9 @@ export async function GET(request: NextRequest) {
       message = 'The path is not a folder. Please choose a directory.';
     } else {
       const raw = err instanceof Error ? err.message : 'Failed to read folder';
-      message = `Cannot read folder: ${raw}`;
+      message = remote
+        ? `Cannot reach remote storage: ${raw}. Check the source in App Settings → Storage (Test connection).`
+        : `Cannot read folder: ${raw}`;
     }
     return NextResponse.json(
       { error: message, attemptedPath: canonicalResolved },
@@ -239,7 +294,7 @@ export async function GET(request: NextRequest) {
     for (const ext of subtitleExts) {
       const plainName = videoBaseName + ext;
       if (fileNames.has(plainName)) {
-        subtitlePaths.en = join(folderPath, plainName);
+        subtitlePaths.en = mediaJoin(folderPath, plainName);
         break;
       }
     }
@@ -249,7 +304,7 @@ export async function GET(request: NextRequest) {
       const match = fileName.match(langSuffix);
       const lang = match ? match[1].toLowerCase() : null;
       if (lang && lang !== 'en') {
-        subtitlePaths[lang] = join(folderPath, fileName);
+        subtitlePaths[lang] = mediaJoin(folderPath, fileName);
       }
     }
     return subtitlePaths;
@@ -282,16 +337,16 @@ export async function GET(request: NextRequest) {
   // 1) Subfolders: each folder that contains at least one video = one title; or series (S01/S02/Season N subdirs with no direct videos)
   const subdirs = entries.filter((e) => e.isDirectory());
   for (const dir of subdirs) {
-    const folderPath = join(canonicalResolved, dir.name);
-    let subEntries: Dirent[];
+    const folderPath = mediaJoin(canonicalResolved, dir.name);
+    let subEntries: MediaDirEntry[];
     try {
-      subEntries = await readdir(folderPath, { withFileTypes: true });
+      subEntries = await listDir(folderPath);
     } catch {
       continue;
     }
     const subFiles = subEntries.filter((e) => e.isFile());
     const subDirs = subEntries.filter((e) => e.isDirectory());
-    const subVideoFiles = subFiles.filter((f) => isVideoFile(f.name)).map((f) => ({ name: f.name, path: join(folderPath, f.name) }));
+    const subVideoFiles = subFiles.filter((f) => isVideo(f.name)).map((f) => ({ name: f.name, path: mediaJoin(folderPath, f.name) }));
 
     if (subVideoFiles.length > 0) {
       // Direct videos in folder: treat as movie (or flat series)
@@ -341,15 +396,15 @@ export async function GET(request: NextRequest) {
     let representativeVideo: { path: string; name: string } | null = null;
     let fileNamesInFolder = new Set<string>();
     for (const { name: seasonName } of seasonDirs) {
-      const seasonPath = join(folderPath, seasonName);
-      let seasonEntries: Dirent[];
+      const seasonPath = mediaJoin(folderPath, seasonName);
+      let seasonEntries: MediaDirEntry[];
       try {
-        seasonEntries = await readdir(seasonPath, { withFileTypes: true });
+        seasonEntries = await listDir(seasonPath);
       } catch {
         continue;
       }
       const seasonFiles = seasonEntries.filter((e) => e.isFile());
-      const seasonVideos = seasonFiles.filter((f) => isVideoFile(f.name)).map((f) => ({ name: f.name, path: join(seasonPath, f.name) }));
+      const seasonVideos = seasonFiles.filter((f) => isVideo(f.name)).map((f) => ({ name: f.name, path: mediaJoin(seasonPath, f.name) }));
       if (seasonVideos.length > 0) {
         seasonVideos.sort((a, b) => a.name.localeCompare(b.name));
         representativeVideo = seasonVideos[0]!;
@@ -373,11 +428,11 @@ export async function GET(request: NextRequest) {
 
   // 2) Flat files in root: videos directly in the library folder
   const rootFiles = entries.filter((e) => e.isFile());
-  const rootVideoFiles = rootFiles.filter((f) => isVideoFile(f.name));
+  const rootVideoFiles = rootFiles.filter((f) => isVideo(f.name));
   const rootFileNames = new Set(rootFiles.map((f) => f.name));
   for (const f of rootVideoFiles) {
     candidates.push({
-      videoPath: join(canonicalResolved, f.name),
+      videoPath: mediaJoin(canonicalResolved, f.name),
       videoName: f.name,
       folderPath: canonicalResolved,
       fileNamesInFolder: rootFileNames,
@@ -390,8 +445,10 @@ export async function GET(request: NextRequest) {
     candidates.map(async (c) => {
       try {
         const pathToStat = c.source === 'folder' ? c.folderPath : c.videoPath;
-        const st = await stat(pathToStat);
-        (c as MovieCandidate & { addedAt: number }).addedAt = st.mtime?.getTime() ?? 0;
+        let mtime = (await mediaStat(pathToStat))?.mtimeMs;
+        // Object-storage "folders" have no timestamp; the video's upload time stands in.
+        if (mtime == null && pathToStat !== c.videoPath) mtime = (await mediaStat(c.videoPath))?.mtimeMs;
+        (c as MovieCandidate & { addedAt: number }).addedAt = mtime ?? 0;
       } catch {
         (c as MovieCandidate & { addedAt: number }).addedAt = 0;
       }
@@ -509,7 +566,7 @@ export async function GET(request: NextRequest) {
       folderPathByItemIdRecord[localId] = folderPath;
       const dotIdx = String(videoName).lastIndexOf('.');
       const baseName = dotIdx >= 0 ? videoName.slice(0, dotIdx) : videoName;
-      const videoDir = dirname(videoPath);
+      const videoDir = mediaDirname(videoPath);
       const subtitlePaths = findSubtitlesForVideo(videoDir, fileNamesInFolder, baseName);
       if (Object.keys(subtitlePaths).length > 0) {
         subtitlePathByItemId[localId] = subtitlePaths;

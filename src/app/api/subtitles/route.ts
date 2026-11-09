@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { existsSync } from 'fs';
-import { readFile } from 'fs/promises';
-import { join, dirname, basename } from 'path';
 import { spawn } from 'child_process';
 import iconv from 'iconv-lite';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
 import { findSidecarSubtitles } from '@/lib/sidecarSubtitles';
 import { parseSubtitleKey } from '@/lib/subtitleTrackKeys';
+import { ffmpegInput, mediaBasename, mediaDirname, mediaExists, mediaJoin, readMediaFile } from '@/lib/storage';
 
 const itemIdToSubtitlePath = registry.itemIdToSubtitlePath;
 
@@ -54,6 +52,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unknown or expired item. Rescan the library.' }, { status: 404 });
     }
     const ffmpegBin = getFfmpegPath();
+    let input: string;
+    try {
+      input = await ffmpegInput(videoPath);
+    } catch (err) {
+      return NextResponse.json({ error: String(err) }, { status: 502 });
+    }
     const ffmpeg = spawn(
       ffmpegBin,
       [
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
         'quiet',
         '-y',
         '-i',
-        videoPath,
+        input,
         '-map',
         `0:${streamIndex}`,
         '-f',
@@ -105,14 +109,14 @@ export async function GET(request: NextRequest) {
       : (byLang && typeof byLang === 'object' ? byLang[lang] : undefined);
   // Registry may predate the file (fresh restart, or a rescan that only matched simple names),
   // or still point at a sidecar that was deleted with a previous conversion package.
-  if (!filePath || !existsSync(filePath)) {
+  if (!filePath || !(await mediaExists(filePath))) {
     const videoPath = getOriginalVideoPath(id);
     if (videoPath) {
       const onDisk = await findSidecarSubtitles(videoPath);
       filePath = onDisk[lang];
       // HLS marker deleted but MKV restored: look next to the MKV.
       if (!filePath && /\.m3u8$/i.test(videoPath)) {
-        const mkv = join(dirname(videoPath), basename(videoPath).replace(/\.m3u8$/i, '.mkv'));
+        const mkv = mediaJoin(mediaDirname(videoPath), mediaBasename(videoPath).replace(/\.m3u8$/i, '.mkv'));
         filePath = (await findSidecarSubtitles(mkv))[lang];
       }
     }
@@ -126,7 +130,7 @@ export async function GET(request: NextRequest) {
   const isVtt = ext === '.vtt';
 
   try {
-    const buffer = await readFile(filePath);
+    const buffer = await readMediaFile(filePath);
     const content = decodeSubtitle(buffer, baseLang);
     return new NextResponse(isVtt ? content : srtToVtt(content), {
       headers: {

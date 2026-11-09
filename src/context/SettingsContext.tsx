@@ -23,6 +23,8 @@ export interface SettingsContextValue extends SettingsState {
   setProfileName: (name: string) => void;
   setProfileIsKid: (isKid: boolean) => void;
   deleteProfile: () => void;
+  /** Re-read the current profile's settings (e.g. after its media source changed). */
+  reloadSettings: () => Promise<void>;
 }
 
 const defaultValue: SettingsContextValue = {
@@ -38,6 +40,7 @@ const defaultValue: SettingsContextValue = {
   setProfileName: () => {},
   setProfileIsKid: () => {},
   deleteProfile: () => {},
+  reloadSettings: async () => {},
 };
 
 const Context = createContext<SettingsContextValue>(defaultValue);
@@ -75,16 +78,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [subtitleLanguage, setSubtitleLanguageState] = useState<SubtitlePreference>('off');
   const [moviesFolderPath, setMoviesFolderPathState] = useState<string>('');
 
-  useEffect(() => {
+  const reloadSettings = useCallback(async () => {
     if (currentProfileId == null) return;
-    fetchSettings(currentProfileId).then((data) => {
-      if (data) {
-        setLanguageState(data.language ?? 'en');
-        setSubtitleLanguageState(data.subtitleLanguage ?? 'off');
-        setMoviesFolderPathState(data.moviesFolderPath ?? '');
-      }
-    });
+    const data = await fetchSettings(currentProfileId);
+    if (data) {
+      setLanguageState(data.language ?? 'en');
+      setSubtitleLanguageState(data.subtitleLanguage ?? 'off');
+      setMoviesFolderPathState(data.moviesFolderPath ?? '');
+    }
   }, [currentProfileId]);
+
+  useEffect(() => {
+    void reloadSettings();
+  }, [reloadSettings]);
 
   const setLanguage = useCallback((lang: AppLanguage) => {
     setLanguageState(lang);
@@ -135,6 +141,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setProfileName,
       setProfileIsKid,
       deleteProfile,
+      reloadSettings,
     }),
     [
       language,
@@ -149,6 +156,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setProfileName,
       setProfileIsKid,
       deleteProfile,
+      reloadSettings,
     ]
   );
 

@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { getFfmpegPath } from './ffmpegPath';
+import { ffmpegInput } from './storage';
 
 export interface SubtitleStreamInfo {
   /** FFmpeg stream index (use with -map 0:index) */
@@ -15,6 +16,7 @@ export interface SubtitleStreamInfo {
 export async function getEmbeddedSubtitleStreams(filePath: string): Promise<SubtitleStreamInfo[]> {
   const ffmpegBin = getFfmpegPath();
   const ffprobeBin = ffmpegBin.replace(/ffmpeg(\.exe)?$/i, 'ffprobe$1');
+  const input = await ffmpegInput(filePath);
 
   return new Promise((resolve) => {
     const proc = spawn(
@@ -27,7 +29,7 @@ export async function getEmbeddedSubtitleStreams(filePath: string): Promise<Subt
         '-show_streams',
         '-select_streams',
         's',
-        filePath,
+        input,
       ],
       { stdio: ['ignore', 'pipe', 'pipe'] }
     );

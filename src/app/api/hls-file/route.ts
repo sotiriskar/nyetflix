@@ -53,7 +53,10 @@ function isSafeRelativeRequestPath(input: string): boolean {
   const parts = normalized.split('/');
   if (parts.some((p) => p.length === 0 || p === '.' || p === '..')) return false;
 
-  return parts.every((p) => /^[A-Za-z0-9._-]+$/.test(p));
+  // Real titles have spaces, commas and parentheses ("Movie (2010).m3u8"). Containment is
+  // enforced below by resolveWithin + realpath, so only reject characters that can change
+  // what a segment means: separators, drive colons, wildcards and control characters.
+  return parts.every((p) => Array.from(p).every((ch) => ch.charCodeAt(0) >= 32 && !'\\:*?"<>|'.includes(ch)));
 }
 
 /** Joins a playlist-relative URI onto a folder, keeping the result inside it. */

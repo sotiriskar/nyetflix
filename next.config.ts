@@ -42,6 +42,9 @@ function lanDevOrigins(): string[] {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: lanDevOrigins(),
+  // Remote-storage SDKs are large; let Node load them at runtime instead of bundling them into
+  // every media route (that made `next dev` compiles crawl).
+  serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'webdav', 'ssh2'],
   experimental: {
     // Tree-shake barrel packages so dev compile and bundles are smaller
     optimizePackageImports: ['@mui/icons-material', '@mui/material', '@vidstack/react', 'swiper'],

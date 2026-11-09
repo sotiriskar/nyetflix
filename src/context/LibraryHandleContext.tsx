@@ -12,8 +12,7 @@ import {
 import { useProfile } from '@/context/ProfileContext';
 import { getLibraryHandle, getFileFromHandle } from '@/lib/libraryHandleStorage';
 
-/** Sentinel value when using "Choose folder" instead of path. */
-export const LIBRARY_HANDLE_MODE = '__handle__';
+export { LIBRARY_HANDLE_MODE } from '@/lib/libraryHandleMode';
 
 export interface LibraryHandleContextValue {
   /** True when moviesFolderPath is __handle__ and we have a valid handle or files. */

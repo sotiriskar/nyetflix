@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { getFfmpegPath } from './ffmpegPath';
+import { ffmpegInput } from './storage';
 
 /** Parse "Duration: 01:23:45.67" from ffmpeg/ffprobe stderr into seconds. */
 export function parseDuration(stderr: string): number | null {
@@ -13,13 +14,19 @@ export function parseDuration(stderr: string): number | null {
 export async function getDurationSeconds(filePath: string): Promise<number | null> {
   const ffmpegBin = getFfmpegPath();
   const ffprobeBin = ffmpegBin.replace(/ffmpeg(\.exe)?$/i, 'ffprobe$1');
+  let input: string;
+  try {
+    input = await ffmpegInput(filePath);
+  } catch {
+    return null;
+  }
   try {
     const stdout = await new Promise<string>((resolve, reject) => {
       const proc = spawn(ffprobeBin, [
         '-v', 'error',
         '-show_entries', 'format=duration',
         '-of', 'default=noprint_wrappers=1:nokey=1',
-        filePath,
+        input,
       ], { stdio: ['ignore', 'pipe', 'pipe'] });
       const chunks: string[] = [];
       proc.stdout?.setEncoding('utf-8');
@@ -38,7 +45,7 @@ export async function getDurationSeconds(filePath: string): Promise<number | nul
   }
   try {
     const stderr = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(ffmpegBin, ['-i', filePath], { stdio: ['ignore', 'ignore', 'pipe'] });
+      const proc = spawn(ffmpegBin, ['-i', input], { stdio: ['ignore', 'ignore', 'pipe'] });
       const chunks: string[] = [];
       proc.stderr?.setEncoding('utf-8');
       proc.stderr?.on('data', (chunk: string) => chunks.push(chunk));

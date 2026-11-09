@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { existsSync } from 'fs';
-import { dirname, basename, join } from 'path';
+import { mkdir } from 'fs/promises';
 import { registry, ensureHydrated, persistRegistry } from '@/lib/streamRegistry';
 import { extractEmbeddedSubtitlesToSidecar } from '@/lib/extractEmbeddedSubtitles';
 import { findSidecarSubtitles } from '@/lib/sidecarSubtitles';
 import { labelForSubtitleKey, parseSubtitleKey } from '@/lib/subtitleTrackKeys';
 import { isHlsMarkerPath } from '@/lib/hlsPackage';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
+import { mediaBasename, mediaDirname, mediaExists, mediaJoin, writableDirFor } from '@/lib/storage';
 
 export interface SubtitleTrackResponse {
   tracks: Array<{ key: string; lang: string; label: string; src: string }>;
@@ -28,12 +28,13 @@ function storeTracks(id: string, tracks: Record<string, string>): void {
   persistRegistry();
 }
 
-/** Keep only sidecar paths that still exist on disk. */
-function existingOnly(tracks: Record<string, string>): Record<string, string> {
+/** Keep only sidecar paths that still exist (on disk or in remote storage). */
+async function existingOnly(tracks: Record<string, string>): Promise<Record<string, string>> {
+  const entries = await Promise.all(
+    Object.entries(tracks).map(async ([key, path]) => [key, path, !!path && (await mediaExists(path))] as const),
+  );
   const out: Record<string, string> = {};
-  for (const [key, path] of Object.entries(tracks)) {
-    if (path && existsSync(path)) out[key] = path;
-  }
+  for (const [key, path, ok] of entries) if (ok) out[key] = path;
   return out;
 }
 
@@ -42,15 +43,15 @@ function existingOnly(tracks: Record<string, string>): Record<string, string> {
  * Prefers a still-present video file; if the registry points at a deleted HLS marker,
  * fall back to a sibling .mkv with the same base name (common after a re-copy).
  */
-function resolveMediaPath(id: string): string | null {
+async function resolveMediaPath(id: string): Promise<string | null> {
   const registered = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
   const converted = getConvertedPath(id);
   for (const candidate of [registered, converted]) {
-    if (candidate && existsSync(candidate)) return candidate;
+    if (candidate && (await mediaExists(candidate))) return candidate;
   }
   if (registered && isHlsMarkerPath(registered)) {
-    const mkv = join(dirname(registered), basename(registered).replace(/\.m3u8$/i, '.mkv'));
-    if (existsSync(mkv)) return mkv;
+    const mkv = mediaJoin(mediaDirname(registered), mediaBasename(registered).replace(/\.m3u8$/i, '.mkv'));
+    if (await mediaExists(mkv)) return mkv;
   }
   return registered ?? converted ?? null;
 }
@@ -85,13 +86,13 @@ export async function GET(request: NextRequest) {
 
   ensureHydrated();
   const registered = registry.itemIdToSubtitlePath.get(id) ?? registry.episodeIdToSubtitlePath.get(id);
-  const mediaPath = resolveMediaPath(id);
+  const mediaPath = await resolveMediaPath(id);
 
-  let byKey: Record<string, string> = existingOnly(
+  let byKey: Record<string, string> = await existingOnly(
     typeof registered === 'object' && registered ? { ...registered } : {},
   );
   if (mediaPath) {
-    const onDisk = existingOnly(await findSidecarSubtitles(mediaPath));
+    const onDisk = await existingOnly(await findSidecarSubtitles(mediaPath));
     if (Object.keys(onDisk).length > 0) {
       byKey = { ...byKey, ...onDisk };
       storeTracks(id, byKey);
@@ -101,13 +102,15 @@ export async function GET(request: NextRequest) {
   // Nothing beside the file: this one was never converted, so read its embedded streams now.
   if (Object.keys(byKey).length === 0 && mediaPath && /\.(mkv|mp4|m4v|mov|webm)$/i.test(mediaPath)) {
     try {
-      const dir = dirname(mediaPath);
-      const base = basename(mediaPath).replace(/\.[^/.]+$/i, '');
+      // Remote sources are read-only, so extracted tracks go to the local cache folder.
+      const dir = writableDirFor(mediaPath);
+      await mkdir(dir, { recursive: true });
+      const base = mediaBasename(mediaPath).replace(/\.[^/.]+$/i, '');
       const extracted = await extractEmbeddedSubtitlesToSidecar(mediaPath, dir, base, {
         timeoutMs: ON_DEMAND_EXTRACT_TIMEOUT_MS,
       });
       if (Object.keys(extracted).length > 0) {
-        byKey = existingOnly({ ...byKey, ...extracted });
+        byKey = await existingOnly({ ...byKey, ...extracted });
         storeTracks(id, byKey);
       }
     } catch {

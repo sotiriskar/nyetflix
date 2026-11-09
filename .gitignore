@@ -34,3 +34,7 @@ data/*.db-shm
 data/converted-mkv.json
 data/stream-registry.json
 data/app-config.json
+
+# Remote storage credentials and local cache of converted remote titles
+data/storage-sources.json
+data/remote-cache/

@@ -28,6 +28,12 @@ export function LibraryRefreshButton({ onRefresh, loading, visible }: LibraryRef
       <Snackbar
         open={loading}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        // Sit to the left of the refresh button (right-8 + 52px wide) instead of on top of it.
+        sx={{
+          bottom: { xs: 32, sm: 32 },
+          right: { xs: 100, sm: 100 },
+          left: { xs: 'auto', sm: 'auto' },
+        }}
       >
         <Alert severity="success" sx={{ width: '100%' }}>
           Scanning library…

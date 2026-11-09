@@ -15,6 +15,7 @@ import {
   removeHlsPackage,
 } from '@/lib/hlsPackage';
 import { registry, ensureHydrated, persistRegistry } from '@/lib/streamRegistry';
+import { isRemotePath, mediaBasename, mediaExistsSync, writableDirFor } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,7 +31,13 @@ export type ConversionStatusEntry = {
   canRestoreOriginal?: boolean;
 };
 
-function siblingMkv(path: string): string | null {
+/**
+ * The original MKV to fall back to. A remote source keeps the registry on the original object
+ * (converted output lives in the local cache), so that is the original when it is an MKV.
+ */
+function siblingMkv(path: string, registered?: string): string | null {
+  if (registered && isRemotePath(registered) && registered.toLowerCase().endsWith('.mkv')) return registered;
+  if (isRemotePath(path)) return null;
   const dir = dirname(path);
   const base = basename(path).replace(/\.(m3u8|mp4|mkv)$/i, '');
   const mkv = join(dir, base + '.mkv');
@@ -54,21 +61,21 @@ function statusForId(itemId: string): ConversionStatusEntry {
   const filePath = registry.itemIdToPath.get(itemId) ?? registry.episodeIdToPath.get(itemId);
   const converted = getConvertedPath(itemId);
   const playable = (converted && existsSync(converted) ? converted : null)
-    ?? (filePath && existsSync(filePath) ? filePath : null);
+    ?? (filePath && mediaExistsSync(filePath) ? filePath : null);
 
   if (playable && isHlsMarkerPath(playable)) {
     if (!isHlsPackageComplete(playable)) {
       return {
         itemId,
         status: 'incomplete',
-        canRestoreOriginal: !!siblingMkv(playable),
+        canRestoreOriginal: !!siblingMkv(playable, filePath),
       };
     }
     return {
       itemId,
       status: 'ready',
       progress: 1,
-      canRestoreOriginal: !!siblingMkv(playable),
+      canRestoreOriginal: !!siblingMkv(playable, filePath),
     };
   }
 
@@ -77,13 +84,13 @@ function statusForId(itemId: string): ConversionStatusEntry {
       itemId,
       status: 'ready',
       progress: 1,
-      canRestoreOriginal: !!siblingMkv(playable),
+      canRestoreOriginal: !!siblingMkv(playable, filePath),
     };
   }
 
   if (playable && /\.mkv$/i.test(playable)) {
     // Stale incomplete .hlsdata next to an MKV (failed / interrupted encode)
-    const dataDir = join(dirname(playable), basename(playable, '.mkv') + '.hlsdata');
+    const dataDir = join(writableDirFor(playable), mediaBasename(playable, '.mkv') + '.hlsdata');
     if (existsSync(dataDir)) {
       return {
         itemId,
@@ -158,7 +165,7 @@ export async function POST(request: NextRequest) {
       if (active && isHlsMarkerPath(active)) {
         await removeHlsPackage(active);
       } else if (active && /\.mkv$/i.test(active)) {
-        const marker = join(dirname(active), basename(active, '.mkv') + '.m3u8');
+        const marker = join(writableDirFor(active), mediaBasename(active, '.mkv') + '.m3u8');
         await removeHlsPackage(marker);
         const dataDir = dataDirFor(marker);
         if (existsSync(dataDir)) {
@@ -166,7 +173,7 @@ export async function POST(request: NextRequest) {
         }
       }
       clearConvertedPath(id);
-      const mkv = active ? siblingMkv(active) : null;
+      const mkv = active ? siblingMkv(active, filePath) : null;
       if (mkv) {
         if (registry.episodeIdToPath.has(id)) registry.episodeIdToPath.set(id, mkv);
         else registry.itemIdToPath.set(id, mkv);
@@ -177,8 +184,8 @@ export async function POST(request: NextRequest) {
 
     // restore
     const mkv =
-      (active ? siblingMkv(active) : null) ??
-      (filePath && /\.mkv$/i.test(filePath) && existsSync(filePath) ? filePath : null);
+      (active ? siblingMkv(active, filePath) : null) ??
+      (filePath && /\.mkv$/i.test(filePath) && mediaExistsSync(filePath) ? filePath : null);
     if (!mkv) {
       return NextResponse.json(
         { error: 'Original MKV not found. Keep source enabled next time, or put the .mkv back next to the title.' },

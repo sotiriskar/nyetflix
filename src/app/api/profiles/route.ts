@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { AVATAR_PATHS, getFirstUnusedAvatar, isProfileId, MAX_PROFILES } from '@/lib/profiles';
+import { deleteSourcesForProfile } from '@/lib/storage/sources';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -101,6 +102,7 @@ export async function DELETE(request: NextRequest) {
     database.prepare('DELETE FROM liked WHERE profile_id = ?').run(id);
     database.prepare('DELETE FROM settings WHERE profile_id = ?').run(id);
     database.prepare('DELETE FROM profiles WHERE id = ?').run(id);
+    deleteSourcesForProfile(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error('profiles DELETE', e);
