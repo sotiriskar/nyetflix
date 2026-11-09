@@ -8,6 +8,7 @@ import { getFfmpegPath } from '@/lib/ffmpegPath';
 import { runMkvConversion, subscribeToProgress } from '@/lib/mkvConversionRunner';
 import { isHlsMarkerPath, isHlsPackageComplete } from '@/lib/hlsPackage';
 import { MEDIA_CORS_HEADERS } from '@/lib/mediaCors';
+import { ffmpegInput, isRemotePath, mediaExists } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -18,8 +19,14 @@ function getExt(path: string): string {
 
 async function getDurationSecondsWithError(filePath: string): Promise<{ duration: number; error?: string }> {
   const ffmpegBin = getFfmpegPath();
+  let input: string;
+  try {
+    input = await ffmpegInput(filePath);
+  } catch (err) {
+    return { duration: 0, error: String(err) };
+  }
   const stderr = await new Promise<string>((resolve, reject) => {
-    const proc = spawn(ffmpegBin, ['-i', filePath], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(ffmpegBin, ['-i', input], { stdio: ['ignore', 'ignore', 'pipe'] });
     const chunks: string[] = [];
     proc.stderr?.setEncoding('utf-8');
     proc.stderr?.on('data', (chunk: string) => chunks.push(chunk));
@@ -58,7 +65,7 @@ export async function GET(request: NextRequest) {
   ensureHydrated();
   let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
   // Registry may still point at a deleted HLS marker after the MKV was restored.
-  if (filePath && (!existsSync(filePath) || isHlsMarkerPath(filePath))) {
+  if (filePath && !isRemotePath(filePath) && (!existsSync(filePath) || isHlsMarkerPath(filePath))) {
     const mkv = join(
       dirname(filePath),
       basename(filePath).replace(/\.(m3u8|mkv)$/i, '.mkv'),
@@ -73,7 +80,7 @@ export async function GET(request: NextRequest) {
   }
   const ext = filePath ? getExt(filePath) : '';
   const CONVERTIBLE = new Set(['.mkv', '.mp4', '.m4v', '.mov']);
-  if (!filePath || !CONVERTIBLE.has(ext) || !existsSync(filePath)) {
+  if (!filePath || !CONVERTIBLE.has(ext) || !(await mediaExists(filePath))) {
     return new Response(JSON.stringify({ error: 'Unknown or unsupported source file' }), { status: 404 });
   }
 

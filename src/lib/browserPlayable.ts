@@ -1,4 +1,4 @@
-import { statSync } from 'fs';
+import { mediaStat } from './storage';
 import { probeMediaStreams, needsBrowserConversion, type ProbedStreams } from './ffprobeStreams';
 
 type CacheEntry = { mtimeMs: number; size: number; needs: boolean; probedAt: number };
@@ -14,11 +14,13 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
  */
 export async function fileNeedsBrowserConversion(filePath: string): Promise<boolean> {
   try {
-    const st = statSync(filePath);
+    const st = await mediaStat(filePath);
+    if (!st) return false;
+    const mtimeMs = st.mtimeMs ?? 0;
     const hit = cache.get(filePath);
     if (
       hit &&
-      hit.mtimeMs === st.mtimeMs &&
+      hit.mtimeMs === mtimeMs &&
       hit.size === st.size &&
       Date.now() - hit.probedAt < CACHE_TTL_MS
     ) {
@@ -27,7 +29,7 @@ export async function fileNeedsBrowserConversion(filePath: string): Promise<bool
     const probed: ProbedStreams = await probeMediaStreams(filePath);
     const needs = needsBrowserConversion(probed);
     cache.set(filePath, {
-      mtimeMs: st.mtimeMs,
+      mtimeMs,
       size: st.size,
       needs,
       probedAt: Date.now(),

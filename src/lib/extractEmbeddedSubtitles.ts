@@ -16,6 +16,7 @@ import { readFile, stat, unlink } from 'fs/promises';
 import { probeMediaStreams, isTextSubtitleCodec, type StreamInfo } from './ffprobeStreams';
 import { nameSubtitleStreams } from './subtitleTrackKeys';
 import { getFfmpegPath } from './ffmpegPath';
+import { ffmpegInput } from './storage';
 
 /** One full pass over a large MKV takes a while; it reads every packet in the file. */
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
@@ -121,9 +122,10 @@ export async function runSubtitleExtraction(
     else todo.push(track);
   }
   if (todo.length === 0) return result;
+  const input = await ffmpegInput(videoPath);
 
   // One pass writes every track; a per-stream pass would re-read the whole file each time.
-  await runFfmpeg(['-v', 'error', '-i', videoPath, ...extractionArgs(todo)], timeoutMs);
+  await runFfmpeg(['-v', 'error', '-i', input, ...extractionArgs(todo)], timeoutMs);
 
   const failed: PlannedSubtitleTrack[] = [];
   for (const track of todo) {
@@ -135,7 +137,7 @@ export async function runSubtitleExtraction(
   for (const track of failed) {
     await unlink(track.path).catch(() => {});
     const ok = await runFfmpeg(
-      ['-v', 'error', '-i', videoPath, ...extractionArgs([track])],
+      ['-v', 'error', '-i', input, ...extractionArgs([track])],
       Math.max(60000, Math.round(timeoutMs / 4)),
     );
     if (ok && (await hasCues(track.path))) result[track.key] = track.path;

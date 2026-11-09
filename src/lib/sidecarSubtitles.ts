@@ -7,8 +7,15 @@
  * written during conversion (and any file the viewer drops in by hand).
  */
 
-import { readdir } from 'fs/promises';
-import { basename, dirname, join } from 'path';
+import { join } from 'path';
+import {
+  listDir,
+  mediaBasename,
+  mediaDirname,
+  mediaJoin,
+  isRemotePath,
+  writableDirFor,
+} from './storage';
 
 const SUBTITLE_EXTS = ['.vtt', '.srt'];
 const LANG_CODE = /^[a-z]{2,3}$/;
@@ -40,6 +47,7 @@ function collect(
   fileNames: string[],
   baseName: string,
   into: Map<string, string>,
+  joinPath: (dir: string, name: string) => string = mediaJoin,
 ): void {
   const prefix = `${baseName.toLowerCase()}.`;
   for (const name of fileNames) {
@@ -51,34 +59,49 @@ function collect(
     const existing = into.get(key);
     // A .vtt needs no conversion on the way out, so it wins over a same-key .srt.
     if (existing && !(ext === '.vtt' && extensionOf(existing) === '.srt')) continue;
-    into.set(key, join(folder, name));
+    into.set(key, joinPath(folder, name));
   }
 }
 
 /**
  * Subtitle files for a video, as `{ trackKey: absolutePath }`.
  * `videoPath` may be a video file or an HLS marker playlist — both share the base name.
+ * For a remote video this also looks in its local cache folder, where subtitles extracted
+ * from embedded streams are written.
  */
 export async function findSidecarSubtitles(videoPath: string): Promise<Record<string, string>> {
-  const folder = dirname(videoPath);
-  const baseName = stripExtension(basename(videoPath));
+  const folder = mediaDirname(videoPath);
+  const baseName = stripExtension(mediaBasename(videoPath));
   const found = new Map<string, string>();
 
   let entries: string[];
   try {
-    entries = await readdir(folder);
+    entries = (await listDir(folder)).map((e) => e.name);
   } catch {
-    return {};
+    entries = [];
   }
   collect(folder, entries, baseName, found);
 
   const subsFolder = entries.find((name) => name.toLowerCase() === 'subs');
   if (subsFolder) {
-    const subsPath = join(folder, subsFolder);
+    const subsPath = mediaJoin(folder, subsFolder);
     try {
-      collect(subsPath, await readdir(subsPath), baseName, found);
+      collect(subsPath, (await listDir(subsPath)).map((e) => e.name), baseName, found);
     } catch {
       // no readable Subs folder
+    }
+  }
+
+  if (isRemotePath(videoPath)) {
+    const cacheDir = writableDirFor(videoPath);
+    try {
+      const cached = (await listDir(cacheDir)).filter((e) => e.isFile()).map((e) => e.name);
+      // Extracted .vtt files only fill gaps; a subtitle file in the bucket wins.
+      const extra = new Map<string, string>();
+      collect(cacheDir, cached, baseName, extra, join);
+      for (const [key, p] of extra) if (!found.has(key)) found.set(key, p);
+    } catch {
+      // nothing extracted yet
     }
   }
 

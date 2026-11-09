@@ -5,6 +5,7 @@ import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
 import { existsSync } from 'fs';
+import { ffmpegInput } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -46,12 +47,18 @@ export async function GET(request: NextRequest) {
 
   const ffmpegBin = getFfmpegPath();
   const startTime = n * SEGMENT_DURATION;
+  let input: string;
+  try {
+    input = await ffmpegInput(filePath);
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 502 });
+  }
 
   const ffmpeg = spawn(
     ffmpegBin,
     [
       '-ss', String(startTime),
-      '-i', filePath,
+      '-i', input,
       '-t', String(SEGMENT_DURATION),
       '-c:v', 'copy',
       '-c:a', 'aac',

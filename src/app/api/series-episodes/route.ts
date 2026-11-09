@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir } from 'fs/promises';
-import { join, dirname, sep } from 'path';
-import type { Dirent } from 'fs';
+import { listDir, mediaBasename, mediaDirname, mediaJoin, type MediaDirEntry } from '@/lib/storage';
 import { registry, persistRegistry, ensureHydrated } from '@/lib/streamRegistry';
 import {
   getTvShowIdByTitle,
@@ -61,7 +59,7 @@ function findSubtitlesForVideo(
     for (const ext of SUBTITLE_EXT) {
       const plainName = videoBaseName + ext;
       if (names.has(plainName) && !subtitlePaths.en) {
-        subtitlePaths.en = join(folder, plainName);
+        subtitlePaths.en = mediaJoin(folder, plainName);
         break;
       }
     }
@@ -71,13 +69,13 @@ function findSubtitlesForVideo(
       const match = fileName.match(LANG_SUFFIX);
       const lang = match ? match[1].toLowerCase() : null;
       if (lang && lang !== 'en' && !subtitlePaths[lang]) {
-        subtitlePaths[lang] = join(folder, fileName);
+        subtitlePaths[lang] = mediaJoin(folder, fileName);
       }
     }
   };
   checkFolder(folderPath, fileNames);
   if (subsFolderFiles && subsFolderFiles.size > 0) {
-    const subsPath = join(folderPath, 'Subs');
+    const subsPath = mediaJoin(folderPath, 'Subs');
     checkFolder(subsPath, subsFolderFiles);
   }
   return subtitlePaths;
@@ -91,9 +89,9 @@ async function buildLocalEpisodeMap(
   episodeIdToSubtitlePath: Map<string, Record<string, string>>
 ): Promise<Map<string, { path: string; subtitlePaths: Record<string, string>; episodeId: string }>> {
   const map = new Map<string, { path: string; subtitlePaths: Record<string, string>; episodeId: string }>();
-  let entries: Dirent[];
+  let entries: MediaDirEntry[];
   try {
-    entries = await readdir(folderPath, { withFileTypes: true });
+    entries = await listDir(folderPath);
   } catch {
     return map;
   }
@@ -106,10 +104,10 @@ async function buildLocalEpisodeMap(
 
   if (seasonDirs.length > 0) {
     for (const { name: dirName, number: seasonNum } of seasonDirs) {
-      const seasonPath = join(folderPath, dirName);
-      let subEntries: Dirent[];
+      const seasonPath = mediaJoin(folderPath, dirName);
+      let subEntries: MediaDirEntry[];
       try {
-        subEntries = await readdir(seasonPath, { withFileTypes: true });
+        subEntries = await listDir(seasonPath);
       } catch {
         continue;
       }
@@ -119,7 +117,7 @@ async function buildLocalEpisodeMap(
       let subsFileNames = new Set<string>();
       if (subsDir) {
         try {
-          const subsEntries = await readdir(join(seasonPath, subsDir.name), { withFileTypes: true });
+          const subsEntries = await listDir(mediaJoin(seasonPath, subsDir.name));
           subsFileNames = new Set(subsEntries.filter((e) => e.isFile()).map((f) => f.name));
         } catch {
           // ignore
@@ -127,7 +125,7 @@ async function buildLocalEpisodeMap(
       }
       const videoFiles = files.filter((f) => isVideoFile(f.name)).map((f) => ({
         name: f.name,
-        path: join(seasonPath, f.name),
+        path: mediaJoin(seasonPath, f.name),
       }));
       videoFiles.sort((a, b) => {
         const pa = parseSxxExx(a.name);
@@ -159,7 +157,7 @@ async function buildLocalEpisodeMap(
     let subsFileNames = new Set<string>();
     if (subsDir) {
       try {
-        const subsEntries = await readdir(join(folderPath, subsDir.name), { withFileTypes: true });
+        const subsEntries = await listDir(mediaJoin(folderPath, subsDir.name));
         subsFileNames = new Set(subsEntries.filter((e) => e.isFile()).map((f) => f.name));
       } catch {
         // ignore
@@ -167,7 +165,7 @@ async function buildLocalEpisodeMap(
     }
     const videoFiles = rootFiles.filter((f) => isVideoFile(f.name)).map((f) => ({
       name: f.name,
-      path: join(folderPath, f.name),
+      path: mediaJoin(folderPath, f.name),
     }));
     videoFiles.sort((a, b) => {
       const pa = parseSxxExx(a.name);
@@ -218,10 +216,10 @@ export async function GET(request: NextRequest) {
     if (!singlePath) {
       return NextResponse.json({ error: 'Unknown series. Rescan the library.' }, { status: 404 });
     }
-    folderPath = dirname(singlePath);
-    const lastSegment = folderPath.split(sep).filter(Boolean).pop() ?? '';
+    folderPath = mediaDirname(singlePath);
+    const lastSegment = mediaBasename(folderPath);
     if (parseSeasonFromDirName(lastSegment) !== null) {
-      folderPath = dirname(folderPath);
+      folderPath = mediaDirname(folderPath);
     }
   }
 

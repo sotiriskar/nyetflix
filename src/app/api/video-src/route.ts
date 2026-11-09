@@ -13,6 +13,7 @@ import {
 } from '@/lib/videoMime';
 import { isHlsMarkerPath, isHlsPackageComplete } from '@/lib/hlsPackage';
 import { fileNeedsBrowserConversion } from '@/lib/browserPlayable';
+import { mediaExistsSync, isRemotePath } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -54,7 +55,7 @@ function needsConversionResponse(_request: NextRequest, id: string) {
 
 /** If an HLS marker is gone but the original MKV is back, retarget the registry at the MKV. */
 function recoverMkvSibling(id: string, missingPath: string): string | null {
-  if (!isHlsMarkerPath(missingPath)) return null;
+  if (isRemotePath(missingPath) || !isHlsMarkerPath(missingPath)) return null;
   const mkv = join(dirname(missingPath), basename(missingPath).replace(/\.m3u8$/i, '.mkv'));
   if (!existsSync(mkv)) return null;
   clearConvertedPath(id);
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
   let filePath = registry.itemIdToPath.get(id) ?? registry.episodeIdToPath.get(id);
 
   // Registry may still point at a deleted HLS marker after the MKV was restored.
-  if (filePath && !existsSync(filePath)) {
+  if (filePath && !mediaExistsSync(filePath)) {
     const recovered = recoverMkvSibling(id, filePath);
     if (recovered) filePath = recovered;
   }

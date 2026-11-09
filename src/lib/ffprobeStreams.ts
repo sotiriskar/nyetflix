@@ -8,6 +8,7 @@
 
 import { spawn } from 'child_process';
 import { getFfmpegPath } from './ffmpegPath';
+import { ffmpegInput } from './storage';
 
 export interface StreamInfo {
   /** Absolute ffmpeg stream index — use with `-map 0:<index>`. */
@@ -205,14 +206,15 @@ function run(bin: string, args: string[], timeoutMs: number): Promise<{ stdout: 
 
 /** Audio and subtitle streams of a file. Falls back to parsing `ffmpeg -i` when ffprobe is unavailable. */
 export async function probeMediaStreams(filePath: string, timeoutMs = 20000): Promise<ProbedStreams> {
+  const input = await ffmpegInput(filePath);
   const probe = await run(
     getFfprobePath(),
-    ['-v', 'quiet', '-print_format', 'json', '-show_streams', filePath],
+    ['-v', 'quiet', '-print_format', 'json', '-show_streams', input],
     timeoutMs,
   );
   const parsed = parseProbeJson(probe.stdout);
   if (parsed) return parsed;
 
-  const fallback = await run(getFfmpegPath(), ['-i', filePath], timeoutMs);
+  const fallback = await run(getFfmpegPath(), ['-i', input], timeoutMs);
   return parseFfmpegStderr(fallback.stderr);
 }

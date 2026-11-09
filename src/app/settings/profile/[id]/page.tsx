@@ -17,6 +17,7 @@ import type { AppLanguage, SubtitlePreference } from '@/context/SettingsContext'
 import type { Profile } from '@/context/ProfileContext';
 import type { ProfileId } from '@/lib/profiles';
 import { SUBTITLE_PREFERENCE_OPTIONS } from '@/lib/subtitleLabels';
+import ChevronRight from '@mui/icons-material/ChevronRight';
 
 const LANGUAGE_OPTIONS: { value: AppLanguage; label: string }[] = [
   { value: 'en', label: 'English' },
@@ -33,7 +34,7 @@ async function fetchProfile(id: number): Promise<Profile | null> {
 async function fetchSettings(profileId: number) {
   const res = await fetch('/api/settings', { headers: { 'X-Profile-Id': String(profileId) } });
   if (!res.ok) return null;
-  return res.json() as Promise<{ language: AppLanguage; subtitleLanguage: SubtitlePreference; moviesFolderPath: string } | null>;
+  return res.json() as Promise<{ language: AppLanguage; subtitleLanguage: SubtitlePreference } | null>;
 }
 
 async function saveProfile(id: ProfileId, data: { name?: string; avatarPath?: string; isKid?: boolean }) {
@@ -45,7 +46,7 @@ async function saveProfile(id: ProfileId, data: { name?: string; avatarPath?: st
   return res.ok;
 }
 
-async function saveSettings(profileId: number, data: { language?: AppLanguage; subtitleLanguage?: SubtitlePreference; moviesFolderPath?: string }) {
+async function saveSettings(profileId: number, data: { language?: AppLanguage; subtitleLanguage?: SubtitlePreference }) {
   const res = await fetch('/api/settings', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'X-Profile-Id': String(profileId) },
@@ -60,13 +61,12 @@ export default function SettingsProfilePage() {
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
   const profileId = (id >= 1 && id <= 5 ? id : null) as ProfileId | null;
   const { currentProfileId, refetchProfiles, deleteProfile, profiles } = useProfile();
-  const { setSubtitleLanguage: setContextSubtitleLang, setLanguage: setContextLanguage, setMoviesFolderPath: setContextPath } = useSettings();
+  const { setSubtitleLanguage: setContextSubtitleLang, setLanguage: setContextLanguage } = useSettings();
   const { keepSourceMkv, setKeepSourceMkv } = useConversionStatus();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [subtitleLanguage, setSubtitleLanguage] = useState<SubtitlePreference>('off');
-  const [moviesFolderPath, setMoviesFolderPath] = useState('');
   const [name, setName] = useState('');
   const [avatarPath, setAvatarPath] = useState('');
   const [isKid, setIsKid] = useState(false);
@@ -89,7 +89,6 @@ export default function SettingsProfilePage() {
       if (s) {
         setLanguage(s.language ?? 'en');
         setSubtitleLanguage(s.subtitleLanguage ?? 'off');
-        setMoviesFolderPath(s.moviesFolderPath ?? '');
       }
       setLoaded(true);
     });
@@ -129,17 +128,6 @@ export default function SettingsProfilePage() {
     [profileId, currentProfileId, setContextSubtitleLang]
   );
 
-  const handleMoviesPathChange = useCallback(
-    (path: string) => {
-      setMoviesFolderPath(path);
-      setContextPath(path);
-    },
-    [setContextPath]
-  );
-
-  const handleClearLibrary = useCallback(() => {
-    handleMoviesPathChange('');
-  }, [handleMoviesPathChange]);
 
   if (!loaded) {
     return (
@@ -313,30 +301,19 @@ export default function SettingsProfilePage() {
             </select>
           </div>
 
-          <div className="flex items-start gap-4 py-4 px-4">
-            <div className="flex items-center gap-3 shrink-0">
-              <FolderOutlined sx={{ fontSize: 24, color: 'rgba(255,255,255,0.6)' }} />
-              <p className="font-medium text-white">Media library folder</p>
-            </div>
-            <div className="flex-1 min-w-0 flex gap-2">
-              <input
-                type="text"
-                value={moviesFolderPath}
-                onChange={(e) => setMoviesFolderPath(e.target.value)}
-                onBlur={(e) => handleMoviesPathChange(e.target.value)}
-                placeholder="e.g. C:\Movies"
-                className="flex-1 min-w-[200px] px-3 py-2 rounded border border-white/20 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-white/30"
-              />
-              <button
-                type="button"
-                onClick={handleClearLibrary}
-                disabled={!moviesFolderPath}
-                className="px-4 py-2 rounded border border-white/20 text-white/90 text-sm hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
+          <Link
+            href={`/settings/profile/${profileId}/storage`}
+            className="flex items-center gap-4 py-4 px-4 hover:bg-white/5 transition-colors group"
+          >
+            <FolderOutlined sx={{ fontSize: 24, color: 'rgba(255,255,255,0.6)' }} />
+            <span className="flex-1 min-w-0">
+              <span className="block font-medium text-white">Media library</span>
+              <span className="block text-sm text-white/60">
+                Choose, add or edit where your movies and series are stored.
+              </span>
+            </span>
+            <ChevronRight sx={{ fontSize: 24, color: 'rgba(255,255,255,0.5)' }} className="group-hover:text-white/80" />
+          </Link>
 
           <div className="flex items-center justify-between gap-4 py-4 px-4">
             <div className="flex items-center gap-3">

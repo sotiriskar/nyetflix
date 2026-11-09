@@ -96,9 +96,17 @@ export function planHlsPackage(
   sourcePath: string,
   baseName: string,
   audioStreams: StreamInfo[],
-  options?: { reencodeVideo?: boolean },
+  options?: {
+    reencodeVideo?: boolean;
+    /** Where the package is written. Defaults to the source's own folder. */
+    outputDir?: string;
+    /** What ffmpeg reads from, when that is not the path itself (a URL for remote sources). */
+    input?: string;
+  },
 ): HlsBuildPlan {
-  const markerPath = markerPathFor(sourcePath, baseName);
+  const markerPath = options?.outputDir
+    ? join(options.outputDir, baseName + HLS_MARKER_EXT)
+    : markerPathFor(sourcePath, baseName);
   const dataDir = dataDirFor(markerPath);
 
   const labels = dedupeLabels(audioStreams.map((stream) => audioStreamLabel(stream)));
@@ -135,7 +143,7 @@ export function planHlsPackage(
   const args = [
     '-nostdin',
     '-i',
-    sourcePath,
+    options?.input ?? sourcePath,
     ...mapArgs,
     ...codecArgs,
     '-sn',

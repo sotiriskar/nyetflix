@@ -125,6 +125,11 @@ export function getDb(): Database.Database {
       );
     `);
     runMigrations(db);
+    // Each profile picks one of its media sources (see lib/storage/sources.ts) as its library.
+    const settingsCols = db.prepare('PRAGMA table_info(settings)').all() as { name: string }[];
+    if (!settingsCols.some((c) => c.name === 'library_source_id')) {
+      db.exec('ALTER TABLE settings ADD COLUMN library_source_id TEXT');
+    }
   }
   return db;
 }

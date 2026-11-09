@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createReadStream, stat } from 'fs';
+import { stat } from 'fs';
 import { promisify } from 'util';
 import { Readable } from 'stream';
+import { mediaStat, openMediaStream } from '@/lib/storage';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getVideoExt, getVideoMimeType, HLS_MARKER_EXT } from '@/lib/videoMime';
@@ -53,9 +54,11 @@ async function resolvePlayableFile(request: NextRequest): Promise<ResolvedFile |
 
   const ext = getVideoExt(filePath);
 
-  if (ext === '.mkv') {
+  // A converted copy wins for any source type. Local sources have the registry retargeted at
+  // it already; remote sources keep the registry on the original object in the bucket.
+  {
     const converted = getConvertedPath(id);
-    if (converted) {
+    if (converted && (ext === '.mkv' || getVideoExt(converted) !== HLS_MARKER_EXT)) {
       try {
         const st = await statAsync(converted);
         if (st.isFile()) {
@@ -75,16 +78,14 @@ async function resolvePlayableFile(request: NextRequest): Promise<ResolvedFile |
     );
   }
 
-  let size: number;
-  try {
-    const st = await statAsync(filePath);
-    if (!st.isFile()) {
-      return NextResponse.json({ error: 'Not a file' }, { status: 404, headers: MEDIA_CORS_HEADERS });
-    }
-    size = st.size;
-  } catch {
+  const st = await mediaStat(filePath);
+  if (!st) {
     return NextResponse.json({ error: 'File not found' }, { status: 404, headers: MEDIA_CORS_HEADERS });
   }
+  if (!st.isFile) {
+    return NextResponse.json({ error: 'Not a file' }, { status: 404, headers: MEDIA_CORS_HEADERS });
+  }
+  const size = st.size;
 
   const effectiveExt = getVideoExt(filePath);
   if (effectiveExt === HLS_MARKER_EXT) {
@@ -134,13 +135,22 @@ export async function GET(request: NextRequest) {
   const { filePath, size, mime } = resolved;
   const range = request.headers.get('range');
 
-  const onAbort = (nodeStream: ReturnType<typeof createReadStream>) => {
-    if (!nodeStream.destroyed) nodeStream.destroy();
+  const open = async (start?: number, end?: number): Promise<Readable | NextResponse> => {
+    try {
+      const nodeStream = await openMediaStream(filePath, start == null ? undefined : { start, end });
+      request.signal?.addEventListener('abort', () => {
+        if (!nodeStream.destroyed) nodeStream.destroy();
+      });
+      return nodeStream;
+    } catch (err) {
+      console.error('[stream-video] open failed', err);
+      return NextResponse.json({ error: 'Could not read the file from storage' }, { status: 502, headers: MEDIA_CORS_HEADERS });
+    }
   };
 
   if (!range || !range.startsWith('bytes=')) {
-    const nodeStream = createReadStream(filePath);
-    request.signal?.addEventListener('abort', () => onAbort(nodeStream));
+    const nodeStream = await open();
+    if (nodeStream instanceof NextResponse) return nodeStream;
     const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
     return new Response(webStream, {
       status: 200,
@@ -168,8 +178,8 @@ export async function GET(request: NextRequest) {
   const { start: chunkStart, end: chunkEnd } = parsed;
   const chunkLength = chunkEnd - chunkStart + 1;
 
-  const nodeStream = createReadStream(filePath, { start: chunkStart, end: chunkEnd });
-  request.signal?.addEventListener('abort', () => onAbort(nodeStream));
+  const nodeStream = await open(chunkStart, chunkEnd);
+  if (nodeStream instanceof NextResponse) return nodeStream;
   const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
   return new Response(webStream, {
     status: 206,

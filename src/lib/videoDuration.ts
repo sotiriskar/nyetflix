@@ -4,6 +4,7 @@ import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
 import { getHlsDurationSeconds, isHlsMarkerPath } from '@/lib/hlsPackage';
+import { ffmpegInput } from '@/lib/storage';
 
 /** Parse "Duration: 01:23:45.67" from ffmpeg stderr into seconds. */
 function parseDuration(stderr: string): number | null {
@@ -25,8 +26,9 @@ export async function getDurationSecondsFromFile(filePath: string, timeoutMs = 1
   const ffmpegBin = getFfmpegPath();
   let stderr: string;
   try {
+    const input = await ffmpegInput(filePath);
     stderr = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(ffmpegBin, ['-i', filePath], { stdio: ['ignore', 'ignore', 'pipe'] });
+      const proc = spawn(ffmpegBin, ['-i', input], { stdio: ['ignore', 'ignore', 'pipe'] });
       const chunks: string[] = [];
       proc.stderr?.setEncoding('utf-8');
       proc.stderr?.on('data', (chunk: string) => chunks.push(chunk));

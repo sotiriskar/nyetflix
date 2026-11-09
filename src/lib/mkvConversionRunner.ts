@@ -9,8 +9,9 @@
  */
 
 import { spawn } from 'child_process';
-import { join, dirname, basename } from 'path';
+import { join } from 'path';
 import { unlink, writeFileSync, existsSync } from 'fs';
+import { mkdir } from 'fs/promises';
 import { cpus } from 'os';
 import { getFfmpegPath } from './ffmpegPath';
 import { setConvertedPathAndFlush } from './convertedMkvStore';
@@ -28,6 +29,7 @@ import {
   type HlsBuildPlan,
 } from './hlsPackage';
 import { registry, persistRegistry } from './streamRegistry';
+import { ffmpegInput, isRemotePath, mediaBasename, writableDirFor } from './storage';
 
 export type ConversionProgress = {
   progress: number; // 0–1
@@ -180,6 +182,7 @@ function runParallelConversion(
   itemId: string,
   ffmpegBin: string,
   sourcePath: string,
+  input: string,
   mp4Path: string,
   durationSeconds: number,
   videoArgs: string[],
@@ -189,7 +192,7 @@ function runParallelConversion(
   const numCpus = Math.max(1, cpus().length);
   const numSegments = Math.min(24, Math.max(8, numCpus * 3));
   const segmentDuration = durationSeconds / numSegments;
-  const dir = dirname(sourcePath);
+  const dir = writableDirFor(sourcePath);
   const base = sourceStem(sourcePath);
   const segmentPaths: string[] = [];
   for (let i = 0; i < numSegments; i++) {
@@ -216,7 +219,7 @@ function runParallelConversion(
     segmentPaths.map((segPath, i) => {
       const start = i * segmentDuration;
       const duration = i === numSegments - 1 ? durationSeconds - start : segmentDuration;
-      return runSegment(ffmpegBin, sourcePath, start, duration, segPath, videoArgs, audioArgs, abortSignal)
+      return runSegment(ffmpegBin, input, start, duration, segPath, videoArgs, audioArgs, abortSignal)
         .then(() => allSegmentsDone());
     })
   ).then(() => {
@@ -340,12 +343,15 @@ function singleTrackAudioArgs(stream: StreamInfo | undefined, useFdk: boolean): 
 }
 
 function sourceStem(filePath: string): string {
-  return basename(filePath).replace(/\.(mkv|mp4|m4v|mov)$/i, '');
+  return mediaBasename(filePath).replace(/\.(mkv|mp4|m4v|mov)$/i, '');
 }
 
-/** Output next to the source. MKV → .mp4; already-MP4 → .nyetflix.mp4 so we don't overwrite. */
+/**
+ * Output next to the source (or in the local cache for remote sources).
+ * MKV → .mp4; already-MP4 → .nyetflix.mp4 so we don't overwrite.
+ */
 function outputMp4Path(sourcePath: string): string {
-  const dir = dirname(sourcePath);
+  const dir = writableDirFor(sourcePath);
   const stem = sourceStem(sourcePath);
   const ext = sourcePath.includes('.') ? sourcePath.slice(sourcePath.lastIndexOf('.')).toLowerCase() : '';
   if (ext === '.mkv') return join(dir, stem + '.mp4');
@@ -369,7 +375,8 @@ export function runMkvConversion(
   const running = inFlight.get(itemId);
   if (running) return running.promise;
 
-  const dir = dirname(mkvPath);
+  const dir = writableDirFor(mkvPath);
+  const remote = isRemotePath(mkvPath);
   const base = sourceStem(mkvPath);
   const mp4Path = outputMp4Path(mkvPath);
   const ffmpegBin = getFfmpegPath();
@@ -415,14 +422,16 @@ export function runMkvConversion(
 
     await setConvertedPathAndFlush(itemId, outputPath);
     // Point the registry at the playable file so a rescan isn't required after conversion.
-    if (outputPath !== mkvPath) {
+    // Remote sources keep pointing at the original object; playback picks the converted
+    // copy from the converted store, and "Restore original" still knows where the source is.
+    if (outputPath !== mkvPath && !remote) {
       if (registry.episodeIdToPath.has(itemId)) registry.episodeIdToPath.set(itemId, outputPath);
       else if (registry.itemIdToPath.has(itemId)) registry.itemIdToPath.set(itemId, outputPath);
       persistRegistry();
     }
     await extractAndRegisterSubtitles(subtitleStreams);
     notifyProgress(itemId, { progress: 1, currentTime: durationSeconds, durationSeconds });
-    if (!getAppConfig().keepSourceMkv) {
+    if (!remote && !getAppConfig().keepSourceMkv) {
       unlink(mkvPath, () => {}); // Remove original MKV only when the user opted to free disk space
     }
     progress.delete(itemId);
@@ -439,11 +448,16 @@ export function runMkvConversion(
   }
 
   function convert(): Promise<string> {
-    return Promise.all([probeMediaStreams(mkvPath), hasLibfdkAac(ffmpegBin)]).then(
-      async ([probed, useFdk]) => {
+    return Promise.all([
+      probeMediaStreams(mkvPath),
+      hasLibfdkAac(ffmpegBin),
+      ffmpegInput(mkvPath),
+      remote ? mkdir(dir, { recursive: true }) : Promise.resolve(undefined),
+    ]).then(
+      async ([probed, useFdk, input]) => {
         // More than one audio track: package as HLS so all of them stay selectable.
         if (probed.audio.length > 1) {
-          const plan: HlsBuildPlan = planHlsPackage(mkvPath, base, probed.audio);
+          const plan: HlsBuildPlan = planHlsPackage(mkvPath, base, probed.audio, { outputDir: dir, input });
           try {
             await prepareHlsDataDir(plan.dataDir);
             // Leave 0% behind as soon as ffmpeg is about to start (probe can take a few seconds).
@@ -473,6 +487,7 @@ export function runMkvConversion(
               itemId,
               ffmpegBin,
               mkvPath,
+              input,
               mp4Path,
               durationSeconds,
               ['-c:v', 'copy'],
@@ -492,7 +507,7 @@ export function runMkvConversion(
             ffmpegBin,
             [
               '-threads', '0',
-              '-i', mkvPath,
+              '-i', input,
               '-map', '0:v:0',
               '-map', '0:a:0?',
               '-stats_period', '1',
