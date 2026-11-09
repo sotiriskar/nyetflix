@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stat } from 'fs';
 import { promisify } from 'util';
-import { Readable } from 'stream';
+import type { Readable } from 'stream';
+import { nodeToWebStream } from '@/lib/nodeToWebStream';
 import { mediaStat, openMediaStream } from '@/lib/storage';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
@@ -151,7 +152,7 @@ export async function GET(request: NextRequest) {
   if (!range || !range.startsWith('bytes=')) {
     const nodeStream = await open();
     if (nodeStream instanceof NextResponse) return nodeStream;
-    const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
+    const webStream = nodeToWebStream(nodeStream);
     return new Response(webStream, {
       status: 200,
       headers: {
@@ -180,7 +181,7 @@ export async function GET(request: NextRequest) {
 
   const nodeStream = await open(chunkStart, chunkEnd);
   if (nodeStream instanceof NextResponse) return nodeStream;
-  const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
+  const webStream = nodeToWebStream(nodeStream);
   return new Response(webStream, {
     status: 206,
     headers: {

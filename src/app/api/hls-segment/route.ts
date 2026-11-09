@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
-import { Readable } from 'stream';
+import { nodeToWebStream } from '@/lib/nodeToWebStream';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { getFfmpegPath } from '@/lib/ffmpegPath';
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   );
 
   const nodeStream = ffmpeg.stdout!;
-  const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
+  const webStream = nodeToWebStream(nodeStream, () => ffmpeg.kill('SIGKILL'));
   ffmpeg.stderr?.on('data', () => {});
 
   return new Response(webStream, {
