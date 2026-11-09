@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createReadStream } from 'fs';
 import { readFile, realpath, stat } from 'fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'path';
-import { Readable } from 'stream';
+import { nodeToWebStream } from '@/lib/nodeToWebStream';
 import { registry, ensureHydrated } from '@/lib/streamRegistry';
 import { getConvertedPath } from '@/lib/convertedMkvStore';
 import { dataDirFor, isHlsMarkerPath } from '@/lib/hlsPackage';
@@ -113,7 +113,7 @@ function rangeResponse(filePath: string, size: number, range: string | null, req
     request.signal?.addEventListener('abort', () => {
       if (!nodeStream.destroyed) nodeStream.destroy();
     });
-    return Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
+    return nodeToWebStream(nodeStream);
   };
 
   if (!range || !range.startsWith('bytes=')) {
